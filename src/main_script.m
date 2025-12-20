@@ -21,8 +21,8 @@ addpath(fullfile(basedir,'src','model')) % path for function HBVmodel
 sensitivity_analysis_list = {'default','infant_100','treat_medium','treat_high'};
 num_sensitivity_analyses = length(sensitivity_analysis_list);
 
-num_stochas_runs = 200;
-
+%num_stochas_runs = 200;
+num_stochas_runs = 2;
 
 load(fullfile(basedir,'resources','ListOfISOs.mat')) % contains ListOfISOs
 load(fullfile(basedir,'resources','vaccination_coverages.mat')) % contains BD_table and HepB3_table
@@ -119,12 +119,18 @@ assert(num_states==15) % 15 disease states
 
 
 % risk of chronic carriage due to horizontal and vertical transmission
+% This is an "anonymous" function - similar to inline function in C (matlab
+% has inline functions but recommends anonymous functions as more secure and faster).
 risk_ages_edmunds_func = @(age) exp(-0.645*age^(0.455));
-p_ChronicCarriage = 0.885 * ones(1, num_age_steps, 2, 2);
 % does not differ over disease stages
 % 4 dimensions necessary so that it can be multiplied by X
 risk_p_ChronicCarriage = arrayfun(@(xx) risk_ages_edmunds_func(xx), ages(:,ages>0.5));
 risk_p_ChronicCarriage = repmat(risk_p_ChronicCarriage,1,1,2,2);
+
+% Set up the probability that an individual becomes a chronic carrier given
+% they get infected at a specific age, their sex, and *accessible* (whether
+% can be reached by treatment progs, 1=no, 2=yes).
+p_ChronicCarriage = 0.885 * ones(1, num_age_steps, 2, 2);
 p_ChronicCarriage(:, ages>0.5, :, :) = risk_p_ChronicCarriage;
 
 
