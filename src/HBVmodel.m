@@ -2,7 +2,10 @@ function output = HBVmodel(seed_prev_string,...
     num_states,num_year_divisions,dt,ages,num_age_steps,start_year,T0,...
     theta,ECofactor,treat_start_year,treat_coverage_in_2016,demog,p_ChronicCarriage,Prog,Transactions)
 
-
+  num_sexes = 2;
+  num_treat_blocks = 2;
+i_alive = [1:10 12:15];
+  
 %% Establish basic simulation parameters
 agegroups_5yr = 1 + floor(ages / 5); % categorises the ages into age-groups of 5 year width; 1 x 1000 double; [1 1 ... 20 20], each number present 50 times
 agegroups_1yr = 1 + floor(ages); % categorises the ages into age-groups of 1 year width; 1 x 1000 double; [1 1 ... 100 100], each number present 10 times
@@ -12,7 +15,7 @@ i1y = find(ages >= 1, 1);
 i5y = find(ages >= 5, 1);
 i15y = find(ages >= 15, 1);
 
-end_year = start_year + T0;
+end_year = start_year + T0; % 2101
 TimeSteps = start_year:dt:end_year; % 1 x 2101 double; [1890 1890.1 1890.2 ... 2099.8 2099.9 2100 2100.1 ... 2100.8 2100.9 2101]
 
 
@@ -55,13 +58,13 @@ PriorTDFTreatRate = demog.PriorTDFTreatRate;                  % Treatment rate s
 % ----- Infection-relate parameters -----
 beta_scaler = ReducInTransmission ./ (1 + exp( (TimeSteps - (YearReducInTransmission)) ./ (DurReducInTransmission / 10) ));
 
-beta_U5_SAg_itt = beta_U5 * (1 - ReducInTransmission) + beta_U5 * zeros(size(beta_scaler));  % NOT TIME DEPENDENT
+beta_U5_SAg_itt = beta_U5 * (1 - ReducInTransmission) + beta_U5 * zeros(size(beta_scaler));  % NOT TIME DEPENDENT as no beta_scaler.
 beta_U5_EAg_itt = min(1.0, beta_U5_SAg_itt * ECofactor);
 
-beta_1to15_SAg_itt = beta_1to15 * (1 - ReducInTransmission) + beta_1to15 * beta_scaler;  % TIME DEPENDENT
+beta_1to15_SAg_itt = beta_1to15 * (1 - ReducInTransmission) + beta_1to15 * beta_scaler;  % TIME DEPENDENT as beta_scaler is.
 beta_1to15_EAg_itt = min(1.0, beta_1to15_SAg_itt * ECofactor);
 
-beta_5plus_SAg_itt = beta_5plus * (1 - ReducInTransmission) + beta_5plus * beta_scaler;  % TIME DEPENDENT
+beta_5plus_SAg_itt = beta_5plus * (1 - ReducInTransmission) + beta_5plus * beta_scaler;  % TIME DEPENDENT as beta_scaler is.
 beta_5plus_EAg_itt = min(1.0, beta_5plus_SAg_itt * ECofactor);
 
 
@@ -216,7 +219,7 @@ for time = TimeSteps
         
         % Rescale population sizes of each age group and gender
         if (time >= 1950) 
-            ModelPop = squeeze(sum(sum(X([1:10 12:15],:,:,:), 1), 4));
+            ModelPop = squeeze(sum(sum(X(i_alive,:,:,:), 1), 4));
             assert(isequal(size(ModelPop),[(100*num_year_divisions) 2]))
             % sum over disease state of alive people and treatment; ModelPop is 1000 x 2 i.e. age groups versus gender
             assert(isequal(size(demog.total_pop_female),[101 152]))
@@ -254,7 +257,7 @@ for time = TimeSteps
                     state_prev_vec = squeeze(sum(sum(X(:, agegroups_1yr == ag, k, :), 2), 4)); % k is gender
                     assert(isequal(size(state_prev_vec),[num_states 1]))
 
-                    Tot_Pop_1yr(k, ag, OutputEventNum-1) = sum(state_prev_vec([1:10 12:15]));
+                    Tot_Pop_1yr(k, ag, OutputEventNum-1) = sum(state_prev_vec(i_alive));
                 
                     Prev_Immune_Reactive_1yr(k, ag, OutputEventNum-1) = state_prev_vec(3);
                 
@@ -314,18 +317,18 @@ for time = TimeSteps
     
     % i: Transmission Between 1y-5y olds
     FOI(1, i1y:(i5y - 1), :, :) = ...
-        beta_U5_SAg_itt(itt) * sum(sum(sum(sum(X([4:8 13], i1y:(i5y - 1), :, :))))) / sum(sum(sum(sum(X([1:10 12:15], i1y:(i5y - 1), :, :))))) ...
-        + beta_U5_EAg_itt(itt) * sum(sum(sum(sum(X([2:3 14:15], i1y:(i5y - 1), :, :))))) / sum(sum(sum(sum(X([1:10 12:15], i1y:(i5y - 1), :, :)))));
+        beta_U5_SAg_itt(itt) * sum(sum(sum(sum(X([4:8 13], i1y:(i5y - 1), :, :))))) / sum(sum(sum(sum(X(i_alive, i1y:(i5y - 1), :, :))))) ...
+        + beta_U5_EAg_itt(itt) * sum(sum(sum(sum(X([2:3 14:15], i1y:(i5y - 1), :, :))))) / sum(sum(sum(sum(X(i_alive, i1y:(i5y - 1), :, :)))));
     
     % ii: Transmission between 1-15 year olds
     FOI(1, i1y:(i15y - 1), :, :) = FOI(1, i1y:(i15y - 1), :, :) + ...
-        beta_1to15_SAg_itt(itt) * sum(sum(sum(sum(X([4:8 13], i1y:(i15y - 1), :, :))))) / sum(sum(sum(sum(X([1:10 12:15], i1y:(i15y - 1), :, :))))) ...
-        + beta_1to15_EAg_itt(itt) * sum(sum(sum(sum(X([2:3 14:15], i1y:(i15y - 1), :, :))))) / sum(sum(sum(sum(X([1:10 12:15], i1y:(i15y - 1), :, :)))));
+        beta_1to15_SAg_itt(itt) * sum(sum(sum(sum(X([4:8 13], i1y:(i15y - 1), :, :))))) / sum(sum(sum(sum(X(i_alive, i1y:(i15y - 1), :, :))))) ...
+        + beta_1to15_EAg_itt(itt) * sum(sum(sum(sum(X([2:3 14:15], i1y:(i15y - 1), :, :))))) / sum(sum(sum(sum(X(i_alive, i1y:(i15y - 1), :, :)))));
     
     % iii: Transmission Between 5+ and Adults (Assuming equal risks for all persons 5y-100y)
     FOI(1, i5y:end, :, :) = FOI(1, i5y:end, :, :) + ...
-        beta_5plus_SAg_itt(itt) * sum(sum(sum(sum(X([4:8 13], i5y:end, :, :))))) / sum(sum(sum(sum(X([1:10 12:15], i5y:end, :, :))))) ...
-        + beta_5plus_EAg_itt(itt) * sum(sum(sum(sum(X([2:3 14:15], i5y:end, :, :))))) / sum(sum(sum(sum(X([1:10 12:15], i5y:end, :, :)))));
+        beta_5plus_SAg_itt(itt) * sum(sum(sum(sum(X([4:8 13], i5y:end, :, :))))) / sum(sum(sum(sum(X(i_alive, i5y:end, :, :))))) ...
+        + beta_5plus_EAg_itt(itt) * sum(sum(sum(sum(X([2:3 14:15], i5y:end, :, :))))) / sum(sum(sum(sum(X(i_alive, i5y:end, :, :)))));
     
     
     % Disease Progression

@@ -56,9 +56,11 @@ function country_level_analyses(sensitivity_analysis,...
 
             treatment_boundaries_vec = treatment_rates_map(ISO);
             assert(isequal(size(treatment_boundaries_vec),[1 6])) 
-            % treatment year, 
-            % rate to keep number of people in treatment constant, rate to have 40% of eligible people in treatment by 2030, whether the constant rate is less than the 40% rate
-            % rate to have 80% of eligible people in treatment by 2030, whether the 40% rate is less than the 80% rate
+            % treatment_boundaries_vec contains the following (NOTE - this is *not* a complete list, but only treatment_boundaries_vec([1 2 3 5]) are used in the code:
+	    % (1) treatment year, 
+            % (2) rate to keep number of people in treatment constant,
+	    % (3) rate to have 40% of eligible people in treatment by 2030, whether the constant rate is less than the 40% rate
+            % (5) rate to have 80% of eligible people in treatment by 2030, whether the 40% rate is less than the 80% rate
             treat_start_year = treatment_boundaries_vec(1);
             assert(treat_start_year==2016)
             in_treatment_2016_CDA = num_in_treatment_2016_map(ISO);
