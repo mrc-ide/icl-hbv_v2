@@ -2,6 +2,13 @@
 
 clear
 
+%% To remove to allow full run:
+%% num_stochas_runs = 2;
+%% num_scenarios = 1;
+%% num_all_countries = 3;
+%% num_countries = 3;
+%% sensitivity_analysis_list = {'default'};
+
 
 % This script creates 4 x 200 = 800 results files, each of which is less than 20 MB in size.
 % A single sensitivity analysis, which contains 110 countries, each containing 200 particles, will take about 600 hours (25 days) to run on a desktop computer.
@@ -48,7 +55,7 @@ ListOfScenarios = {...
     'Status quo infant & BD delayed expansion 2025 to 2040'};
 num_scenarios = length(ListOfScenarios);
 assert(num_scenarios==12)
-
+num_scenarios = 1;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Set up parameters - first set parameters that are set by hand in code:
@@ -165,6 +172,8 @@ assert(num_all_countries==110)
 num_countries = length(ListOfISOs);
 assert(num_countries==110)
 
+num_all_countries = 3;
+num_countries = 3;
 
 % variables for importing values for the 7 fitted parameters for a particular country-particle combination
 country_start_cols = 2:8:(1+num_all_countries*8); % there are 1 + num_all_countries*8 + 2 columns in stochas_params_mat
