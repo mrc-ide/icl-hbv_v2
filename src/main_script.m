@@ -17,10 +17,10 @@ clear
 
 currentFolder = pwd;
 % MP: I have modified this to put all MatLab code in src/ as this is simpler.
-pat = fullfile('icl-hbv','src');
-if ~endsWith(currentFolder,pat)
-    warning(['Please run this script from within the folder ' pat])
-end
+%pat = fullfile('icl-hbv','src');
+%if ~endsWith(currentFolder,pat)
+%    warning(['Please run this script from within the folder ' pat])
+%end
 % fileparts() gives a file path one directory level up.
 basedir = fileparts(currentFolder); % path for folder one level up from script.
 
