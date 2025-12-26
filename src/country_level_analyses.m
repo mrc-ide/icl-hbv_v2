@@ -20,9 +20,8 @@ function country_level_analyses(sensitivity_analysis,...
 
     stochas_run_num = str2double(stochas_run_str);
 
-
-    particles_str = ['stochastic_run_', stochas_run_str];
-    filename_results = ['results_countries_', sensitivity_analysis, '_', particles_str, '.mat'];
+    
+    filename_results = ['results_countries_', sensitivity_analysis, '_stochastic_run_', stochas_run_str, '.mat'];
 
 
     begin_time_run_num = datetime('now');
