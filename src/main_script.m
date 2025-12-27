@@ -352,7 +352,7 @@ for sensitivity_analysis_num=1:num_sensitivity_analyses
 
 
     sensitivity_analysis = sensitivity_analysis_list{sensitivity_analysis_num};
-    disp(['Sensitivity analysis: ' sensitivity_analysis])
+    %%disp(['Sensitivity analysis: ' sensitivity_analysis])
 
 
     begin_time_sensitivity_analysis = datetime('now');
@@ -380,24 +380,22 @@ for sensitivity_analysis_num=1:num_sensitivity_analyses
     sensitivity_analysis_hours_vec(sensitivity_analysis_num) = time_taken_for_sensitivity_analysis;
     assert(all(sensitivity_analysis_hours_vec(1:sensitivity_analysis_num)>0))
     average_time_per_sensitivity_analysis = mean(sensitivity_analysis_hours_vec(1:sensitivity_analysis_num));
-    min_time_per_sensitivity_analysis = min(sensitivity_analysis_hours_vec(1:sensitivity_analysis_num));
-    max_time_per_sensitivity_analysis = max(sensitivity_analysis_hours_vec(1:sensitivity_analysis_num));
     num_sensitivity_analyses_left = num_sensitivity_analyses - sensitivity_analysis_num;
     mean_time_left = num_sensitivity_analyses_left * average_time_per_sensitivity_analysis;
-    min_time_left = num_sensitivity_analyses_left * min_time_per_sensitivity_analysis;
-    max_time_left = num_sensitivity_analyses_left * max_time_per_sensitivity_analysis;
+    %%min_time_per_sensitivity_analysis = min(sensitivity_analysis_hours_vec(1:sensitivity_analysis_num));
+    %%min_time_left = num_sensitivity_analyses_left * min_time_per_sensitivity_analysis;
+    %%max_time_left = num_sensitivity_analyses_left * max_time_per_sensitivity_analysis;
+    %%max_time_per_sensitivity_analysis = max(sensitivity_analysis_hours_vec(1:sensitivity_analysis_num));
     if num_sensitivity_analyses_left>0
         disp(['There are ' num2str(num_sensitivity_analyses_left) ' sensitivity analyses left, which will take about ' char(mean_time_left) ' hours.'])
     end
-
-
+    
 end
 
-
 end_time_run = datetime('now');
-disp(end_time_run)
+%disp(end_time_run)
 time_taken_for_run = end_time_run - begin_time_run;
-disp(['The duration of this analysis was ' char(time_taken_for_run) ' hours.\n\n'])
+disp(['Run ended at ' char(end_time_run) '. The duration of this analysis was ' char(time_taken_for_run) ' hours.\n\n'])
 
 
 diary off

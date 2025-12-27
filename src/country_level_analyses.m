@@ -25,7 +25,7 @@ function country_level_analyses(sensitivity_analysis,...
 
 
     begin_time_run_num = datetime('now');
-    disp(['Run number ' stochas_run_str ' (of ' num2str(num_stochas_runs) ') started at ' datestr(begin_time_run_num)])
+    %disp(['Run number ' stochas_run_str ' (of ' num2str(num_stochas_runs) ') started at ' datestr(begin_time_run_num)])
 
 
     outMap = containers.Map; 
@@ -628,14 +628,14 @@ function country_level_analyses(sensitivity_analysis,...
 
     assert(length(scenario_hours_vec)==num_scenarios)
     end_time_run_num = datetime('now');
-    disp(end_time_run_num)
+    %%disp(end_time_run_num)
     time_taken_for_run = end_time_run_num - begin_time_run_num;
-    disp(['The duration of run number ' stochas_run_str ' (of ' num2str(num_stochas_runs) ') was ' char(time_taken_for_run) ' hours.\n\n'])
-    if stochas_run_num<num_stochas_runs
-        num_runs_left = num_stochas_runs - stochas_run_num;
-        approximate_time_left = num_runs_left * time_taken_for_run;
-        disp(['There are ' num2str(num_runs_left) ' runs left for sensitivity analysis "' sensitivity_analysis '", which will take about ' char(approximate_time_left) ' hours.'])
-    end
+    %%disp(['The duration of run number ' stochas_run_str ' (of ' num2str(num_stochas_runs) ') was ' char(time_taken_for_run) ' hours.\n\n'])
+    %%if stochas_run_num<num_stochas_runs
+    %%    num_runs_left = num_stochas_runs - stochas_run_num;
+    %%    approximate_time_left = num_runs_left * time_taken_for_run;
+    %%    disp(['There are ' num2str(num_runs_left) ' runs left for sensitivity analysis "' sensitivity_analysis '", which will take about ' char(approximate_time_left) ' hours.'])
+    %%end
 
 end % end function country_level_analyses
 
