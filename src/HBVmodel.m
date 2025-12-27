@@ -1,11 +1,18 @@
 function output = HBVmodel(seed_prev_string,...
-    num_states,num_year_divisions,dt,ages,num_age_steps,start_year,T0,...
+    num_disease_states,num_year_divisions,dt,ages,num_age_steps,start_year,T0,...
     theta,ECofactor,treat_start_year,treat_coverage_in_2016,demog,p_ChronicCarriage,Prog,Transactions)
 
-  num_sexes = 2;
-  num_treat_blocks = 2;
+% X-stocks are (infection_state, age, sex(1=women, 2=men), accessible*)   {*accessible
+% specifies whether this person can be reached by treatment progs, 1=no, 2=yes}
+% So X() is 4D array of size num_disease_states *  num_age_steps * num_sexes * num_treat_blocks
+num_sexes = 2; % F=1, M=2.
+i_female = 1;
+i_male = 2;
+num_treat_blocks = 2;
 i_alive = [1:10 12:15];
-  
+
+DUMMY_VALUE = -99;  % Used in initialising arrays to a dummy value (-99 should be easy to spot).
+
 %% Establish basic simulation parameters
 agegroups_5yr = 1 + floor(ages / 5); % categorises the ages into age-groups of 5 year width; 1 x 1000 double; [1 1 ... 20 20], each number present 50 times
 agegroups_1yr = 1 + floor(ages); % categorises the ages into age-groups of 1 year width; 1 x 1000 double; [1 1 ... 100 100], each number present 10 times
@@ -82,12 +89,13 @@ StartPop = demog.Pop_byAgeGroups_1950(agegroups_1yr, :) * dt;
 % expanding demog.Pop_byAgeGroups_1950 from 1 year age steps to 0.1 year age steps
 % each age group repeated 10 times therefore divide each entry by 10
 
-X = zeros(num_states, num_age_steps, 2, 2);
+X = zeros(num_disease_states, num_age_steps, num_sexes, num_treat_blocks);
 % dimensions: disease states, age, gender, accessible to treatment
 
 if strcmp(seed_prev_string,'Cui')
     StartPrev_byAgeGroups = demog.HBsAg_prevs_middle_year_1;
-    assert(isequal(size(StartPrev_byAgeGroups),[18 2]))
+    %% MP: Magic number 18
+    assert(isequal(size(StartPrev_byAgeGroups),[18 num_sexes]))
     if any(isnan(StartPrev_byAgeGroups))
        nan_positions = isnan(StartPrev_byAgeGroups);
        first_non_nan_pos = find(~nan_positions(:,1), 1);
@@ -98,17 +106,19 @@ if strcmp(seed_prev_string,'Cui')
     StartPrev_byAgeGroups = [StartPrev_byAgeGroups(1:end-1,:); repmat(StartPrev_byAgeGroups(end,:),3,1)];
     % demog.HBsAg_prevs_middle_year_1 is a 18 x 2 double of age group by gender
     % demog.HBsAg_prevs_middle_year_1 age groups: 0--4 5--9 10--14 15--19 20--24 25--29 30--34 35--39 40--44 45--49 50--54 55--59 60--64 65--69 70--74 75--79 80--84 85+
-    assert(isequal(size(StartPrev_byAgeGroups),[20 2]))
+    assert(isequal(size(StartPrev_byAgeGroups),[20 num_sexes]))
 
     NumSAg = StartPrev_byAgeGroups(agegroups_5yr, :) .* StartPop;
     % agegroups_5yr is a 1 x 1000 double; [1 1 ... 20 20], each number present 50 times
     % expanding StartPrev_byAgeGroups from 5 year age steps to 0.1 year age steps
     NumNotSAg = (1 - StartPrev_byAgeGroups(agegroups_5yr, :)) .* StartPop;
 elseif strcmp(seed_prev_string,'CDA')
+    %% MP: Magic numbers 99.9, 6, 1, 2
     StartPrev_byAgeGroups = [repmat(demog.country_HBsAg_prevalences_by_ages_mid_1_young_old(1),num_year_divisions*(5.9-0.0)+1,2); ...
         repmat(demog.country_HBsAg_prevalences_by_ages_mid_1_young_old(2),num_year_divisions*(99.9-6.0)+1,2)];
     % apply prevalence in 5-year-olds to 0 to 6 year olds; apply prevalence in all ages to 6 to 99 year olds
-    assert(isequal(size(StartPrev_byAgeGroups),[num_year_divisions*100 2]))
+    %% MP: Magic number 100
+    assert(isequal(size(StartPrev_byAgeGroups),[num_year_divisions*100 num_sexes]))
 
     NumSAg = StartPrev_byAgeGroups .* StartPop;
     NumNotSAg = (1 - StartPrev_byAgeGroups) .* StartPop;
@@ -116,17 +126,20 @@ elseif strcmp(seed_prev_string,'WHO')
     under_5_pos_vec_len = length(find(ages<=5.0));
     over_5_pos_vec_len = length(find(ages>5.0));
     assert(under_5_pos_vec_len+over_5_pos_vec_len==num_age_steps)
+    %% MP: Magic numbers 1, 2, 2, 2
     StartPrev_byAgeGroups = [ ...
         repmat(demog.country_HBsAg_prevalences_by_ages_prevacc_young_old(1),under_5_pos_vec_len,2); ...
         repmat(demog.country_HBsAg_prevalences_by_ages_prevacc_young_old(2),over_5_pos_vec_len,2) ...
         ];
-    assert(isequal(size(StartPrev_byAgeGroups),[(100*num_year_divisions) 2]))
+    %% MP: Magic number 100
+    assert(isequal(size(StartPrev_byAgeGroups),[(100*num_year_divisions) num_sexes]))
 
     NumSAg = StartPrev_byAgeGroups .* StartPop;
     NumNotSAg = (1 - StartPrev_byAgeGroups) .* StartPop;
 end    
 
 X(1, :, :, 1) = NumNotSAg;
+%% MP: Magic number 0.5 (and 1-0.5) - put in main_script.m
 X(3, :, :, 1) = 0.5 * NumSAg;
 X(4, :, :, 1) = 0.5 * NumSAg;
 
@@ -134,6 +147,7 @@ X(4, :, :, 1) = 0.5 * NumSAg;
 % Prepare an index that will allow quick population of the mu vector from
 % the demographic data input (uneven age-groupings)
 
+%% MP: Magic numbers 2:21, 5
 MappingFromDataToParam = repmat(2:21,5*num_year_divisions,1);
 MappingFromDataToParam = MappingFromDataToParam(:);
 MappingFromDataToParam(1:num_year_divisions) = 1;
@@ -152,7 +166,7 @@ assert(isequal(size(cov_InfantVacc_itt),size(TimeSteps)))
 assert(isequal(size(cov_BirthDose_itt),size(TimeSteps)))
 
 
-assert(isequal(size(Prog),size(zeros(num_states, num_states)))); % Non-Age Specific Prog parameters stored as (from, to)
+assert(isequal(size(Prog),size(zeros(num_disease_states, num_disease_states)))); % Non-Age Specific Prog parameters stored as (from, to)
 
 
 
@@ -160,20 +174,21 @@ assert(isequal(size(Prog),size(zeros(num_states, num_states)))); % Non-Age Speci
 
 % prepare storage containers, for outputs once per year
 % breakdowns by age/sex
+
 [...
     Tot_Pop_1yr, Prev_Immune_Reactive_1yr, Prev_Chronic_Hep_B_1yr, Prev_Comp_Cirr_1yr, Prev_Decomp_Cirr_1yr, Prev_TDF_treat_1yr, NumSAg_1yr, NumSAg_chronic_1yr, yld_1yr, Prev_Deaths_1yr...
-    ] = deal(-99 * ones(2, max(agegroups_1yr), T0 + 1));
+    ] = deal(DUMMY_VALUE * ones(2, max(agegroups_1yr), T0 + 1));
 [...
     Incid_chronic_all_1yr_approx,...
     Incid_Deaths_1yr_approx...
-    ] = deal(-99 * ones(2, max(agegroups_1yr), T0 + 1));
+    ] = deal(DUMMY_VALUE * ones(2, max(agegroups_1yr), T0 + 1));
 							  
 [...
     NewChronicCarriage, moving_btw_states, ...
     ] = deal(zeros(1, num_age_steps, 2, 2));
 
 % single output per year
-[Time, num_births_1yr] = deal(-99 * ones(1, T0 + 1));
+[Time, num_births_1yr] = deal(DUMMY_VALUE * ones(1, T0 + 1));
 
 % ----- Simulation -----
 
@@ -191,24 +206,30 @@ for time = TimeSteps
        
     
     % Update mortality and fertility rates
-    mu = zeros(num_states, num_age_steps, 2, 2);
-    mu(:, :, 1, :) = repmat(demog.MortalityRate_Women(OutputEventNum, MappingFromDataToParam), [num_states 1 2]);
-    mu(:, :, 2, :) = repmat(demog.MortalityRate_Men(OutputEventNum, MappingFromDataToParam), [num_states 1 2]);
-    % demog.MortalityRate_Women is a 212 x 21 matrix of mortality rates of 21 age groups (0--0, 1--4, 5--9, 10--14, ..., 90--94, 95--99) for every year from 1890 to 2101
-    % OutputEventNum ranges from 1 to 212
+    mu = zeros(num_disease_states, num_age_steps, num_sexes, num_treat_blocks);
+    % The "1"s below represent the one gender we are considering at a time
+    % (we need it so that mu() has the correct dimensions),
+    mu(:, :, i_female, :) = repmat(demog.MortalityRate_Women(OutputEventNum, MappingFromDataToParam), [num_disease_states 1 num_treat_blocks]);
+    mu(:, :, i_male, :) = repmat(demog.MortalityRate_Men(OutputEventNum, MappingFromDataToParam), [num_disease_states 1 num_treat_blocks]);
+    % demog.MortalityRate_Women is a (T0+1=212) x 21 matrix of mortality rates of 21 age groups (0--0, 1--4, 5--9, 10--14, ..., 90--94, 95--99) for every year from 1890 to 2101
+    % OutputEventNum ranges from 1 to (T0+1)
     % agegroups_1yr = [1 1 1 ... 100 100 100], each number 10 times
     % selected vector copied across disease states and treatments
-    % demog.fert is a 1000 x 212 matrix; ages in 0.1 year jumps versus 212 years
+    % demog.fert is a 1000 x (T0+1) matrix; ages in 0.1 year jumps versus 212 years
+    %% MP: Magic number 1:10:end
     fert = demog.fert(1:10:end, OutputEventNum);
+    %% MP: Magic numbers 100 1
     assert(isequal(size(fert),[100 1]))
+    %% MP: Magic number 1
     fert = repmat(fert',num_year_divisions,1);
     fert = fert(:);
+    %% MP: Magic numbers 100 1
     assert(isequal(size(fert),[100*num_year_divisions 1]))
-    assert(length(demog.net_migration)==212)
+    assert(length(demog.net_migration)==(T0+1))
     net_migration = demog.net_migration(OutputEventNum);
     sex_ratio = demog.sex_ratios(OutputEventNum);
     assert(length(net_migration)==1)
-    net_migration = repmat(net_migration, [num_states num_age_steps 2 2]);
+    net_migration = repmat(net_migration, [num_disease_states num_age_steps num_sexes num_treat_blocks]);
 
 
     
@@ -220,7 +241,7 @@ for time = TimeSteps
         % Rescale population sizes of each age group and gender
         if (time >= 1950) 
             ModelPop = squeeze(sum(sum(X(i_alive,:,:,:), 1), 4));
-            assert(isequal(size(ModelPop),[(100*num_year_divisions) 2]))
+            assert(isequal(size(ModelPop),[num_age_steps num_sexes]))
             % sum over disease state of alive people and treatment; ModelPop is 1000 x 2 i.e. age groups versus gender
             assert(isequal(size(demog.total_pop_female),[101 152]))
             % demog.total_pop_female is a 101 x 152 matrix of 152 years (1950 to 2101) for 101 age groups (0--0, 1--1, 2--2,..., 98--98, 99--99, 100--100)
@@ -235,11 +256,11 @@ for time = TimeSteps
             % agegroups_1yr is a 1 x 1000 double; [1 1 ... 100 100], each number present 10 times
             % expanding MontaguPop from 1 year age steps to 0.1 year age steps
             % each age group repeated 10 times therefore divide each entry by 10
-            assert(isequal(size(MontaguPopExpand),[(100*num_year_divisions) 2]))
+            assert(isequal(size(MontaguPopExpand),[num_age_steps num_sexes]))
             ScalerMat = MontaguPopExpand ./ ModelPop;
             ScalerMat(isnan(ScalerMat)) = 0;
             ScalerMat(isinf(ScalerMat)) = 0;
-            pop_scaler = repmat(reshape(ScalerMat, [1 (100*num_year_divisions) 2]), [num_states 1 1 2]);
+            pop_scaler = repmat(reshape(ScalerMat, [1 num_age_steps num_sexes]), [num_disease_states 1 1 num_treat_blocks]);
             % MontaguPopExpand is sizes of the current year's population over 0.1 year age steps; a 1000 x 2 matrix of ages versus gender
             % add an extra dimension and duplicate it for each disease state and treatment method
             X = X .* pop_scaler;
@@ -247,7 +268,7 @@ for time = TimeSteps
         end
 
     
-        for k = 1:2 % genders
+        for k = 1:num_sexes % genders
 
             
             for ag = 1:max(agegroups_1yr) % 1:100
@@ -255,7 +276,7 @@ for time = TimeSteps
                 if OutputEventNum > 1
                 
                     state_prev_vec = squeeze(sum(sum(X(:, agegroups_1yr == ag, k, :), 2), 4)); % k is gender
-                    assert(isequal(size(state_prev_vec),[num_states 1]))
+                    assert(isequal(size(state_prev_vec),[num_disease_states 1]))
 
                     Tot_Pop_1yr(k, ag, OutputEventNum-1) = sum(state_prev_vec(i_alive));
                 
