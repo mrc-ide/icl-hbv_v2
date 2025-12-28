@@ -31,8 +31,8 @@ i_alive = [1:10 12:15];
 %% Other possible groups to add
 %NumSAg_1yr(k, ag, OutputEventNum-1) = sum(state_prev_vec([2:8 10 12:15]));
 %NumSAg_chronic_1yr(k, ag, OutputEventNum-1) = sum(state_prev_vec([2:8 10 12:13]));
-%        beta_U5_SAg_itt(itt) * sum(sum(sum(sum(X([4:8 13], i1y:(i5y - 1), :, :))))) / sum(sum(sum(sum(X(i_alive, i1y:(i5y - 1), :, :))))) ...
-%        + beta_U5_EAg_itt(itt) * sum(sum(sum(sum(X([2:3 14:15], i1y:(i5y - 1), :, :))))) / sum(sum(sum(sum(X(i_alive, i1y:(i5y - 1), :, :)))));
+%        beta_U5_SAg_itt(i_dt) * sum(sum(sum(sum(X([4:8 13], i1y:(i5y - 1), :, :))))) / sum(sum(sum(sum(X(i_alive, i1y:(i5y - 1), :, :))))) ...
+%        + beta_U5_EAg_itt(i_dt) * sum(sum(sum(sum(X([2:3 14:15], i1y:(i5y - 1), :, :))))) / sum(sum(sum(sum(X(i_alive, i1y:(i5y - 1), :, :)))));
 %eligible_pop = sum(sum(sum(sum(X([3 5 6 7], :, :, :),1),2),3),4); 
 %births_toHbEAgWomen = sum(fert' .* sum(sum(X([2:3 14:15], :, 1, :), 1), 4)); % Immune Tolerant, Immune Reactive
 %births_toHbSAgWomen = sum(fert' .* sum(sum(X([4:8 13], :, 1, :), 1), 4)); % All other stages (other infected women)
@@ -223,7 +223,7 @@ assert(isequal(size(Prog),size(zeros(num_disease_states, num_disease_states))));
 
 % ----- Simulation -----
 
-itt = 1; % itt increase every time i.e. every 0.1 years; goes from 1 to 2101 (length of TimeSteps)
+i_dt = 1; % i_dt increase every time i.e. every 0.1 years; goes from 1 to 2101 (length of TimeSteps)
 OutputEventNum = 1; % OutputEventNum increase every year; goes from 1 to 212
 moving_to_treatment = zeros(size(X));
 initiated_treatment = false;
@@ -377,18 +377,18 @@ for time = TimeSteps
     n_pop_5y_andabove = sum(sum(sum(sum(X(i_alive, i5y:end, :, :)))));
     % i: Transmission Between 1y-5y olds
     FOI(1, i1y:(i5y - 1), :, :) = ...
-        beta_U5_SAg_itt(itt) * sum(sum(sum(sum(X([4:8 13], i1y:(i5y - 1), :, :))))) / n_child_1y_5y ...
-        + beta_U5_EAg_itt(itt) * sum(sum(sum(sum(X([2:3 14:15], i1y:(i5y - 1), :, :))))) / n_child_1y_5y;
+        beta_U5_SAg_itt(i_dt) * sum(sum(sum(sum(X([4:8 13], i1y:(i5y - 1), :, :))))) / n_child_1y_5y ...
+        + beta_U5_EAg_itt(i_dt) * sum(sum(sum(sum(X([2:3 14:15], i1y:(i5y - 1), :, :))))) / n_child_1y_5y;
     
     % ii: Transmission between 1-15 year olds
     FOI(1, i1y:(i15y - 1), :, :) = FOI(1, i1y:(i15y - 1), :, :) + ...
-        beta_1to15_SAg_itt(itt) * sum(sum(sum(sum(X([4:8 13], i1y:(i15y - 1), :, :))))) / n_child_1y_15y ...
-        + beta_1to15_EAg_itt(itt) * sum(sum(sum(sum(X([2:3 14:15], i1y:(i15y - 1), :, :))))) / n_child_1y_15y;
+        beta_1to15_SAg_itt(i_dt) * sum(sum(sum(sum(X([4:8 13], i1y:(i15y - 1), :, :))))) / n_child_1y_15y ...
+        + beta_1to15_EAg_itt(i_dt) * sum(sum(sum(sum(X([2:3 14:15], i1y:(i15y - 1), :, :))))) / n_child_1y_15y;
     
     % iii: Transmission Between 5+ and Adults (Assuming equal risks for all persons 5y-100y)
     FOI(1, i5y:end, :, :) = FOI(1, i5y:end, :, :) + ...
-        beta_5plus_SAg_itt(itt) * sum(sum(sum(sum(X([4:8 13], i5y:end, :, :))))) / n_pop_5y_andabove ...
-        + beta_5plus_EAg_itt(itt) * sum(sum(sum(sum(X([2:3 14:15], i5y:end, :, :))))) / n_pop_5y_andabove;
+        beta_5plus_SAg_itt(i_dt) * sum(sum(sum(sum(X([4:8 13], i5y:end, :, :))))) / n_pop_5y_andabove ...
+        + beta_5plus_EAg_itt(i_dt) * sum(sum(sum(sum(X([2:3 14:15], i5y:end, :, :))))) / n_pop_5y_andabove;
     
     
     % Disease Progression
@@ -465,11 +465,11 @@ for time = TimeSteps
     
     
     % Infanct vaccination occurring at exactly six months
-    % do not multiply by dt, since one is vaccinating demog.InfantVacc(itt)% of people in next_X(1, i6mo, :, :), 
+    % do not multiply by dt, since one is vaccinating demog.InfantVacc(i_dt)% of people in next_X(1, i6mo, :, :), 
     % after which this cohort ages and moves to the next age bin
-    % if divides all babies born in a year into 10 groups and vaccinatates demog.InfantVacc(itt)% of each group, 
-    % then one will have vaccinated demog.InfantVacc(itt)% of all babies born in that year
-    transfer_to_vacc = demog.InfantVacc(itt) * next_X(i_Susc, i6mo, :, :) * Efficacy_InfantVacc; % the 0.95 represent a take-type vaccine efficacy of 95%.
+    % if divides all babies born in a year into 10 groups and vaccinatates demog.InfantVacc(i_dt)% of each group, 
+    % then one will have vaccinated demog.InfantVacc(i_dt)% of all babies born in that year
+    transfer_to_vacc = demog.InfantVacc(i_dt) * next_X(i_Susc, i6mo, :, :) * Efficacy_InfantVacc; % the 0.95 represent a take-type vaccine efficacy of 95%.
     next_X(i_Susc, i6mo, :, :) = next_X(i_Susc, i6mo, :, :) - transfer_to_vacc;
     next_X(i_Immume, i6mo, :, :) = next_X(i_Immume, i6mo, :, :) + transfer_to_vacc;
     
@@ -508,14 +508,14 @@ for time = TimeSteps
 
     babies_ChronicCarriage = p_ChronicCarriage(1, 1, 1, 1) * ( ... % a 1 x 1 double
         ...
-        births_toHbSAgWomen * (1 - demog.BirthDose(itt)) * p_VerticalTransmission_HbSAg_NoIntv ...
-        + births_toHbSAgWomen * demog.BirthDose(itt) * p_VerticalTransmission_HbSAg_BirthDoseVacc ...
+        births_toHbSAgWomen * (1 - demog.BirthDose(i_dt)) * p_VerticalTransmission_HbSAg_NoIntv ...
+        + births_toHbSAgWomen * demog.BirthDose(i_dt) * p_VerticalTransmission_HbSAg_BirthDoseVacc ...
         ...
-        + births_toHbEAgWomen * (1 - demog.BirthDose(itt)) * p_VerticalTransmission_HbEAg_NoIntv ...
-        + births_toHbEAgWomen * demog.BirthDose(itt) * p_VerticalTransmission_HbEAg_BirthDoseVacc ...
+        + births_toHbEAgWomen * (1 - demog.BirthDose(i_dt)) * p_VerticalTransmission_HbEAg_NoIntv ...
+        + births_toHbEAgWomen * demog.BirthDose(i_dt) * p_VerticalTransmission_HbEAg_BirthDoseVacc ...
         ...
-        + births_toTrWomen * (1 - demog.BirthDose(itt)) * p_VerticalTransmission_Tr_NoIntv ...
-        + births_toTrWomen * demog.BirthDose(itt) * p_VerticalTransmission_Tr_BirthDoseVacc ...
+        + births_toTrWomen * (1 - demog.BirthDose(i_dt)) * p_VerticalTransmission_Tr_NoIntv ...
+        + births_toTrWomen * demog.BirthDose(i_dt) * p_VerticalTransmission_Tr_BirthDoseVacc ...
         );
     
     babies_NotChronicCarriage = births_Total - babies_ChronicCarriage;
@@ -539,7 +539,7 @@ for time = TimeSteps
     X(i_ImmTol, 1, i_male, i_notreat) = male_multiplier * dt * babies_ChronicCarriage;     % Babies with chronic carriage
       
     % increment the timestep index
-    itt = itt + 1;
+    i_dt = i_dt + 1;
     % increases every 0.1 years
     
 end % end "time = TimeSteps" for loop
