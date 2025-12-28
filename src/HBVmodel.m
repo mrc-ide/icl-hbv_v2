@@ -203,17 +203,20 @@ assert(isequal(size(Prog),size(zeros(num_disease_states, num_disease_states))));
 % prepare storage containers, for outputs once per year
 % breakdowns by age/sex
 
+
 [...
     Tot_Pop_1yr, Prev_Immune_Reactive_1yr, Prev_Chronic_Hep_B_1yr, Prev_Comp_Cirr_1yr, Prev_Decomp_Cirr_1yr, Prev_TDF_treat_1yr, NumSAg_1yr, NumSAg_chronic_1yr, yld_1yr, Prev_Deaths_1yr...
-    ] = deal(DUMMY_VALUE * ones(2, max(agegroups_1yr), num_years_simul + 1));
+    ] = deal(DUMMY_VALUE * ones(num_sexes, max(agegroups_1yr), num_years_simul + 1));
 [...
     Incid_chronic_all_1yr_approx,...
     Incid_Deaths_1yr_approx...
-    ] = deal(DUMMY_VALUE * ones(2, max(agegroups_1yr), num_years_simul + 1));
+    ] = deal(DUMMY_VALUE * ones(num_sexes, max(agegroups_1yr), num_years_simul + 1));
 							  
+%% MP: Magic number 1 is because arrays NewChronicCarriage, moving_btw_states should have same number of dimensions as X()
+%% but the first index is single (because not indexing over natural history states).
 [...
     NewChronicCarriage, moving_btw_states, ...
-    ] = deal(zeros(1, num_age_steps, 2, 2));
+    ] = deal(zeros(1, num_age_steps, num_sexes, num_treat_blocks));
 
 % single output per year
 [Time, num_births_1yr] = deal(DUMMY_VALUE * ones(1, num_years_simul + 1));
@@ -247,12 +250,12 @@ for time = TimeSteps
     %% MP: Magic number 1:10:end
     fert = demog.fert(1:10:end, OutputEventNum);
     %% MP: Magic numbers 100 1
-    assert(isequal(size(fert),[100 1]))
+    assert(isequal(size(fert), [100 1]))
     %% MP: Magic number 1
     fert = repmat(fert',num_year_divisions,1);
-    fert = fert(:);
-    %% MP: Magic numbers 100 1
-    assert(isequal(size(fert),[100*num_year_divisions 1]))
+    fert = fert(:);  % Reshape fert into a 1D vector from a matrix
+    %% MP: Magic number 1
+    assert(isequal(size(fert),[num_age_steps 1]))
     assert(length(demog.net_migration)==(num_years_simul+1))
     net_migration = demog.net_migration(OutputEventNum);
     sex_ratio = demog.sex_ratios(OutputEventNum);
@@ -275,11 +278,12 @@ for time = TimeSteps
             % demog.total_pop_female is a 101 x 152 matrix of 152 years (1950 to 2101) for 101 age groups (0--0, 1--1, 2--2,..., 98--98, 99--99, 100--100)
             assert(isequal(size(demog.total_pop_male),[101 152]))
             col_index = time - 1949;
+            %% MP: magic numbers 1:100 represent indexes in demog.total_pop for ages 0-99
             MontaguPopFemale = demog.total_pop_female(1:100,col_index);
             % only want ages 0--99
             MontaguPopMale = demog.total_pop_male(1:100,col_index);
             MontaguPop = [MontaguPopFemale MontaguPopMale];
-            assert(isequal(size(MontaguPop),[100 2]))
+            assert(isequal(size(MontaguPop),[100 num_sexes]))    %% MP: Magic number 100 is number of 1-year age gps 0-99.
             MontaguPopExpand = MontaguPop(agegroups_1yr, :) * dt;
             % agegroups_1yr is a 1 x 1000 double; [1 1 ... 100 100], each number present 10 times
             % expanding MontaguPop from 1 year age steps to 0.1 year age steps
@@ -303,6 +307,7 @@ for time = TimeSteps
  
                 if OutputEventNum > 1
                 
+                    %% MP: Magic numbers: sum over second (age) and 4th (treatment states):
                     state_prev_vec = squeeze(sum(sum(X(:, agegroups_1yr == ag, k, :), 2), 4)); % k is gender
                     assert(isequal(size(state_prev_vec),[num_disease_states 1]))
 
@@ -326,6 +331,7 @@ for time = TimeSteps
 
                     yld_1yr(k, ag, OutputEventNum-1) = sum( state_prev_vec .* demog.dwvec' );
 
+                    %% MP: Magic numbers: sum over second (age) and 4th (treatment states):
                     Incid_chronic_all_1yr_approx(k,ag,OutputEventNum-1) = sum(sum(NewChronicCarriage(1, agegroups_1yr == ag, k, :), 2), 4);
                 
                     Incid_Deaths_1yr_approx(k, ag, OutputEventNum-1) = sum(state_prev_vec .* Prog(:, i_HBVdeath));
@@ -336,9 +342,10 @@ for time = TimeSteps
 				
             if OutputEventNum > 1
 
+                %% MP: Magic number: the second index "1" represents the age group (0-year-olds)
                 assert(Incid_chronic_all_1yr_approx(k, 1, OutputEventNum-1)==0) % 0-year-olds cannot get horizontal chronic infection (see FOI)							
-                Incid_chronic_all_1yr_approx(1, 1, OutputEventNum-1) = female_multiplier * babies_ChronicCarriage;
-                Incid_chronic_all_1yr_approx(2, 1, OutputEventNum-1) = male_multiplier * babies_ChronicCarriage;
+                Incid_chronic_all_1yr_approx(i_female, 1, OutputEventNum-1) = female_multiplier * babies_ChronicCarriage;
+                Incid_chronic_all_1yr_approx(i_male, 1, OutputEventNum-1) = male_multiplier * babies_ChronicCarriage;
 
             end
                 
@@ -363,6 +370,8 @@ for time = TimeSteps
     % Horizontal Transmission (infection and Chronic Carriage)
     
     FOI = zeros(1, num_age_steps, num_sexes, num_treat_blocks);
+    % Calculate number of people in different age groups for use in FOI
+    % denominator:
     n_child_1y_5y  = sum(sum(sum(sum(X(i_alive, i1y:(i5y - 1), :, :)))));
     n_child_1y_15y = sum(sum(sum(sum(X(i_alive, i1y:(i15y - 1), :, :)))));
     n_pop_5y_andabove = sum(sum(sum(sum(X(i_alive, i5y:end, :, :)))));
@@ -397,14 +406,14 @@ for time = TimeSteps
 
        
     % (Time-dependent) Baseline Transition to TDF-Treatment
-    assert(squeeze(sum(sum(sum(sum(X([12 13], :, :, 1),1),2),3),4))==0)
+    assert(squeeze(sum(sum(sum(sum(X([i_3TCtreat i_3TCfailed], :, :, 1),1),2),3),4))==0)
     % (Time-dependent) Baseline Transition to TDF-Treatment
     if (time >= treat_start_year)
     % 2016 must be the first year with nonzero treatment 
     % therefore start treating from 2015.9 onwards since prevalence is recorded at the top of the loop
 
         if ~initiated_treatment
-            num_in_treatment = sum(sum(sum(sum(X(10, :, :, :),1),2),3),4);
+            num_in_treatment = sum(sum(sum(sum(X(i_TDFtreat, :, :, :),1),2),3),4);
             assert(num_in_treatment==0) % no one is in treatment
             prev_pop = sum(sum(sum(sum(X([2:8 10 12:15], :, :, :),1),2),3),4); 
 
@@ -417,9 +426,9 @@ for time = TimeSteps
             % such that the total number subtracted from the eligible-for-treatment states is in_treatment_2016
             % i.e. in_treatment_2016 = sum(sum(sum(sum(X([3 5 6 7], :, :, :),1),2),3),4) * scaling_num = sum(sum(sum(sum(X([3 5 6 7], :, :, :) * scaling_num,1),2),3),4)
             % Hence, scaling_num scales each compartment in X([3 5 6 7], :, :, :) such that X([3 5 6 7],:,:,:) * scaling_num subtracts the same proportion of people from each compartment in each of the eligible-for-treatment states in order to subtract a total of in_treatment_2016 from the eligible-for-treatment states.
-            next_X(10,:,:,:) = next_X(10,:,:,:) + sum(X([3 5 6 7],:,:,:) * scaling_num,1);
+            next_X(i_TDFtreat,:,:,:) = next_X(i_TDFtreat,:,:,:) + sum(X([3 5 6 7],:,:,:) * scaling_num,1);
 
-            num_in_treatment = sum(sum(sum(sum(next_X(10, :, :, :),1),2),3),4);
+            num_in_treatment = sum(sum(sum(sum(next_X(i_TDFtreat, :, :, :),1),2),3),4);
             eligible_pop = sum(sum(sum(sum(X([3 5:7 10], :, :, :),1),2),3),4); 
             assert(num_in_treatment/eligible_pop >= treat_coverage_in_2016)
             % treatment coverage amongst treatment-eligible people will be greater than treatment coverage amongst HBsAg+ people, except if treatment coverage is 0
@@ -432,7 +441,7 @@ for time = TimeSteps
             assert(demog.PriorTDFTreatRate>=0)
             moving_to_treatment([3 5 6 7], :, :, :) = X([3 5 6 7], :, :, :) .* demog.PriorTDFTreatRate;
             next_X([3 5 6 7], :, :, :) = next_X([3 5 6 7], :, :, :) + dt * ( -moving_to_treatment([3 5 6 7], :, :, :) );
-            next_X(10, :, :, :) = next_X(10, :, :, :) + dt * ( +sum(moving_to_treatment, 1) );
+            next_X(i_TDFtreat, :, :, :) = next_X(i_TDFtreat, :, :, :) + dt * ( +sum(moving_to_treatment, 1) );
             assert(max(moving_to_treatment(:))>=0)
         end
     end % end treatment if statement
@@ -441,7 +450,7 @@ for time = TimeSteps
     
     
     % Infection process
-    NewInfections = X(1, :, :, :) .* FOI;
+    NewInfections = X(i_Susc, :, :, :) .* FOI;
     % number of susceptibles times FOI i.e. number of new infections within population, excluding babies (since FOI is 0 for babies)
     % 1 x num_age_steps x 2 x 2 double i.e. 1 x 1000 x 2 x 2 double
     NewChronicCarriage = NewInfections .* p_ChronicCarriage;
@@ -450,9 +459,9 @@ for time = TimeSteps
     
     % Transitions dependent on a state that does not have a number and is therefore not in Prog or Transactions
     % multiply by dt, since FOI is an annual rate
-    next_X(1, :, :, :) = next_X(1, :, :, :) + dt * ( -NewInfections );
-    next_X(14, :, :, :) = next_X(14, :, :, :) + dt * ( +NonsevereAcute );
-    next_X(15, :, :, :) = next_X(15, :, :, :) + dt * ( +SevereAcute );
+    next_X(i_Susc, :, :, :) = next_X(i_Susc, :, :, :) + dt * ( -NewInfections );
+    next_X(i_NonSevAcute, :, :, :) = next_X(i_NonSevAcute, :, :, :) + dt * ( +NonsevereAcute );
+    next_X(i_SevereAcute, :, :, :) = next_X(i_SevereAcute, :, :, :) + dt * ( +SevereAcute );
     
     
     % Infanct vaccination occurring at exactly six months
@@ -460,9 +469,9 @@ for time = TimeSteps
     % after which this cohort ages and moves to the next age bin
     % if divides all babies born in a year into 10 groups and vaccinatates demog.InfantVacc(itt)% of each group, 
     % then one will have vaccinated demog.InfantVacc(itt)% of all babies born in that year
-    transfer_to_vacc = demog.InfantVacc(itt) * next_X(1, i6mo, :, :) * Efficacy_InfantVacc; % the 0.95 represent a take-type vaccine efficacy of 95%.
-    next_X(1, i6mo, :, :) = next_X(1, i6mo, :, :) - transfer_to_vacc;
-    next_X(9, i6mo, :, :) = next_X(9, i6mo, :, :) + transfer_to_vacc;
+    transfer_to_vacc = demog.InfantVacc(itt) * next_X(i_Susc, i6mo, :, :) * Efficacy_InfantVacc; % the 0.95 represent a take-type vaccine efficacy of 95%.
+    next_X(i_Susc, i6mo, :, :) = next_X(i_Susc, i6mo, :, :) - transfer_to_vacc;
+    next_X(i_Immume, i6mo, :, :) = next_X(i_Immume, i6mo, :, :) + transfer_to_vacc;
     
         
     
@@ -481,14 +490,15 @@ for time = TimeSteps
     % Now age everyone (second index is the age index with 1=newborn in this
     % timestep).
     X(:, 2:num_age_steps, :, :) = X(:, 1:(num_age_steps - 1), :, :);
-    X(:, 1, :, :) = 0; % set number of babies to 0 (babies will be born next)
+    X(:, 1, :, :) = 0; % set number of new babies (the age index "1") to 0 (babies will be born next)
     
     
     % fill-out with new births in this time-step:
-    births_toNonInfectiousWomen = sum( fert' .* sum(sum(X([1 9], :, 1, :), 1), 4) ); % Susecptible, Immune
-    births_toHbEAgWomen = sum(fert' .* sum(sum(X([2:3 14:15], :, 1, :), 1), 4)); % Immune Tolerant, Immune Reactive
-    births_toHbSAgWomen = sum(fert' .* sum(sum(X([4:8 13], :, 1, :), 1), 4)); % All other stages (other infected women)
-    births_toTrWomen = sum(fert' .* sum(sum(X([10 12], :, 1, :), 1), 4)); % Women on Treatment
+    %% MP: Magic numbers 1 and 4 mean sum over the listed natural history states and treatment states
+    births_toNonInfectiousWomen = sum( fert' .* sum(sum(X([i_Susc i_Immume], :, i_female, :), 1), 4) ); % Susecptible, Immune
+    births_toHbEAgWomen = sum(fert' .* sum(sum(X([2:3 14:15], :, i_female, :), 1), 4)); % Immune Tolerant, Immune Reactive
+    births_toHbSAgWomen = sum(fert' .* sum(sum(X([4:8 13], :, i_female, :), 1), 4)); % All other stages (other infected women)
+    births_toTrWomen = sum(fert' .* sum(sum(X([i_TDFtreat i_3TCtreat], :, i_female, :), 1), 4)); % Women on Treatment
     
     
     births_Total = births_toNonInfectiousWomen + births_toHbEAgWomen + births_toHbSAgWomen + births_toTrWomen;
@@ -522,13 +532,13 @@ for time = TimeSteps
     % female births -> 0 => sex_ratio -> infinity => female_multiplier -> 0
     % female births -> infinity => sex_ratio -> 0 => female_multiplier -> 1
     
-    X(1, 1, i_female, i_notreat) = female_multiplier * dt * babies_NotChronicCarriage;  % Suscpetible babies
-    X(2, 1, i_female, i_notreat) = female_multiplier * dt * babies_ChronicCarriage;     % Babies with chronic carriage
+    X(i_Susc, 1, i_female, i_notreat) = female_multiplier * dt * babies_NotChronicCarriage;  % Suscpetible babies
+    X(i_ImmTol, 1, i_female, i_notreat) = female_multiplier * dt * babies_ChronicCarriage;     % Babies with chronic carriage
     
-    X(1, 1, i_male, i_notreat) = male_multiplier * dt * babies_NotChronicCarriage;  % Suscpetible babies
-    X(2, 1, i_male, i_notreat) = male_multiplier * dt * babies_ChronicCarriage;     % Babies with chronic carriage
+    X(i_Susc, 1, i_male, i_notreat) = male_multiplier * dt * babies_NotChronicCarriage;  % Suscpetible babies
+    X(i_ImmTol, 1, i_male, i_notreat) = male_multiplier * dt * babies_ChronicCarriage;     % Babies with chronic carriage
       
-    % increment the pointer
+    % increment the timestep index
     itt = itt + 1;
     % increases every 0.1 years
     
