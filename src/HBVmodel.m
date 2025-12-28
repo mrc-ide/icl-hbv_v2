@@ -31,8 +31,8 @@ i_alive = [1:10 12:15];
 %% Other possible groups to add
 %NumSAg_1yr(k, ag, OutputEventNum-1) = sum(state_prev_vec([2:8 10 12:15]));
 %NumSAg_chronic_1yr(k, ag, OutputEventNum-1) = sum(state_prev_vec([2:8 10 12:13]));
-%        beta_U5_SAg_itt(i_dt) * sum(sum(sum(sum(X([4:8 13], i1y:(i5y - 1), :, :))))) / sum(sum(sum(sum(X(i_alive, i1y:(i5y - 1), :, :))))) ...
-%        + beta_U5_EAg_itt(i_dt) * sum(sum(sum(sum(X([2:3 14:15], i1y:(i5y - 1), :, :))))) / sum(sum(sum(sum(X(i_alive, i1y:(i5y - 1), :, :)))));
+%        beta_U5_SAg(i_dt) * sum(sum(sum(sum(X([4:8 13], i1y:(i5y - 1), :, :))))) / sum(sum(sum(sum(X(i_alive, i1y:(i5y - 1), :, :))))) ...
+%        + beta_U5_EAg(i_dt) * sum(sum(sum(sum(X([2:3 14:15], i1y:(i5y - 1), :, :))))) / sum(sum(sum(sum(X(i_alive, i1y:(i5y - 1), :, :)))));
 %eligible_pop = sum(sum(sum(sum(X([3 5 6 7], :, :, :),1),2),3),4); 
 %births_toHbEAgWomen = sum(fert' .* sum(sum(X([2:3 14:15], :, 1, :), 1), 4)); % Immune Tolerant, Immune Reactive
 %births_toHbSAgWomen = sum(fert' .* sum(sum(X([4:8 13], :, 1, :), 1), 4)); % All other stages (other infected women)
@@ -93,14 +93,14 @@ PriorTDFTreatRate = demog.PriorTDFTreatRate;                  % Treatment rate s
 % ----- Infection-relate parameters -----
 beta_scaler = ReducInTransmission ./ (1 + exp( (TimeSteps - (YearReducInTransmission)) ./ (DurReducInTransmission / 10) ));
 
-beta_U5_SAg_itt = beta_U5 * (1 - ReducInTransmission) + beta_U5 * zeros(size(beta_scaler));  % NOT TIME DEPENDENT as no beta_scaler.
-beta_U5_EAg_itt = min(1.0, beta_U5_SAg_itt * ECofactor);
+beta_U5_SAg = beta_U5 * (1 - ReducInTransmission) + beta_U5 * zeros(size(beta_scaler));  % NOT TIME DEPENDENT as no beta_scaler.
+beta_U5_EAg = min(1.0, beta_U5_SAg * ECofactor);
 
-beta_1to15_SAg_itt = beta_1to15 * (1 - ReducInTransmission) + beta_1to15 * beta_scaler;  % TIME DEPENDENT as beta_scaler is.
-beta_1to15_EAg_itt = min(1.0, beta_1to15_SAg_itt * ECofactor);
+beta_1to15_SAg = beta_1to15 * (1 - ReducInTransmission) + beta_1to15 * beta_scaler;  % TIME DEPENDENT as beta_scaler is.
+beta_1to15_EAg = min(1.0, beta_1to15_SAg * ECofactor);
 
-beta_5plus_SAg_itt = beta_5plus * (1 - ReducInTransmission) + beta_5plus * beta_scaler;  % TIME DEPENDENT as beta_scaler is.
-beta_5plus_EAg_itt = min(1.0, beta_5plus_SAg_itt * ECofactor);
+beta_5plus_SAg = beta_5plus * (1 - ReducInTransmission) + beta_5plus * beta_scaler;  % TIME DEPENDENT as beta_scaler is.
+beta_5plus_EAg = min(1.0, beta_5plus_SAg * ECofactor);
 
 
 
@@ -377,18 +377,18 @@ for time = TimeSteps
     n_pop_5y_andabove = sum(sum(sum(sum(X(i_alive, i5y:end, :, :)))));
     % i: Transmission Between 1y-5y olds
     FOI(1, i1y:(i5y - 1), :, :) = ...
-        beta_U5_SAg_itt(i_dt) * sum(sum(sum(sum(X([4:8 13], i1y:(i5y - 1), :, :))))) / n_child_1y_5y ...
-        + beta_U5_EAg_itt(i_dt) * sum(sum(sum(sum(X([2:3 14:15], i1y:(i5y - 1), :, :))))) / n_child_1y_5y;
+        beta_U5_SAg(i_dt) * sum(sum(sum(sum(X([4:8 13], i1y:(i5y - 1), :, :))))) / n_child_1y_5y ...
+        + beta_U5_EAg(i_dt) * sum(sum(sum(sum(X([2:3 14:15], i1y:(i5y - 1), :, :))))) / n_child_1y_5y;
     
     % ii: Transmission between 1-15 year olds
     FOI(1, i1y:(i15y - 1), :, :) = FOI(1, i1y:(i15y - 1), :, :) + ...
-        beta_1to15_SAg_itt(i_dt) * sum(sum(sum(sum(X([4:8 13], i1y:(i15y - 1), :, :))))) / n_child_1y_15y ...
-        + beta_1to15_EAg_itt(i_dt) * sum(sum(sum(sum(X([2:3 14:15], i1y:(i15y - 1), :, :))))) / n_child_1y_15y;
+        beta_1to15_SAg(i_dt) * sum(sum(sum(sum(X([4:8 13], i1y:(i15y - 1), :, :))))) / n_child_1y_15y ...
+        + beta_1to15_EAg(i_dt) * sum(sum(sum(sum(X([2:3 14:15], i1y:(i15y - 1), :, :))))) / n_child_1y_15y;
     
     % iii: Transmission Between 5+ and Adults (Assuming equal risks for all persons 5y-100y)
     FOI(1, i5y:end, :, :) = FOI(1, i5y:end, :, :) + ...
-        beta_5plus_SAg_itt(i_dt) * sum(sum(sum(sum(X([4:8 13], i5y:end, :, :))))) / n_pop_5y_andabove ...
-        + beta_5plus_EAg_itt(i_dt) * sum(sum(sum(sum(X([2:3 14:15], i5y:end, :, :))))) / n_pop_5y_andabove;
+        beta_5plus_SAg(i_dt) * sum(sum(sum(sum(X([4:8 13], i5y:end, :, :))))) / n_pop_5y_andabove ...
+        + beta_5plus_EAg(i_dt) * sum(sum(sum(sum(X([2:3 14:15], i5y:end, :, :))))) / n_pop_5y_andabove;
     
     
     % Disease Progression
