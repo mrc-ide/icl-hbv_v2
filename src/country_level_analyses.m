@@ -7,7 +7,7 @@ function country_level_analyses(sensitivity_analysis,...
     country_s_e_HCCdeaths_map,...
     params_map,dwvec,stochas_params_mat,country_start_cols,...
     basedir,filename_diaries,...
-    num_states,num_year_divisions,dt,ages,num_age_steps,start_year,T0,end_year,...
+    num_states,num_year_divisions,dt,ages,num_age_steps,start_year,num_years_simul,end_year,...
     theta,CFR_Acute,rate_6months,ECofactor,p_ChronicCarriage)
 
 
@@ -514,12 +514,12 @@ function country_level_analyses(sensitivity_analysis,...
 
             %% Run scenarios:
             lastrun = HBVmodel(source_HBsAg,...
-                num_states,num_year_divisions,dt,ages,num_age_steps,start_year,T0,...
+                num_states,num_year_divisions,dt,ages,num_age_steps,start_year,num_years_simul,...
                 theta,ECofactor,treat_start_year-dt,HBsAg_treat_cov_all_ages,params,p_ChronicCarriage,Prog,Transactions);
-            lastrun.DALYPerYear = make_daly_mat(lastrun,T0,num_year_1980_2100,i84);
-            assert(isequal(size(lastrun.DALYPerYear),[100 T0 + 1]))
+            lastrun.DALYPerYear = make_daly_mat(lastrun,num_years_simul,num_year_1980_2100,i84);
+            assert(isequal(size(lastrun.DALYPerYear),[100 num_years_simul + 1]))
 
-            assert(isequal(size(lastrun.Time),[1 (T0 + 1)]))
+            assert(isequal(size(lastrun.Time),[1 (num_years_simul + 1)]))
             i1980 = find(lastrun.Time>=1980, 1);
             i2100 = find(lastrun.Time>=2100, 1);
             num_cols_out = i2100 - i1980 + 1; % every output should have entries for the years 1980 to 2100
@@ -549,27 +549,27 @@ function country_level_analyses(sensitivity_analysis,...
             lastrun = rmfield(lastrun,'Prev_Comp_Cirr_1yr');
             lastrun = rmfield(lastrun,'Prev_Decomp_Cirr_1yr');
 
-            assert(isequal(size(lastrun.Incid_Deaths_1yr_approx),[2 100 (T0 + 1)]))
+            assert(isequal(size(lastrun.Incid_Deaths_1yr_approx),[2 100 (num_years_simul + 1)]))
             birth_cohorts_fun = @(yy) arrayfun(@(xx) sum(diag(yy,xx)), 0:(num_cols_out-1));
             assert(isequal(size(squeeze(sum(lastrun.Incid_Deaths_1yr_approx(:,:,i1980:index_last_year),1))),[100 num_cols_in]))
-            lastrun.Incid_Deaths_1yr_approx_birth_cohorts = birth_cohorts_fun(squeeze(sum(lastrun.Incid_Deaths_1yr_approx(:,:,i1980:index_last_year),1))); % 2 x 100 x (T0 + 1)
+            lastrun.Incid_Deaths_1yr_approx_birth_cohorts = birth_cohorts_fun(squeeze(sum(lastrun.Incid_Deaths_1yr_approx(:,:,i1980:index_last_year),1))); % 2 x 100 x (num_years_simul + 1)
             assert(isequal(size(lastrun.Incid_Deaths_1yr_approx_birth_cohorts),[1 num_cols_out]))
-            lastrun.Time = lastrun.Time(i1980:i2100); % 1 x (T0 + 1)
-            lastrun.Tot_Pop_1yr_5_year_olds = squeeze(sum(sum(lastrun.Tot_Pop_1yr(:,i5y,i1980:i2100),1),2))'; % 2 x 100 x (T0 + 1)
-            lastrun.Tot_Pop_1yr_under_5_year_olds = squeeze(sum(sum(lastrun.Tot_Pop_1yr(:,index_under_5y,i1980:i2100),1),2))'; % 2 x 100 x (T0 + 1)
-            lastrun.NumSAg_1yr_5_year_olds = squeeze(sum(sum(lastrun.NumSAg_1yr(:,i5y,i1980:i2100),1),2))'; % 2 x 100 x (T0 + 1)
-            lastrun.NumSAg_1yr_under_5_year_olds = squeeze(sum(sum(lastrun.NumSAg_1yr(:,index_under_5y,i1980:i2100),1),2))'; % 2 x 100 x (T0 + 1)
-            lastrun.NumSAg_chronic_1yr_5_year_olds = squeeze(sum(sum(lastrun.NumSAg_chronic_1yr(:,i5y,i1980:i2100),1),2))'; % 2 x 100 x (T0 + 1)            
-            lastrun.NumSAg_chronic_1yr_under_5_year_olds = squeeze(sum(sum(lastrun.NumSAg_chronic_1yr(:,index_under_5y,i1980:i2100),1),2))'; % 2 x 100 x (T0 + 1)            
-            lastrun.Tot_Pop_1yr = squeeze(sum(sum(lastrun.Tot_Pop_1yr(:,:,i1980:i2100),1),2))'; % 2 x 100 x (T0 + 1)
-            lastrun.num_births_1yr = lastrun.num_births_1yr(i1980:i2100); % 1 x (T0 + 1)
-            lastrun.Incid_chronic_all_1yr_approx = squeeze(sum(sum(lastrun.Incid_chronic_all_1yr_approx(:,:,i1980:i2100),1),2))'; % 2 x 100 x (T0 + 1)
-            lastrun.NumSAg_1yr = squeeze(sum(sum(lastrun.NumSAg_1yr(:,:,i1980:i2100),1),2))'; % 2 x 100 x (T0 + 1)
-            lastrun.NumSAg_chronic_1yr = squeeze(sum(sum(lastrun.NumSAg_chronic_1yr(:,:,i1980:i2100),1),2))'; % 2 x 100 x (T0 + 1)
-            lastrun.Prev_TDF_treat_1yr = squeeze(sum(sum(lastrun.Prev_TDF_treat_1yr(:,:,i1980:i2100),1),2))'; % 2 x 100 x (T0 + 1)
-            lastrun.Prev_treatment_eligible_1yr = squeeze(sum(sum(lastrun.Prev_treatment_eligible_1yr(:,:,i1980:i2100),1),2))'; % 2 x 100 x (T0 + 1)
-            lastrun.Incid_Deaths_1yr_approx = squeeze(sum(sum(lastrun.Incid_Deaths_1yr_approx(:,:,i1980:i2100),1),2))'; % 2 x 100 x (T0 + 1)
-            lastrun.DALYPerYear = squeeze(sum(lastrun.DALYPerYear(:,i1980:i2100),1)); % 100 x (T0 + 1)
+            lastrun.Time = lastrun.Time(i1980:i2100); % 1 x (num_years_simul + 1)
+            lastrun.Tot_Pop_1yr_5_year_olds = squeeze(sum(sum(lastrun.Tot_Pop_1yr(:,i5y,i1980:i2100),1),2))'; % 2 x 100 x (num_years_simul + 1)
+            lastrun.Tot_Pop_1yr_under_5_year_olds = squeeze(sum(sum(lastrun.Tot_Pop_1yr(:,index_under_5y,i1980:i2100),1),2))'; % 2 x 100 x (num_years_simul + 1)
+            lastrun.NumSAg_1yr_5_year_olds = squeeze(sum(sum(lastrun.NumSAg_1yr(:,i5y,i1980:i2100),1),2))'; % 2 x 100 x (num_years_simul + 1)
+            lastrun.NumSAg_1yr_under_5_year_olds = squeeze(sum(sum(lastrun.NumSAg_1yr(:,index_under_5y,i1980:i2100),1),2))'; % 2 x 100 x (num_years_simul + 1)
+            lastrun.NumSAg_chronic_1yr_5_year_olds = squeeze(sum(sum(lastrun.NumSAg_chronic_1yr(:,i5y,i1980:i2100),1),2))'; % 2 x 100 x (num_years_simul + 1)            
+            lastrun.NumSAg_chronic_1yr_under_5_year_olds = squeeze(sum(sum(lastrun.NumSAg_chronic_1yr(:,index_under_5y,i1980:i2100),1),2))'; % 2 x 100 x (num_years_simul + 1)            
+            lastrun.Tot_Pop_1yr = squeeze(sum(sum(lastrun.Tot_Pop_1yr(:,:,i1980:i2100),1),2))'; % 2 x 100 x (num_years_simul + 1)
+            lastrun.num_births_1yr = lastrun.num_births_1yr(i1980:i2100); % 1 x (num_years_simul + 1)
+            lastrun.Incid_chronic_all_1yr_approx = squeeze(sum(sum(lastrun.Incid_chronic_all_1yr_approx(:,:,i1980:i2100),1),2))'; % 2 x 100 x (num_years_simul + 1)
+            lastrun.NumSAg_1yr = squeeze(sum(sum(lastrun.NumSAg_1yr(:,:,i1980:i2100),1),2))'; % 2 x 100 x (num_years_simul + 1)
+            lastrun.NumSAg_chronic_1yr = squeeze(sum(sum(lastrun.NumSAg_chronic_1yr(:,:,i1980:i2100),1),2))'; % 2 x 100 x (num_years_simul + 1)
+            lastrun.Prev_TDF_treat_1yr = squeeze(sum(sum(lastrun.Prev_TDF_treat_1yr(:,:,i1980:i2100),1),2))'; % 2 x 100 x (num_years_simul + 1)
+            lastrun.Prev_treatment_eligible_1yr = squeeze(sum(sum(lastrun.Prev_treatment_eligible_1yr(:,:,i1980:i2100),1),2))'; % 2 x 100 x (num_years_simul + 1)
+            lastrun.Incid_Deaths_1yr_approx = squeeze(sum(sum(lastrun.Incid_Deaths_1yr_approx(:,:,i1980:i2100),1),2))'; % 2 x 100 x (num_years_simul + 1)
+            lastrun.DALYPerYear = squeeze(sum(lastrun.DALYPerYear(:,i1980:i2100),1)); % 100 x (num_years_simul + 1)
             assert(isequal(size(lastrun.Time),[1 num_cols_out]))
             assert(isequal(size(lastrun.Tot_Pop_1yr_5_year_olds),[1 num_cols_out]))
             assert(isequal(size(lastrun.Tot_Pop_1yr_under_5_year_olds),[1 num_cols_out]))
@@ -642,20 +642,20 @@ end % end function country_level_analyses
 
 
 
-function outmat = make_daly_mat(model_run,T0,num_year_1980_2100,yll_max_age)
+function outmat = make_daly_mat(model_run,num_years_simul,num_year_1980_2100,yll_max_age)
 
     yll_spread = squeeze(sum(model_run.Prev_Deaths_1yr(:,1:(yll_max_age-1),:),1)); % sum over gender
     % prevalence of deaths because one wants to count total deaths
-    assert(isequal(size(yll_spread),[(yll_max_age-1) T0+1]))
-    yll_spread = [yll_spread; zeros(100-(yll_max_age-1),T0+1)];
-    assert(isequal(size(yll_spread),[100 T0+1]))
+    assert(isequal(size(yll_spread),[(yll_max_age-1) num_years_simul+1]))
+    yll_spread = [yll_spread; zeros(100-(yll_max_age-1),num_years_simul+1)];
+    assert(isequal(size(yll_spread),[100 num_years_simul+1]))
     
     yld_spread = squeeze(sum(model_run.yld_1yr,1)); % years living with the disease
     % Wikipedia: YLD = I x DW x L, where I = number of incident cases in the population, DW = disability weight of specific condition, and L = average duration of the case until remission or death (years)
     % I x L = P therefore YLD = P x DW, which is done in the model
     % model_run.yld_1yr is a 2 x 100 x num_year_1980_2100 matrix 
     % sum over genders to get a 100 x 101 matrix of 100 age groups (0 to 99) versus 101 years (2000 to 2100)
-    assert(isequal(size(yld_spread),[100 T0+1]))
+    assert(isequal(size(yld_spread),[100 num_years_simul+1]))
 
     outmat = yll_spread + yld_spread;
     % DALY = YLL + YLD

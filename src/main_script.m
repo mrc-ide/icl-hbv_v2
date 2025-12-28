@@ -65,8 +65,8 @@ num_scenarios = 1;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 start_year = 1890;
-T0 = 2101-start_year; % must go up to year 2101 to get incidence readings up to year 2100
-end_year = start_year + T0;
+num_years_simul = 2101-start_year; % must go up to year 2101 to get incidence readings up to year 2100
+end_year = start_year + num_years_simul;
 num_year_divisions = 10;
 assert(rem(log10(num_year_divisions),1)==0) % ensure that num_year_divisions is a multiple of 10
 % log10(1) = 0, log10(10) = 1, log10(100) = 2, etc.
@@ -370,7 +370,7 @@ for sensitivity_analysis_num=1:num_sensitivity_analyses
             country_s_e_HCCdeaths_map,...
             params_map,dwvec,stochas_params_mat,country_start_cols,...
             basedir,filename_diaries,...
-            num_states,num_year_divisions,dt,ages,num_age_steps,start_year,T0,end_year,...
+            num_states,num_year_divisions,dt,ages,num_age_steps,start_year,num_years_simul,end_year,...
             theta,CFR_Acute,rate_6months,ECofactor,p_ChronicCarriage)
 
     end

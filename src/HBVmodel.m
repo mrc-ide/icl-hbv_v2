@@ -1,5 +1,5 @@
 function output = HBVmodel(seed_prev_string,...
-    num_disease_states,num_year_divisions,dt,ages,num_age_steps,start_year,T0,...
+    num_disease_states,num_year_divisions,dt,ages,num_age_steps,start_year,num_years_simul,...
     theta,ECofactor,treat_start_year,treat_coverage_in_2016,demog,p_ChronicCarriage,Prog,Transactions)
 
 % X-stocks are (infection_state, age, sex(1=women, 2=men), accessible*)   {*accessible
@@ -22,7 +22,7 @@ i1y = find(ages >= 1, 1);
 i5y = find(ages >= 5, 1);
 i15y = find(ages >= 15, 1);
 
-end_year = start_year + T0; % 2101
+end_year = start_year + num_years_simul; % 2101
 TimeSteps = start_year:dt:end_year; % 1 x 2101 double; [1890 1890.1 1890.2 ... 2099.8 2099.9 2100 2100.1 ... 2100.8 2100.9 2101]
 
 
@@ -177,18 +177,18 @@ assert(isequal(size(Prog),size(zeros(num_disease_states, num_disease_states))));
 
 [...
     Tot_Pop_1yr, Prev_Immune_Reactive_1yr, Prev_Chronic_Hep_B_1yr, Prev_Comp_Cirr_1yr, Prev_Decomp_Cirr_1yr, Prev_TDF_treat_1yr, NumSAg_1yr, NumSAg_chronic_1yr, yld_1yr, Prev_Deaths_1yr...
-    ] = deal(DUMMY_VALUE * ones(2, max(agegroups_1yr), T0 + 1));
+    ] = deal(DUMMY_VALUE * ones(2, max(agegroups_1yr), num_years_simul + 1));
 [...
     Incid_chronic_all_1yr_approx,...
     Incid_Deaths_1yr_approx...
-    ] = deal(DUMMY_VALUE * ones(2, max(agegroups_1yr), T0 + 1));
+    ] = deal(DUMMY_VALUE * ones(2, max(agegroups_1yr), num_years_simul + 1));
 							  
 [...
     NewChronicCarriage, moving_btw_states, ...
     ] = deal(zeros(1, num_age_steps, 2, 2));
 
 % single output per year
-[Time, num_births_1yr] = deal(DUMMY_VALUE * ones(1, T0 + 1));
+[Time, num_births_1yr] = deal(DUMMY_VALUE * ones(1, num_years_simul + 1));
 
 % ----- Simulation -----
 
@@ -211,11 +211,11 @@ for time = TimeSteps
     % (we need it so that mu() has the correct dimensions),
     mu(:, :, i_female, :) = repmat(demog.MortalityRate_Women(OutputEventNum, MappingFromDataToParam), [num_disease_states 1 num_treat_blocks]);
     mu(:, :, i_male, :) = repmat(demog.MortalityRate_Men(OutputEventNum, MappingFromDataToParam), [num_disease_states 1 num_treat_blocks]);
-    % demog.MortalityRate_Women is a (T0+1=212) x 21 matrix of mortality rates of 21 age groups (0--0, 1--4, 5--9, 10--14, ..., 90--94, 95--99) for every year from 1890 to 2101
-    % OutputEventNum ranges from 1 to (T0+1)
+    % demog.MortalityRate_Women is a (num_years_simul+1=212) x 21 matrix of mortality rates of 21 age groups (0--0, 1--4, 5--9, 10--14, ..., 90--94, 95--99) for every year from 1890 to 2101
+    % OutputEventNum ranges from 1 to (num_years_simul+1)
     % agegroups_1yr = [1 1 1 ... 100 100 100], each number 10 times
     % selected vector copied across disease states and treatments
-    % demog.fert is a 1000 x (T0+1) matrix; ages in 0.1 year jumps versus 212 years
+    % demog.fert is a 1000 x (num_years_simul+1) matrix; ages in 0.1 year jumps versus 212 years
     %% MP: Magic number 1:10:end
     fert = demog.fert(1:10:end, OutputEventNum);
     %% MP: Magic numbers 100 1
@@ -225,7 +225,7 @@ for time = TimeSteps
     fert = fert(:);
     %% MP: Magic numbers 100 1
     assert(isequal(size(fert),[100*num_year_divisions 1]))
-    assert(length(demog.net_migration)==(T0+1))
+    assert(length(demog.net_migration)==(num_years_simul+1))
     net_migration = demog.net_migration(OutputEventNum);
     sex_ratio = demog.sex_ratios(OutputEventNum);
     assert(length(net_migration)==1)
@@ -503,20 +503,20 @@ for time = TimeSteps
     
 end % end "time = TimeSteps" for loop
 
-output.Time = Time; % 1 x (T0 + 1)
-output.Tot_Pop_1yr = Tot_Pop_1yr; % 2 x 100 x (T0 + 1)
-output.num_births_1yr = num_births_1yr; % 1 x (T0 + 1)
-output.Incid_chronic_all_1yr_approx = Incid_chronic_all_1yr_approx; % 2 x 100 x (T0 + 1)
-output.Prev_Immune_Reactive_1yr = Prev_Immune_Reactive_1yr; % 2 x 100 x (T0 + 1)
-output.Prev_Chronic_Hep_B_1yr = Prev_Chronic_Hep_B_1yr; % 2 x 100 x (T0 + 1)
-output.Prev_Comp_Cirr_1yr = Prev_Comp_Cirr_1yr; % 2 x 100 x (T0 + 1)
-output.Prev_Decomp_Cirr_1yr = Prev_Decomp_Cirr_1yr; % 2 x 100 x (T0 + 1)
-output.Prev_TDF_treat_1yr = Prev_TDF_treat_1yr; % 2 x 100 x (T0 + 1)
-output.NumSAg_1yr = NumSAg_1yr; % 2 x 100 x (T0 + 1)
-output.NumSAg_chronic_1yr = NumSAg_chronic_1yr; % 2 x 100 x (T0 + 1)
-output.yld_1yr = yld_1yr; % 2 x 100 x (T0 + 1)
-output.Incid_Deaths_1yr_approx = Incid_Deaths_1yr_approx; % 2 x 100 x (T0 + 1)
-output.Prev_Deaths_1yr = Prev_Deaths_1yr; % 2 x 100 x (T0 + 1)
+output.Time = Time; % 1 x (num_years_simul + 1)
+output.Tot_Pop_1yr = Tot_Pop_1yr; % 2 x 100 x (num_years_simul + 1)
+output.num_births_1yr = num_births_1yr; % 1 x (num_years_simul + 1)
+output.Incid_chronic_all_1yr_approx = Incid_chronic_all_1yr_approx; % 2 x 100 x (num_years_simul + 1)
+output.Prev_Immune_Reactive_1yr = Prev_Immune_Reactive_1yr; % 2 x 100 x (num_years_simul + 1)
+output.Prev_Chronic_Hep_B_1yr = Prev_Chronic_Hep_B_1yr; % 2 x 100 x (num_years_simul + 1)
+output.Prev_Comp_Cirr_1yr = Prev_Comp_Cirr_1yr; % 2 x 100 x (num_years_simul + 1)
+output.Prev_Decomp_Cirr_1yr = Prev_Decomp_Cirr_1yr; % 2 x 100 x (num_years_simul + 1)
+output.Prev_TDF_treat_1yr = Prev_TDF_treat_1yr; % 2 x 100 x (num_years_simul + 1)
+output.NumSAg_1yr = NumSAg_1yr; % 2 x 100 x (num_years_simul + 1)
+output.NumSAg_chronic_1yr = NumSAg_chronic_1yr; % 2 x 100 x (num_years_simul + 1)
+output.yld_1yr = yld_1yr; % 2 x 100 x (num_years_simul + 1)
+output.Incid_Deaths_1yr_approx = Incid_Deaths_1yr_approx; % 2 x 100 x (num_years_simul + 1)
+output.Prev_Deaths_1yr = Prev_Deaths_1yr; % 2 x 100 x (num_years_simul + 1)
 
 end % end function HBVmodel_PPT
 
