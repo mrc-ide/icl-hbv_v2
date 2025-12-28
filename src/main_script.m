@@ -2,7 +2,7 @@
 
 clear
 
-MAKE_PARAMETER_FILE_MP = 0; % Set to 1 to write the input parameter files into a series of text files.
+MAKE_PARAMETER_FILE_MP = 1; % Set to 1 to write the input parameter files into a series of text files.
 
 %% To remove to allow full run (labelled with TUTAJ):
 %% num_stochas_runs = 2;
@@ -128,25 +128,11 @@ risk_ages_edmunds_func = @(age) exp(-0.645*age^(0.455));
 load(fullfile(basedir,'resources','ListOfISOs.mat')) % contains ListOfISOs
 num_countries = length(ListOfISOs);
 %% MP: ListOfISOs doesn't really do anything useful. 
-if MAKE_PARAMETER_FILE_MP == 1
-    allcountry_ISOs = "";
-    for country_num = 1:num_countries
-        ISO = ListOfISOs{country_num};
-        %%thiscountry_ISO = jsonencode(ListOfISOs(ISO),PrettyPrint=true);
-        thiscountry_ISO = string(country_num)+ ": "+ISO+newline
-        allcountry_ISOs = strcat(allcountry_ISOs,thiscountry_ISO);
-    end
-    writelines(allcountry_ISOs,"ListOfISOs.txt");
-end
 
 load(fullfile(basedir,'resources','vaccination_coverages.mat')) % contains BD_table and HepB3_table
 %% BD_table and HepB3_table are 194x40 tables. 
 %% The 40 refers to years (I think). 194 is countries (including ones not modelled).
 %% Note that the rows have the country names but this is suppressed by default when writing using writetable.
-if MAKE_PARAMETER_FILE_MP == 1
-    writetable(BD_table,"BD_table.csv",'WriteRowNames',true); 
-    writetable(HepB3_table,"HepB3_table.csv",'WriteRowNames',true); 
-end
 
 load(fullfile(basedir,'resources','reference_prevalences.mat')) % contains country_s_e_HCCdeaths_map
 % country_s_e_HCCdeaths_map is a container map with 110 entries indexed by
@@ -160,16 +146,6 @@ load(fullfile(basedir,'resources','reference_prevalences.mat')) % contains count
 %   HBsAg_prevs_year_1: 1992
 %   country_HBsAg_prevalences_by_ages_mid_1_young_old: [0.0967 0.1005]
 %   HBsAg_prevs_middle_year_1: [18×2 double]
-
-if MAKE_PARAMETER_FILE_MP == 1
-    allcountry_hccdeaths = "";
-    for country_num = 1:num_countries
-        ISO = ListOfISOs{country_num};
-        thiscountry_hccdeaths = jsonencode(country_s_e_HCCdeaths_map(ISO),PrettyPrint=true);
-        allcountry_hccdeaths = strcat(allcountry_hccdeaths," COUNTRY: ",ISO,thiscountry_hccdeaths);
-    end
-    writelines(allcountry_hccdeaths,"country_s_e_HCCdeaths.txt");
-end
 
 load(fullfile(basedir,'resources','params_map.mat')) % contains params_map and dwvec
 % dwvec: 1x15 vector, giving DALY weights (1 per model box) - note that one box is death.
@@ -199,53 +175,26 @@ load(fullfile(basedir,'resources','params_map.mat')) % contains params_map and d
 %                          beta_5plus: 1.0000e-03
 %                 ReducInTransmission: 0
 %             YearReducInTransmission: 2100
-if MAKE_PARAMETER_FILE_MP == 1
-    writematrix(dwvec, "dwvec.csv");
-    allcountry_params = "";
-    for country_num = 1:num_countries
-        ISO = ListOfISOs{country_num};
-        thiscountry_params = jsonencode(params_map(ISO),PrettyPrint=true);
-        allcountry_params = allcountry_params + " COUNTRY: " + ISO + thiscountry_params + newline;
-    end
-    writelines(allcountry_params,"params.txt");
-end
 
 load(fullfile(basedir,'resources','stochastic_parameters_mat.mat')) % contains stochas_params_mat
 %% stochas_params_mat is a 200x883 matrix. I think the 200 refers to the number of stochastic runs.
 %% MP question: what is the 883? 883 is prime.
-if MAKE_PARAMETER_FILE_MP == 1
-    writematrix(stochas_params_mat, "stochas_params_mat.csv");
-end
 
 load(fullfile(basedir,'resources','treatment_2016_map.mat')) % contains num_in_treatment_2016_map and pop_size_HBsAg_treatment_map
  
 %% num_in_treatment_2016_map:
 %  A container map with 110 entries indexed by country name (e.g. ZWE). Each
 % entry is a double (one number!)
-if MAKE_PARAMETER_FILE_MP == 1
-    allcountry_num_in_treatment_2016 = "";
-    for country_num = 1:110
-        ISO = ListOfISOs{country_num};
-        thiscountry_num_in_treatment_2016 = jsonencode(num_in_treatment_2016_map(ISO),PrettyPrint=true);
-        thiscountry_num_in_treatment_2016 = ISO + ":" + thiscountry_num_in_treatment_2016 + newline
-        allcountry_num_in_treatment_2016 = strcat(allcountry_num_in_treatment_2016,thiscountry_num_in_treatment_2016);
-    end
-    writelines(allcountry_num_in_treatment_2016,"raw_params/num_in_treatment_2016.txt");
-end
 
 load(fullfile(basedir,'resources','treatment_rates_map.mat')) % contains treatment_rates_map
+
+
 if MAKE_PARAMETER_FILE_MP == 1
-    allcountry_treatment_rates = "";
-    for country_num = 1:110
-        ISO = ListOfISOs{country_num};
-        thiscountry_treatment_rates = jsonencode(treatment_rates_map(ISO),PrettyPrint=true);
-        thiscountry_treatment_rates = ISO + ":" + thiscountry_treatment_rates + newline
-        allcountry_treatment_rates = strcat(allcountry_treatment_rates,thiscountry_treatment_rates);
-    end
-    writelines(allcountry_treatment_rates,"raw_params/treatment_rates.txt");
+    write_parameter_txt_files(ListOfISOs, BD_table, HepB3_table, country_s_e_HCCdeaths_map, dwvec, ...
+    params_map, stochas_params_mat, num_in_treatment_2016_map, treatment_rates_map, num_countries);
 end
 
-%% MP: move treatment_boundaries_vec here.
+%% MP: could move treatment_boundaries_vec here (but it's a function of sensitivity_analysis so needs to be done in that loop).
 % treatment_boundaries_vec contains the following (NOTE - this is *not* a complete list, but only treatment_boundaries_vec([1 2 3 5]) are used in the code:
 % (1) treatment year, 
 % (2) rate to keep number of people in treatment constant,
