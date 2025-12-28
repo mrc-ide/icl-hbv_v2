@@ -5,10 +5,10 @@ function country_level_analyses(sensitivity_analysis,...
     BD_table,HepB3_table,...
     num_in_treatment_2016_map,pop_size_HBsAg_treatment_map,treatment_rates_map,...
     country_s_e_HCCdeaths_map,...
-    params_map,dwvec,stochas_params_mat,country_start_cols,...
+    params_map,stochas_params_mat,country_start_cols,...
     basedir,filename_diaries,...
     num_states,num_year_divisions,dt,ages,num_age_steps,start_year,num_years_simul,end_year,...
-    theta,CFR_Acute,rate_6months,ECofactor,p_ChronicCarriage)
+    theta,CFR_Acute,rate_6months,ECofactor,p_ChronicCarriage,life_expectancy)
 
 
     if nargin < 1
@@ -81,17 +81,17 @@ function country_level_analyses(sensitivity_analysis,...
             % Parameters
             assert(params.Efficacy_BirthDoseVacc_HbSAg==0.95)
             assert(params.p_VerticalTransmission_HbEAg_NoIntv==0.9)
-            params.dwvec = dwvec;
+            %% MP: moved to main_script.m %% params.dwvec = dwvec;
 
             country_start_col = country_start_cols(find(strcmp(ISO,ListOfISOs)));
             params.beta_U5 = stochas_params_mat(stochas_run_num,country_start_col);
-            params.SpeedUpELoss_F = 9.5;
+            %% MP: moved to main_script.m %% params.SpeedUpELoss_F = 9.5;
             params.SpeedUpELoss_Beta = stochas_params_mat(stochas_run_num,country_start_col+1);
             params.p_VerticalTransmission_HbSAg_NoIntv = stochas_params_mat(stochas_run_num,country_start_col+2);
             params.cancer_rate_coeff = stochas_params_mat(stochas_run_num,country_start_col+3);
             params.cirrh_rate_coeff = stochas_params_mat(stochas_run_num,country_start_col+4);
-            params.CancerRate_WomenCoFactor = 1;
-            params.CirrhosisRate_WomenCoFactor = 1;    
+            %% MP: moved to main_script.m %% params.CancerRate_WomenCoFactor = 1;
+            %% MP: moved to main_script.m %% params.CirrhosisRate_WomenCoFactor = 1;    
             params.CancerRate_MenCoFactor = stochas_params_mat(stochas_run_num,country_start_col+5);
             params.CirrhosisRate_MenCoFactor = stochas_params_mat(stochas_run_num,country_start_col+6);
             switch sensitivity_analysis
@@ -506,7 +506,6 @@ function country_level_analyses(sensitivity_analysis,...
 
 
 
-            i84 = 85; % the approximate life-expectancy at birth for persons in Japan and the highest life-expectnacy in the world, which is often taken as the benchmark
 
 
             num_year_1980_2100 = 2100 - 1980 + 1;
@@ -516,7 +515,7 @@ function country_level_analyses(sensitivity_analysis,...
             lastrun = HBVmodel(source_HBsAg,...
                 num_states,num_year_divisions,dt,ages,num_age_steps,start_year,num_years_simul,...
                 theta,ECofactor,treat_start_year-dt,HBsAg_treat_cov_all_ages,params,p_ChronicCarriage,Prog,Transactions);
-            lastrun.DALYPerYear = make_daly_mat(lastrun,num_years_simul,num_year_1980_2100,i84);
+            lastrun.DALYPerYear = make_daly_mat(lastrun,num_years_simul,num_year_1980_2100,life_expectancy);
             assert(isequal(size(lastrun.DALYPerYear),[100 num_years_simul + 1]))
 
             assert(isequal(size(lastrun.Time),[1 (num_years_simul + 1)]))

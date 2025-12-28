@@ -9,7 +9,35 @@ num_sexes = 2; % F=1, M=2.
 i_female = 1;
 i_male = 2;
 num_treat_blocks = 2;
+i_notreat = 1;
+i_yestreat = 2;
+i_Susc = 1;         % 'Susceptible', 
+i_ImmTol = 2;       % 'HBV: Immune Tolerant',
+i_ImmReact = 3;     % 'HBV: Immune Reactive',
+i_AsymptCarr = 4;   % 'HBV: Asymptomatic Carrier',
+i_Chronic = 5;      % 'HBV: Chronic Hep B',
+i_CompCirr = 6;     % 'HBV: Comp Cirrhosis',
+i_DecompCirr = 7;   % 'HBV: Decomp Cirrhosis',
+i_HCC = 8;          % 'HBV: Liver Cancer',
+i_Immume = 9;       % 'HBV: Immune (Rec. or vacc.)',
+i_TDFtreat = 10;    % 'HBV: TDF-Treatment',
+i_HBVdeath = 11;    % 'Prematurely dead due to HBV', ... % 11
+i_3TCtreat = 12;    % '3TC-Treatment', ... % 12
+i_3TCfailed = 13;   % 'Failed 3TC-Treatment', ...  % 13
+i_NonSevAcute = 14; % 'Non-severe acute', ...  % 14
+i_SevereAcute = 15; % 'Severe acute' ...  % 15
+
 i_alive = [1:10 12:15];
+%% Other possible groups to add
+%NumSAg_1yr(k, ag, OutputEventNum-1) = sum(state_prev_vec([2:8 10 12:15]));
+%NumSAg_chronic_1yr(k, ag, OutputEventNum-1) = sum(state_prev_vec([2:8 10 12:13]));
+%        beta_U5_SAg_itt(itt) * sum(sum(sum(sum(X([4:8 13], i1y:(i5y - 1), :, :))))) / sum(sum(sum(sum(X(i_alive, i1y:(i5y - 1), :, :))))) ...
+%        + beta_U5_EAg_itt(itt) * sum(sum(sum(sum(X([2:3 14:15], i1y:(i5y - 1), :, :))))) / sum(sum(sum(sum(X(i_alive, i1y:(i5y - 1), :, :)))));
+%eligible_pop = sum(sum(sum(sum(X([3 5 6 7], :, :, :),1),2),3),4); 
+%births_toHbEAgWomen = sum(fert' .* sum(sum(X([2:3 14:15], :, 1, :), 1), 4)); % Immune Tolerant, Immune Reactive
+%births_toHbSAgWomen = sum(fert' .* sum(sum(X([4:8 13], :, 1, :), 1), 4)); % All other stages (other infected women)
+%births_toTrWomen = sum(fert' .* sum(sum(X([10 12], :, 1, :), 1), 4)); % Women on Treatment
+    
 
 DUMMY_VALUE = -99;  % Used in initialising arrays to a dummy value (-99 should be easy to spot).
 
@@ -140,8 +168,8 @@ end
 
 X(1, :, :, 1) = NumNotSAg;
 %% MP: Magic number 0.5 (and 1-0.5) - put in main_script.m
-X(3, :, :, 1) = 0.5 * NumSAg;
-X(4, :, :, 1) = 0.5 * NumSAg;
+X(i_ImmReact, :, :, 1) = 0.5 * NumSAg;
+X(i_AsymptCarr, :, :, 1) = 0.5 * NumSAg;
 
 % Demography
 % Prepare an index that will allow quick population of the mu vector from
@@ -264,7 +292,7 @@ for time = TimeSteps
             % MontaguPopExpand is sizes of the current year's population over 0.1 year age steps; a 1000 x 2 matrix of ages versus gender
             % add an extra dimension and duplicate it for each disease state and treatment method
             X = X .* pop_scaler;
-            % scale all parts of X, including dead people i.e. State 11
+            % scale all parts of X, including dead people i.e. State i_HBVdeath=11
         end
 
     
@@ -290,7 +318,7 @@ for time = TimeSteps
                 
                     Prev_TDF_treat_1yr(k, ag, OutputEventNum-1) = state_prev_vec(10);
 
-                    Prev_Deaths_1yr(k, ag, OutputEventNum-1) = state_prev_vec(11);
+                    Prev_Deaths_1yr(k, ag, OutputEventNum-1) = state_prev_vec(i_HBVdeath);
 
                     NumSAg_1yr(k, ag, OutputEventNum-1) = sum(state_prev_vec([2:8 10 12:15]));
                 
@@ -300,7 +328,7 @@ for time = TimeSteps
 
                     Incid_chronic_all_1yr_approx(k,ag,OutputEventNum-1) = sum(sum(NewChronicCarriage(1, agegroups_1yr == ag, k, :), 2), 4);
                 
-                    Incid_Deaths_1yr_approx(k, ag, OutputEventNum-1) = sum(state_prev_vec .* Prog(:, 11));
+                    Incid_Deaths_1yr_approx(k, ag, OutputEventNum-1) = sum(state_prev_vec .* Prog(:, i_HBVdeath));
 
                 end
                 
@@ -438,17 +466,18 @@ for time = TimeSteps
     
     % Natural Mortality
     % Do not apply background mortality to the HBV deaths state, since we want people in all countries to be treated as if they would have lived until 84 if they had not died of HBV. This is done outside of the model in the main script. 
-    mu(11,:,:,:,:)=0.0;
+    mu(i_HBVdeath, :, :, :, :)=0.0;
     next_X = next_X + dt * ( -next_X .* mu );
     % in the "for time=TimeSteps", which runs 10 times per year, therefore divide effect of mu by 10
-    net_migration(11,:,:,:,:)=0.0;
+    net_migration(i_HBVdeath, :, :, :, :)=0.0;
     next_X = next_X + dt * ( +next_X .* net_migration );
     % "+" because net_migration = (number of immigrants - number of emigrants) / population size
     
     % Update Stocks
     X = next_X;
     
-    % now age everyone
+    % Now age everyone (second index is the age index with 1=newborn in this
+    % timestep).
     X(:, 2:num_age_steps, :, :) = X(:, 1:(num_age_steps - 1), :, :);
     X(:, 1, :, :) = 0; % set number of babies to 0 (babies will be born next)
     
@@ -491,11 +520,11 @@ for time = TimeSteps
     % female births -> 0 => sex_ratio -> infinity => female_multiplier -> 0
     % female births -> infinity => sex_ratio -> 0 => female_multiplier -> 1
     
-    X(1, 1, 1, 1) = female_multiplier * dt * babies_NotChronicCarriage;  % Suscpetible babies
-    X(2, 1, 1, 1) = female_multiplier * dt * babies_ChronicCarriage;     % Babies with chronic carriage
+    X(1, 1, i_female, i_notreat) = female_multiplier * dt * babies_NotChronicCarriage;  % Suscpetible babies
+    X(2, 1, i_female, i_notreat) = female_multiplier * dt * babies_ChronicCarriage;     % Babies with chronic carriage
     
-    X(1, 1, 2, 1) = male_multiplier * dt * babies_NotChronicCarriage;  % Suscpetible babies
-    X(2, 1, 2, 1) = male_multiplier * dt * babies_ChronicCarriage;     % Babies with chronic carriage
+    X(1, 1, i_male, i_notreat) = male_multiplier * dt * babies_NotChronicCarriage;  % Suscpetible babies
+    X(2, 1, i_male, i_notreat) = male_multiplier * dt * babies_ChronicCarriage;     % Babies with chronic carriage
       
     % increment the pointer
     itt = itt + 1;

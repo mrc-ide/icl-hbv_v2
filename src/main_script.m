@@ -118,10 +118,6 @@ risk_ages_edmunds_func = @(age) exp(-0.645*age^(0.455));
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% SERNIK - stuff to do: move these into here.
-% params.dwvec = dwvec;
-% params.SpeedUpELoss_F = 9.5;
-% params.CancerRate_WomenCoFactor = 1;
-% params.CirrhosisRate_WomenCoFactor = 1;    
 
 
 
@@ -316,6 +312,18 @@ diary(fullfile(basedir,'outputs',filename_diaries))
 % Prog(15, 11) = CFR_Acute * rate_6months;
 
 
+for country_num = 1:num_countries
+    ISO = ListOfISOs{country_num};
+    temp = params_map(ISO); % MatLab can't deal with direct modification of params_map(ISO)
+    temp.dwvec = dwvec;
+    temp.SpeedUpELoss_F = 9.5;
+    temp.CancerRate_WomenCoFactor = 1;
+    temp.CirrhosisRate_WomenCoFactor = 1;    
+    params_map(ISO) = temp;    
+end
+
+life_expectancy = 85; % the approximate life-expectancy at birth for persons in Japan and the highest life-expectnacy in the world, which is often taken as the benchmark
+
 
 
 begin_time_run = datetime('now');
@@ -368,10 +376,10 @@ for sensitivity_analysis_num=1:num_sensitivity_analyses
             BD_table,HepB3_table,...
             num_in_treatment_2016_map,pop_size_HBsAg_treatment_map,treatment_rates_map,...
             country_s_e_HCCdeaths_map,...
-            params_map,dwvec,stochas_params_mat,country_start_cols,...
+            params_map,stochas_params_mat,country_start_cols,...
             basedir,filename_diaries,...
             num_states,num_year_divisions,dt,ages,num_age_steps,start_year,num_years_simul,end_year,...
-            theta,CFR_Acute,rate_6months,ECofactor,p_ChronicCarriage)
+            theta,CFR_Acute,rate_6months,ECofactor,p_ChronicCarriage,life_expectancy)
 
     end
 
