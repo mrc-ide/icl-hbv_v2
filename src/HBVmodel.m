@@ -126,11 +126,13 @@ if strcmp(seed_prev_string,'Cui')
     assert(isequal(size(StartPrev_byAgeGroups),[18 num_sexes]))
     if any(isnan(StartPrev_byAgeGroups))
        nan_positions = isnan(StartPrev_byAgeGroups);
+       %% MP: Magic number 1 (also line below)
        first_non_nan_pos = find(~nan_positions(:,1), 1);
        StartPrev_byAgeGroups(1:first_non_nan_pos,:) = repmat(StartPrev_byAgeGroups(first_non_nan_pos,:),first_non_nan_pos,1);
        last_non_nan_pos = find(~nan_positions(:,1), 1, 'last'); % find the last non NaN position
        StartPrev_byAgeGroups(last_non_nan_pos:end,:) = repmat(StartPrev_byAgeGroups(last_non_nan_pos,:),size(nan_positions,1)-last_non_nan_pos+1,1);
     end
+    %% MP: Magic numbers 3 1
     StartPrev_byAgeGroups = [StartPrev_byAgeGroups(1:end-1,:); repmat(StartPrev_byAgeGroups(end,:),3,1)];
     % demog.HBsAg_prevs_middle_year_1 is a 18 x 2 double of age group by gender
     % demog.HBsAg_prevs_middle_year_1 age groups: 0--4 5--9 10--14 15--19 20--24 25--29 30--34 35--39 40--44 45--49 50--54 55--59 60--64 65--69 70--74 75--79 80--84 85+
@@ -145,8 +147,7 @@ elseif strcmp(seed_prev_string,'CDA')
     StartPrev_byAgeGroups = [repmat(demog.country_HBsAg_prevalences_by_ages_mid_1_young_old(1),num_year_divisions*(5.9-0.0)+1,2); ...
         repmat(demog.country_HBsAg_prevalences_by_ages_mid_1_young_old(2),num_year_divisions*(99.9-6.0)+1,2)];
     % apply prevalence in 5-year-olds to 0 to 6 year olds; apply prevalence in all ages to 6 to 99 year olds
-    %% MP: Magic number 100
-    assert(isequal(size(StartPrev_byAgeGroups),[num_year_divisions*100 num_sexes]))
+    assert(isequal(size(StartPrev_byAgeGroups),[num_age_steps num_sexes]))
 
     NumSAg = StartPrev_byAgeGroups .* StartPop;
     NumNotSAg = (1 - StartPrev_byAgeGroups) .* StartPop;
@@ -159,17 +160,16 @@ elseif strcmp(seed_prev_string,'WHO')
         repmat(demog.country_HBsAg_prevalences_by_ages_prevacc_young_old(1),under_5_pos_vec_len,2); ...
         repmat(demog.country_HBsAg_prevalences_by_ages_prevacc_young_old(2),over_5_pos_vec_len,2) ...
         ];
-    %% MP: Magic number 100
-    assert(isequal(size(StartPrev_byAgeGroups),[(100*num_year_divisions) num_sexes]))
+    assert(isequal(size(StartPrev_byAgeGroups),[num_age_steps num_sexes]))
 
     NumSAg = StartPrev_byAgeGroups .* StartPop;
     NumNotSAg = (1 - StartPrev_byAgeGroups) .* StartPop;
 end    
 
-X(1, :, :, 1) = NumNotSAg;
+X(i_Susc, :, :, i_notreat) = NumNotSAg;
 %% MP: Magic number 0.5 (and 1-0.5) - put in main_script.m
-X(i_ImmReact, :, :, 1) = 0.5 * NumSAg;
-X(i_AsymptCarr, :, :, 1) = 0.5 * NumSAg;
+X(i_ImmReact, :, :, i_notreat) = 0.5 * NumSAg;
+X(i_AsymptCarr, :, :, i_notreat) = 0.5 * NumSAg;
 
 % Demography
 % Prepare an index that will allow quick population of the mu vector from
@@ -184,14 +184,14 @@ MappingFromDataToParam(1:num_year_divisions) = 1;
 % used for the age groups 0, 0.1, 0.2, ..., 99.9
 
  
-cov_InfantVacc_itt = demog.InfantVacc;
-cov_BirthDose_itt = demog.BirthDose;
-assert(all(cov_InfantVacc_itt >= 0))
-assert(all(cov_InfantVacc_itt <= 1))
-assert(all(cov_BirthDose_itt >= 0))
-assert(all(cov_BirthDose_itt <= 1))
-assert(isequal(size(cov_InfantVacc_itt),size(TimeSteps)))
-assert(isequal(size(cov_BirthDose_itt),size(TimeSteps)))
+%% MP: removed %% cov_InfantVacc_itt = demog.InfantVacc;
+%% MP: removed %% cov_BirthDose_itt = demog.BirthDose;
+assert(all(demog.InfantVacc >= 0))
+assert(all(demog.InfantVacc <= 1))
+assert(all(demog.BirthDose >= 0))
+assert(all(demog.BirthDose <= 1))
+assert(isequal(size(demog.InfantVacc),size(TimeSteps)))
+assert(isequal(size(demog.BirthDose),size(TimeSteps)))
 
 
 assert(isequal(size(Prog),size(zeros(num_disease_states, num_disease_states)))); % Non-Age Specific Prog parameters stored as (from, to)
@@ -308,15 +308,15 @@ for time = TimeSteps
 
                     Tot_Pop_1yr(k, ag, OutputEventNum-1) = sum(state_prev_vec(i_alive));
                 
-                    Prev_Immune_Reactive_1yr(k, ag, OutputEventNum-1) = state_prev_vec(3);
+                    Prev_Immune_Reactive_1yr(k, ag, OutputEventNum-1) = state_prev_vec(i_ImmReact);
                 
-                    Prev_Chronic_Hep_B_1yr(k, ag, OutputEventNum-1) = state_prev_vec(5);
+                    Prev_Chronic_Hep_B_1yr(k, ag, OutputEventNum-1) = state_prev_vec(i_Chronic);
 
-                    Prev_Comp_Cirr_1yr(k, ag, OutputEventNum-1) = state_prev_vec(6);
+                    Prev_Comp_Cirr_1yr(k, ag, OutputEventNum-1) = state_prev_vec(i_CompCirr);
 
-                    Prev_Decomp_Cirr_1yr(k, ag, OutputEventNum-1) = state_prev_vec(7);
+                    Prev_Decomp_Cirr_1yr(k, ag, OutputEventNum-1) = state_prev_vec(i_DecompCirr);
                 
-                    Prev_TDF_treat_1yr(k, ag, OutputEventNum-1) = state_prev_vec(10);
+                    Prev_TDF_treat_1yr(k, ag, OutputEventNum-1) = state_prev_vec(i_TDFtreat);
 
                     Prev_Deaths_1yr(k, ag, OutputEventNum-1) = state_prev_vec(i_HBVdeath);
 
@@ -362,22 +362,24 @@ for time = TimeSteps
     
     % Horizontal Transmission (infection and Chronic Carriage)
     
-    FOI = zeros(1, num_age_steps, 2, 2);
-    
+    FOI = zeros(1, num_age_steps, num_sexes, num_treat_blocks);
+    n_child_1y_5y  = sum(sum(sum(sum(X(i_alive, i1y:(i5y - 1), :, :)))));
+    n_child_1y_15y = sum(sum(sum(sum(X(i_alive, i1y:(i15y - 1), :, :)))));
+    n_pop_5y_andabove = sum(sum(sum(sum(X(i_alive, i5y:end, :, :)))));
     % i: Transmission Between 1y-5y olds
     FOI(1, i1y:(i5y - 1), :, :) = ...
-        beta_U5_SAg_itt(itt) * sum(sum(sum(sum(X([4:8 13], i1y:(i5y - 1), :, :))))) / sum(sum(sum(sum(X(i_alive, i1y:(i5y - 1), :, :))))) ...
-        + beta_U5_EAg_itt(itt) * sum(sum(sum(sum(X([2:3 14:15], i1y:(i5y - 1), :, :))))) / sum(sum(sum(sum(X(i_alive, i1y:(i5y - 1), :, :)))));
+        beta_U5_SAg_itt(itt) * sum(sum(sum(sum(X([4:8 13], i1y:(i5y - 1), :, :))))) / n_child_1y_5y ...
+        + beta_U5_EAg_itt(itt) * sum(sum(sum(sum(X([2:3 14:15], i1y:(i5y - 1), :, :))))) / n_child_1y_5y;
     
     % ii: Transmission between 1-15 year olds
     FOI(1, i1y:(i15y - 1), :, :) = FOI(1, i1y:(i15y - 1), :, :) + ...
-        beta_1to15_SAg_itt(itt) * sum(sum(sum(sum(X([4:8 13], i1y:(i15y - 1), :, :))))) / sum(sum(sum(sum(X(i_alive, i1y:(i15y - 1), :, :))))) ...
-        + beta_1to15_EAg_itt(itt) * sum(sum(sum(sum(X([2:3 14:15], i1y:(i15y - 1), :, :))))) / sum(sum(sum(sum(X(i_alive, i1y:(i15y - 1), :, :)))));
+        beta_1to15_SAg_itt(itt) * sum(sum(sum(sum(X([4:8 13], i1y:(i15y - 1), :, :))))) / n_child_1y_15y ...
+        + beta_1to15_EAg_itt(itt) * sum(sum(sum(sum(X([2:3 14:15], i1y:(i15y - 1), :, :))))) / n_child_1y_15y;
     
     % iii: Transmission Between 5+ and Adults (Assuming equal risks for all persons 5y-100y)
     FOI(1, i5y:end, :, :) = FOI(1, i5y:end, :, :) + ...
-        beta_5plus_SAg_itt(itt) * sum(sum(sum(sum(X([4:8 13], i5y:end, :, :))))) / sum(sum(sum(sum(X(i_alive, i5y:end, :, :))))) ...
-        + beta_5plus_EAg_itt(itt) * sum(sum(sum(sum(X([2:3 14:15], i5y:end, :, :))))) / sum(sum(sum(sum(X(i_alive, i5y:end, :, :)))));
+        beta_5plus_SAg_itt(itt) * sum(sum(sum(sum(X([4:8 13], i5y:end, :, :))))) / n_pop_5y_andabove ...
+        + beta_5plus_EAg_itt(itt) * sum(sum(sum(sum(X([2:3 14:15], i5y:end, :, :))))) / n_pop_5y_andabove;
     
     
     % Disease Progression
@@ -454,11 +456,11 @@ for time = TimeSteps
     
     
     % Infanct vaccination occurring at exactly six months
-    % do not multiply by dt, since one is vaccinating cov_InfantVacc_itt(itt)% of people in next_X(1, i6mo, :, :), 
+    % do not multiply by dt, since one is vaccinating demog.InfantVacc(itt)% of people in next_X(1, i6mo, :, :), 
     % after which this cohort ages and moves to the next age bin
-    % if divides all babies born in a year into 10 groups and vaccinatates cov_InfantVacc_itt(itt)% of each group, 
-    % then one will have vaccinated cov_InfantVacc_itt(itt)% of all babies born in that year
-    transfer_to_vacc = cov_InfantVacc_itt(itt) * next_X(1, i6mo, :, :) * Efficacy_InfantVacc; % the 0.95 represent a take-type vaccine efficacy of 95%.
+    % if divides all babies born in a year into 10 groups and vaccinatates demog.InfantVacc(itt)% of each group, 
+    % then one will have vaccinated demog.InfantVacc(itt)% of all babies born in that year
+    transfer_to_vacc = demog.InfantVacc(itt) * next_X(1, i6mo, :, :) * Efficacy_InfantVacc; % the 0.95 represent a take-type vaccine efficacy of 95%.
     next_X(1, i6mo, :, :) = next_X(1, i6mo, :, :) - transfer_to_vacc;
     next_X(9, i6mo, :, :) = next_X(9, i6mo, :, :) + transfer_to_vacc;
     
@@ -496,14 +498,14 @@ for time = TimeSteps
 
     babies_ChronicCarriage = p_ChronicCarriage(1, 1, 1, 1) * ( ... % a 1 x 1 double
         ...
-        births_toHbSAgWomen * (1 - cov_BirthDose_itt(itt)) * p_VerticalTransmission_HbSAg_NoIntv ...
-        + births_toHbSAgWomen * cov_BirthDose_itt(itt) * p_VerticalTransmission_HbSAg_BirthDoseVacc ...
+        births_toHbSAgWomen * (1 - demog.BirthDose(itt)) * p_VerticalTransmission_HbSAg_NoIntv ...
+        + births_toHbSAgWomen * demog.BirthDose(itt) * p_VerticalTransmission_HbSAg_BirthDoseVacc ...
         ...
-        + births_toHbEAgWomen * (1 - cov_BirthDose_itt(itt)) * p_VerticalTransmission_HbEAg_NoIntv ...
-        + births_toHbEAgWomen * cov_BirthDose_itt(itt) * p_VerticalTransmission_HbEAg_BirthDoseVacc ...
+        + births_toHbEAgWomen * (1 - demog.BirthDose(itt)) * p_VerticalTransmission_HbEAg_NoIntv ...
+        + births_toHbEAgWomen * demog.BirthDose(itt) * p_VerticalTransmission_HbEAg_BirthDoseVacc ...
         ...
-        + births_toTrWomen * (1 - cov_BirthDose_itt(itt)) * p_VerticalTransmission_Tr_NoIntv ...
-        + births_toTrWomen * cov_BirthDose_itt(itt) * p_VerticalTransmission_Tr_BirthDoseVacc ...
+        + births_toTrWomen * (1 - demog.BirthDose(itt)) * p_VerticalTransmission_Tr_NoIntv ...
+        + births_toTrWomen * demog.BirthDose(itt) * p_VerticalTransmission_Tr_BirthDoseVacc ...
         );
     
     babies_NotChronicCarriage = births_Total - babies_ChronicCarriage;
