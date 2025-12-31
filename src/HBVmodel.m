@@ -112,10 +112,11 @@ beta_5plus_EAg = min(1.0, beta_5plus_SAg * ECofactor);
 % Demography
 StartPop = demog.Pop_byAgeGroups_1950(agegroups_1yr, :) * dt;
 % demog.Pop_byAgeGroups_1950 is a 100 x 2 double of 100 age groups and 2 genders
-% agegroups_1yr is a 1 x 1000 double; [1 1 ... 100 100], each number present 10 times
+% agegroups_1yr is a 1 x 1000 double; [1 1 ... 100 100], each number present (1/dt) times
 % start population size like 1950 population
 % expanding demog.Pop_byAgeGroups_1950 from 1 year age steps to 0.1 year age steps
-% each age group repeated 10 times therefore divide each entry by 10
+% each age group repeated (10=1/dt) times therefore multiply each entry by
+% dt.
 
 X = zeros(num_disease_states, num_age_steps, num_sexes, num_treat_blocks);
 % dimensions: disease states, age, gender, accessible to treatment

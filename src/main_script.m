@@ -177,14 +177,23 @@ load(fullfile(basedir,'resources','params_map.mat')) % contains params_map and d
 %             YearReducInTransmission: 2100
 
 load(fullfile(basedir,'resources','stochastic_parameters_mat.mat')) % contains stochas_params_mat
-%% stochas_params_mat is a 200x883 matrix. I think the 200 refers to the number of stochastic runs.
-%% MP question: what is the 883? 883 is prime.
+%% stochas_params_mat is a 200x883 matrix. The 200 refers to the number of stochastic runs. Columns are countries as follows:
+%% First column of stochas_params_mat is a dummy parameter (it is the row number)
+%% Columns 2-881 are then parameters for each country indexed as country_start_cols = 2:8:(1+num_countries*8);
+%% So cols 2:9 are the stochastic parameters for Afghanistan etc:
+%%    params.beta_U5, params.SpeedUpELoss_Beta, params.p_VerticalTransmission_HbSAg_NoIntv,
+%%    params.cancer_rate_coeff,params.cirrh_rate_coeff, params.CancerRate_MenCoFactor, params.CirrhosisRate_MenCoFactor,
+%%    params.PriorTDFTreatRate (if sensitivity_analysis in {'default','infant_100'})
+%% The last 2 columns (882, 883) are params.Efficacy_BirthDoseVacc_HbEAg and params.Efficacy_InfantVacc (these are set in country_level_analyses.m)
+
 
 load(fullfile(basedir,'resources','treatment_2016_map.mat')) % contains num_in_treatment_2016_map and pop_size_HBsAg_treatment_map
  
 %% num_in_treatment_2016_map:
 %  A container map with 110 entries indexed by country name (e.g. ZWE). Each
-% entry is a double (one number!)
+% entry is a double (one number!) - npte that this is just used as a check
+% in country_level_analyses.m
+% (in_treatment_2016_CDA==pop_size_HBsAg_treatment_2016_vec(5))
 
 load(fullfile(basedir,'resources','treatment_rates_map.mat')) % contains treatment_rates_map
 
