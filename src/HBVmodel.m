@@ -1,6 +1,7 @@
 function output = HBVmodel(seed_prev_string,...
     num_disease_states,num_year_divisions,dt,ages,num_age_steps,start_year,num_years_simul,...
-    theta,ECofactor,treat_start_year,treat_coverage_in_2016,demog,p_ChronicCarriage,Prog,Transactions)
+    theta,ECofactor,treat_start_year,treat_coverage_in_2016,demog,p_ChronicCarriage,Prog,Transactions, ...
+    ISO, scenario_num, stochas_run_str, sensitivity_analysis, basedir, store_results_as_text)
 
 % X-stocks are (infection_state, age, sex(1=women, 2=men), accessible*)   {*accessible
 % specifies whether this person can be reached by treatment progs, 1=no, 2=yes}
@@ -212,7 +213,13 @@ assert(isequal(size(Prog),size(zeros(num_disease_states, num_disease_states))));
     Incid_chronic_all_1yr_approx,...
     Incid_Deaths_1yr_approx...
     ] = deal(DUMMY_VALUE * ones(num_sexes, max(agegroups_1yr), num_years_simul + 1));
-							  
+
+%% MP: used as a store 
+if(store_results_as_text==1)
+    ncol_X_to_print = num_disease_states*  num_sexes* num_treat_blocks;
+    X_to_print = DUMMY_VALUE * ones(max(agegroups_5yr)*ncol_X_to_print, num_years_simul + 1);
+end
+
 %% MP: Magic number 1 is because arrays NewChronicCarriage, moving_btw_states should have same number of dimensions as X()
 %% but the first index is single (because not indexing over natural history states).
 [...
@@ -300,7 +307,29 @@ for time = TimeSteps
             % scale all parts of X, including dead people i.e. State i_HBVdeath=11
         end
 
-    
+
+        % MP: Use this to create a text file of all states (but summed into
+        % 5 yr age groups to make it tractable).
+        % Create a 4D array of size num_disease_states *  20 (5yr age gps
+        % 0-99) * num_sexes * num_treat_blocks. 
+        if(store_results_as_text==1)
+            if OutputEventNum > 1
+                % This is the (consolidated into 5 yr age gp) state variable at time t as
+                % a 2D array. We want to store this as a row in 
+                X_to_print_unshaped = DUMMY_VALUE * ones(max(agegroups_5yr), ncol_X_to_print);
+                for ag = 1:max(agegroups_5yr) % 1:20
+                    
+                    temp_store = reshape(sum(X(:, agegroups_5yr == ag, :, :),2), [1,ncol_X_to_print]); % k is gender
+                    assert(isequal(size(temp_store),[1 60]))
+                    X_to_print_unshaped(ag,:) = temp_store;
+                end
+            X_to_print(:,OutputEventNum-1) = reshape(X_to_print_unshaped,[1, max(agegroups_5yr)*ncol_X_to_print]);
+            end
+
+        end
+        
+
+
         for k = 1:num_sexes % genders
 
             
@@ -559,6 +588,18 @@ output.NumSAg_chronic_1yr = NumSAg_chronic_1yr; % 2 x 100 x (num_years_simul + 1
 output.yld_1yr = yld_1yr; % 2 x 100 x (num_years_simul + 1)
 output.Incid_Deaths_1yr_approx = Incid_Deaths_1yr_approx; % 2 x 100 x (num_years_simul + 1)
 output.Prev_Deaths_1yr = Prev_Deaths_1yr; % 2 x 100 x (num_years_simul + 1)
+
+if(store_results_as_text==1)
+
+    i_1950 = find(Time >= 1950, 1);
+    filename_results_csv = ['results_',ISO,'_scenario',string(scenario_num),'_',sensitivity_analysis,'_run_', stochas_run_str, '.csv'];
+    disp("writing to file")
+    disp(filename_results_csv)
+    disp(basedir)
+    disp(fullfile(basedir,'outputs',filename_results_csv)(1))
+    writematrix([Time(i_1950:end);X_to_print(:,i_1950:end)],fullfile(basedir,'outputs',filename_results_csv));
+end
+
 
 end % end function HBVmodel_PPT
 

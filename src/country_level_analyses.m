@@ -510,11 +510,17 @@ function country_level_analyses(sensitivity_analysis,...
 
             num_year_1980_2100 = 2100 - 1980 + 1;
 
+            if(strcmp(sensitivity_analysis,'default')==1)
+                store_results_as_text = 1;
+            else
+                store_results_as_text = 0;
+            end
 
             %% Run scenarios:
             lastrun = HBVmodel(source_HBsAg,...
                 num_states,num_year_divisions,dt,ages,num_age_steps,start_year,num_years_simul,...
-                theta,ECofactor,treat_start_year-dt,HBsAg_treat_cov_all_ages,params,p_ChronicCarriage,Prog,Transactions);
+                theta,ECofactor,treat_start_year-dt,HBsAg_treat_cov_all_ages,params,p_ChronicCarriage,Prog,Transactions,...
+                ISO, scenario_num, stochas_run_str, sensitivity_analysis, basedir, store_results_as_text);
             lastrun.DALYPerYear = make_daly_mat(lastrun,num_years_simul,num_year_1980_2100,life_expectancy);
             assert(isequal(size(lastrun.DALYPerYear),[100 num_years_simul + 1]))
 
