@@ -592,11 +592,11 @@ output.Prev_Deaths_1yr = Prev_Deaths_1yr; % 2 x 100 x (num_years_simul + 1)
 if(store_results_as_text==1)
 
     i_1950 = find(Time >= 1950, 1);
-    filename_results_csv = ['results_',ISO,'_scenario',string(scenario_num),'_',sensitivity_analysis,'_run_', stochas_run_str, '.csv'];
+    filename_results_csv = strcat('results_',ISO,'_scenario',string(scenario_num),'_',sensitivity_analysis,'_run_', stochas_run_str, '.csv');
     disp("writing to file")
     disp(filename_results_csv)
     disp(basedir)
-    disp(fullfile(basedir,'outputs',filename_results_csv)(1))
+    disp(fullfile(basedir,'outputs',filename_results_csv))
     writematrix([Time(i_1950:end);X_to_print(:,i_1950:end)],fullfile(basedir,'outputs',filename_results_csv));
 end
 

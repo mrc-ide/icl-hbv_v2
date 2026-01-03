@@ -47,7 +47,7 @@ function write_parameter_txt_files(ListOfISOs, BD_table, HepB3_table, country_s_
     for country_num = 1:110
         ISO = ListOfISOs{country_num};
         thiscountry_num_in_treatment_2016 = jsonencode(num_in_treatment_2016_map(ISO),PrettyPrint=true);
-        thiscountry_num_in_treatment_2016 = ISO + ":" + thiscountry_num_in_treatment_2016 + newline
+        thiscountry_num_in_treatment_2016 = ISO + ":" + thiscountry_num_in_treatment_2016 + newline;
         allcountry_num_in_treatment_2016 = strcat(allcountry_num_in_treatment_2016,thiscountry_num_in_treatment_2016);
     end
     writelines(allcountry_num_in_treatment_2016,"raw_params/num_in_treatment_2016.txt");
@@ -59,7 +59,7 @@ function write_parameter_txt_files(ListOfISOs, BD_table, HepB3_table, country_s_
     for country_num = 1:110
         ISO = ListOfISOs{country_num};
         thiscountry_treatment_rates = jsonencode(treatment_rates_map(ISO),PrettyPrint=true);
-        thiscountry_treatment_rates = ISO + ":" + thiscountry_treatment_rates + newline
+        thiscountry_treatment_rates = ISO + ":" + thiscountry_treatment_rates + newline;
         allcountry_treatment_rates = strcat(allcountry_treatment_rates,thiscountry_treatment_rates);
     end
     writelines(allcountry_treatment_rates,"raw_params/treatment_rates.txt");

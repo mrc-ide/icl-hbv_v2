@@ -192,8 +192,7 @@ load(fullfile(basedir,'resources','treatment_2016_map.mat')) % contains num_in_t
 %% num_in_treatment_2016_map:
 %  A container map with 110 entries indexed by country name (e.g. ZWE). Each
 % entry is a double (one number!) - npte that this is just used as a check
-% in country_level_analyses.m
-% (in_treatment_2016_CDA==pop_size_HBsAg_treatment_2016_vec(5))
+% in country_level_analyses.m (in_treatment_2016_CDA==pop_size_HBsAg_treatment_2016_vec(5)
 
 load(fullfile(basedir,'resources','treatment_rates_map.mat')) % contains treatment_rates_map
 
