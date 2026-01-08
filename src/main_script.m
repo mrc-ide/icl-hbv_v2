@@ -2,7 +2,7 @@
 
 clear
 
-MAKE_PARAMETER_FILE_MP = 1; % Set to 1 to write the input parameter files into a series of text files.
+MAKE_PARAMETER_FILE_MP = 0; % Set to 1 to write the input parameter files into a series of text files.
 
 %% To remove to allow full run (labelled with TUTAJ):
 %% num_stochas_runs = 2;
@@ -213,8 +213,15 @@ end
 
 
 assert(num_countries==110)
+% Set the start and end countries (so we can run specific countries only):
+%i_start_country = 1;
+%i_end_country = num_countries;
+% Thailand is 92:
+i_start_country = 92;
+i_end_country = 93;
+
 %TUTAJ:
-num_countries = 3;
+%num_countries = 3;
 
 % variables for importing values for the 7 fitted parameters for a particular country-particle combination
 country_start_cols = 2:8:(1+num_countries*8); % there are 1 + num_countries*8 + 2 columns in stochas_params_mat
@@ -329,7 +336,7 @@ for sensitivity_analysis_num=1:num_sensitivity_analyses
         country_level_analyses(sensitivity_analysis,...
             num2str(stochas_run),num_stochas_runs,...
             ListOfScenarios,num_scenarios,...
-            ListOfISOs,num_countries,...
+            ListOfISOs,i_start_country,i_end_country,...
             BD_table,HepB3_table,...
             num_in_treatment_2016_map,pop_size_HBsAg_treatment_map,treatment_rates_map,...
             country_s_e_HCCdeaths_map,...

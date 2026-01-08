@@ -590,16 +590,48 @@ output.Incid_Deaths_1yr_approx = Incid_Deaths_1yr_approx; % 2 x 100 x (num_years
 output.Prev_Deaths_1yr = Prev_Deaths_1yr; % 2 x 100 x (num_years_simul + 1)
 
 if(store_results_as_text==1)
-
+    if(stochas_run_str=="1")
+        disp("Making header.txt file")
+        output_header = construct_header(agegroups_5yr, num_disease_states, num_sexes, num_treat_blocks);
+        writelines(output_header, fullfile(basedir,'outputs',"header.txt"))
+    end
     i_1950 = find(Time >= 1950, 1);
     filename_results_csv = strcat('results_',ISO,'_scenario',string(scenario_num),'_',sensitivity_analysis,'_run_', stochas_run_str, '.csv');
-    disp("writing to file")
-    disp(filename_results_csv)
-    disp(basedir)
     disp(fullfile(basedir,'outputs',filename_results_csv))
-    writematrix([Time(i_1950:end);X_to_print(:,i_1950:end)],fullfile(basedir,'outputs',filename_results_csv));
+    writematrix([Time(i_1950:end);X_to_print(:,i_1950:end)]',fullfile(basedir,'outputs',filename_results_csv));
 end
 
 
 end % end function HBVmodel_PPT
 
+function output_labels=construct_header(agegroups, num_disease_states, num_sexes, num_treat_blocks)
+    assert(num_sexes==2)
+    assert(num_treat_blocks==2)
+
+    % Create labels for disease stage:
+    D_labels = strings(1, num_disease_states); for i = 1:num_disease_states; D_labels(i) = "D" + string(i); end
+    
+    n_age_groups = max(agegroups);
+    age_width = 100/max(agegroups);
+    age_labels = strings(1, n_age_groups); 
+    for i = 1:n_age_groups
+        age_min = string((i-1)*age_width);
+        age_max = string(i*age_width-1);
+        age_labels(i) = "Age" + age_min + "_"+age_max;
+    end
+    sex_labels = ["F","M"]; % F first in this model
+    treat_labels = ["Treat","NoTreat"];
+
+    output_labels = strings(num_disease_states,n_age_groups,num_sexes,num_treat_blocks);
+    for t=1:num_treat_blocks
+        for k=1:num_sexes
+            for a=1:n_age_groups
+                for d=1:num_disease_states
+                    output_labels(d,a,k,t) = age_labels(a) + sex_labels(k) + "_" + D_labels(d) + treat_labels(t); 
+                end
+            end
+        end
+    end
+    output_labels = reshape(output_labels, [1,num_disease_states*n_age_groups*num_sexes*num_treat_blocks]);
+        
+end % End function output_labels
