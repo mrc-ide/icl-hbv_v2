@@ -1,5 +1,10 @@
 rm(list=ls())
 
+library(ggplot2)
+##library(gifski)
+##library(gganimate)
+library(scales)
+library(animation)
 
 
 current.dir <- "../outputs/"
@@ -141,45 +146,74 @@ for(i in 1:length(age_group_labs))
         i_HCC_byage <- rbind(i_HCC_byage,data.frame(t(c(get_nathist_by_age_sex(age_group_labs[i], "F", "HCC"),get_nathist_by_age_sex(age_group_labs[i], "M", "HCC")))))
     }
 }
+i_all_alive <- c(i_all_alive_F, i_all_alive_M)
+
+
 
 df <- currentfiles
 
-plot.df <- data.frame(matrix(nrow = 0, ncol = 2))
+plot.df <- data.frame(matrix(nrow = 0, ncol = 3))
 for(y in currentfiles$Year)
 {
-    temp <- c(y)
     for(i in 1:length(age_group_labs))
     {
-        temp <- c(temp,sum(df[df$Year %in% y, as.numeric(i_HCC_byage[i,])]))
+        temp <- data.frame(y,sum(df[df$Year %in% y, as.numeric(i_HCC_byage[i,])]), sum(df[df$Year %in% y, as.numeric(i_chronic_sAgPos_byage[i,])]), age_group_labs[i])
+        plot.df <- rbind(plot.df,temp)
     }
-    plot.df <- rbind(plot.df,temp)
+    
 }
-colnames(plot.df) <- c("Year",age_group_labs)
-
-i_all_alive <- c(i_all_alive_F, i_all_alive_M)
-
-library(ggplot2)
-library(scales)
+colnames(plot.df) <- c("Year","N_HCC","N_chronic_sAgPos","Age_group")
+plot.df$Age_group <- factor(plot.df$Age_group, levels=age_group_labs)
 
 
+plot_frame <- function(frame_number) {
+    i <- (frame_number-10)/5
+    ggplot(plot.df[plot.df$Year %in% (1980+frame_number),], aes(Age_group, N_HCC)) + 
+        geom_bar(stat = "identity") + 
+        theme_bw() +
+        geom_vline(xintercept=i, linetype="dashed", color = "red")+
+     labs(title = paste0("Year:", (1980+frame_number))
+
+          ## plot(rnorm(100), rnorm(100),
+          ##      xlim = c(-3, 3), ylim = c(-3, 3),
+          ##      pch = 20, col = "blue",
+          ##      main = paste0("Frame ", frame_number))
+     )
+}
+
+plot_frame(20)
+
+saveGIF({
+  for (i in 1:10) {
+    plot_frame(i)
+    ani.pause(0.5)
+  }
+}, movie.name = "random_points.gif",
+        ani.width = 480,
+        ani.height = 320)
 
 
-p <- ggplot(df, aes(category, value, fill = category)) + 
-     geom_bar(stat = "identity") + 
-     scale_fill_manual(values = c("#FF9999",
-                                  "#66CCCC",
-                                  "#FFCC66")) + 
-     theme_minimal() +
-     labs(title = "Year: {closest_state}")
 
-p_animated <- p + transition_states(year,
+library(gganimate)
+p <- ggplot(plot.df[plot.df$Year %in% seq(1980,2100),], aes(Age_group, N_HCC)) + 
+    geom_bar(stat = "identity") +
+    theme_bw() +
+    theme(axis.text.x = element_text(angle = 90, size=14),
+          axis.text.y = element_text(size=14),
+          axis.title = element_text(size=16)) +
+    ylab("Number of HCC cases") +
+    xlab("Age group") +
+    geom_vline(xintercept=((plot.df$Year-10)/5), linetype="dashed", color = "red")+
+    labs(title = "Year: {closest_state}")
+
+p_animated <- p + transition_states(Year,
                                     transition_length = 1,
                                     state_length = 1) +
               enter_fade() +
               exit_fade() +
               ease_aes("linear")
 
-p_animated
+anim_save("p1.gif",p_animated)
 
 plot.it <- function(df, i_to_plot, y.name)
 {
