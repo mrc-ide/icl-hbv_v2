@@ -319,9 +319,12 @@ for time = TimeSteps
                 X_to_print_unshaped = DUMMY_VALUE * ones(max(agegroups_5yr), ncol_X_to_print);
                 for ag = 1:max(agegroups_5yr) % 1:20
                     
-                    temp_store = reshape(sum(X(:, agegroups_5yr == ag, :, :),2), [1,ncol_X_to_print]); % k is gender
+                    temp_store = reshape(squeeze(sum(X(:, agegroups_5yr == ag, :, :),2)), [1,ncol_X_to_print]); % k is gender
                     assert(isequal(size(temp_store),[1 60]))
                     X_to_print_unshaped(ag,:) = temp_store;
+                    if(time==2005 && ag==1)
+                        fprintf("In 2005 %12.10f\n", temp_store(1))
+                    end
                 end
             X_to_print(:,OutputEventNum-1) = reshape(X_to_print_unshaped,[1, max(agegroups_5yr)*ncol_X_to_print]);
             end
@@ -366,6 +369,7 @@ for time = TimeSteps
                 
                     Incid_Deaths_1yr_approx(k, ag, OutputEventNum-1) = sum(state_prev_vec .* Prog(:, i_HBVdeath));
 
+                    
                 end
                 
             end % end agegroups_1yr for loop
@@ -381,7 +385,16 @@ for time = TimeSteps
                 
              
         end % end genders for loop
-        
+
+        if((OutputEventNum>115 && OutputEventNum<120) || OutputEventNum==160) 
+            fprintf("AYear %5d Time %5d X%10.8f D2 %10.8f age2 %10.8f age3 %10.8f M%10.8f Treat%10.8f Pop %12.6f\n",1889+OutputEventNum, time, sum(X(1, agegroups_5yr == 1, 1, 1)), sum(X(2, agegroups_5yr == 1, 1, 1)), sum(X(1, agegroups_5yr == 2, 1, 1)), sum(X(1, agegroups_5yr == 3, 1, 1)), sum(X(1, agegroups_5yr == 1, 2, 1)), sum(X(1, agegroups_5yr == 1, 1, 2)), sum(sum(sum(sum(X(i_alive, :, :, :), 2), 4),1),3));
+            if(OutputEventNum==116)
+                writematrix(squeeze(X(i_alive, 1, 1, 1)),fullfile(basedir,'temp.csv'));
+            end
+            %disp([1889+OutputEventNum, sum(sum(sum(sum(X(i_alive, :, :, :), 2), 4),1),3)])
+        end
+
+
         if OutputEventNum > 1
             
             assert(length(num_babies)==1)
@@ -571,6 +584,11 @@ for time = TimeSteps
     % increment the timestep index
     i_dt = i_dt + 1;
     % increases every 0.1 years
+
+    %% PARANOID ANDROID
+    % if((OutputEventNum>115 && OutputEventNum<120) || OutputEventNum==160) 
+    %     fprintf("BYear %5d Time %5d X1=%10.8f x2=%10.8f x%10.8f Pop %12.6f\n",1889+OutputEventNum, time, sum(X(1, agegroups_5yr == 1, 1, 1)), sum(X(2, agegroups_5yr == 1, 1, 1),2), sum(X(4, agegroups_5yr == 3, 2, 1)), sum(sum(sum(sum(X(i_alive, :, :, :), 2), 4),1),3));
+    % end
     
 end % end "time = TimeSteps" for loop
 
@@ -620,18 +638,21 @@ function output_labels=construct_header(agegroups, num_disease_states, num_sexes
         age_labels(i) = "Age" + age_min + "_"+age_max;
     end
     sex_labels = ["F","M"]; % F first in this model
-    treat_labels = ["Treat","NoTreat"];
+    treat_labels = ["NoTreat","Treat"];
 
-    output_labels = strings(num_disease_states,n_age_groups,num_sexes,num_treat_blocks);
+    %%output_labels = strings(num_disease_states,n_age_groups,num_sexes,num_treat_blocks);
+    output_labels = "";
     for t=1:num_treat_blocks
         for k=1:num_sexes
-            for a=1:n_age_groups
-                for d=1:num_disease_states
-                    output_labels(d,a,k,t) = age_labels(a) + sex_labels(k) + "_" + D_labels(d) + treat_labels(t); 
+            for d=1:num_disease_states
+                for a=1:n_age_groups
+                    %%output_labels(d,a,k,t) = age_labels(a) + sex_labels(k) + "_" + D_labels(d) + treat_labels(t); 
+                    temp_label = age_labels(a) + sex_labels(k) + "_" + D_labels(d) + treat_labels(t) +","; 
+                    output_labels = output_labels+temp_label;
                 end
             end
         end
     end
-    output_labels = reshape(output_labels, [1,num_disease_states*n_age_groups*num_sexes*num_treat_blocks]);
+    %%output_labels = reshape(output_labels, [1,num_disease_states*n_age_groups*num_sexes*num_treat_blocks]);
         
 end % End function output_labels

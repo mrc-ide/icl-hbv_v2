@@ -34,7 +34,7 @@ basedir = fileparts(currentFolder); % path for folder one level up from script.
 % MP: There are 200 runs from calibration so this is default. Use less for testing.
 %TUTAJ:
 %num_stochas_runs = 200;
-num_stochas_runs = 2;
+num_stochas_runs = 1;
 
 %TUTAJ:
 sensitivity_analysis_list = {'default'};
@@ -216,9 +216,10 @@ assert(num_countries==110)
 % Set the start and end countries (so we can run specific countries only):
 %i_start_country = 1;
 %i_end_country = num_countries;
+%i_end_country = 2;
 % Thailand is 92:
 i_start_country = 92;
-i_end_country = 93;
+i_end_country = 92;
 
 %TUTAJ:
 %num_countries = 3;
