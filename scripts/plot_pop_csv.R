@@ -61,6 +61,10 @@ make_average <- function(n.files,filedir, header)
 
 
 header <- get_header(current.dir)
+if(is.na(header[length(header)]))
+{
+    header <- header[1:(length(header)-1)]
+}
 currentfiles <- loadfiles(n.runs,current.dir, header)
 
 
@@ -82,10 +86,23 @@ get_nathist_by_age_sex <- function(age_gp, sex, nat_hist_state){
     }else if(nat_hist_state=="Chronic")
     {
         i <- 1 + unique(c(grep(paste0("Age",age_gp,sex,"_D[0-9]Treat"), header), grep(paste0("Age",age_gp,sex,"_D1[02345]Treat"), header), grep(paste0("Age",age_gp,sex,"_D[0-9]NoTreat"), header), grep(paste0("Age",age_gp,sex,"_D1[02345]NoTreat"), header)))
+    }else if(nat_hist_state=="HBsAg_incacute")
+    {
+        i <- 1 + unique(c(grep(paste0("Age",age_gp,sex,"_D[2-8]Treat"), header), grep(paste0("Age",age_gp,sex,"_D10Treat"), header), grep(paste0("Age",age_gp,sex,"_D1[2-5]Treat"), header), grep(paste0("Age",age_gp,sex,"_D[2-8]NoTreat"), header), grep(paste0("Age",age_gp,sex,"_D10NoTreat"), header), grep(paste0("Age",age_gp,sex,"_D1[2-5]NoTreat"), header)))
+    }else if(nat_hist_state=="HBsAg_chronic")
+    {
+        i <- 1 + unique(c(grep(paste0("Age",age_gp,sex,"_D[2-8]Treat"), header), grep(paste0("Age",age_gp,sex,"_D10Treat"), header), grep(paste0("Age",age_gp,sex,"_D1[2-3]Treat"), header), grep(paste0("Age",age_gp,sex,"_D[2-8]NoTreat"), header), grep(paste0("Age",age_gp,sex,"_D10NoTreat"), header), grep(paste0("Age",age_gp,sex,"_D1[2-3]NoTreat"), header)))
+    }else if(nat_hist_state=="HCC")
+    {
+        i <- 1 + unique(c(grep(paste0("Age",age_gp,sex,"_D8Treat"), header), grep(paste0("Age",age_gp,sex,"_D8NoTreat"), header)))
     }
-        
+
+
+
+    ##[2:8 10 12:15]
     return(i)
 }
+
 
 ## Make age group labs:
 min.age <- 0
@@ -101,24 +118,72 @@ for (i in 1:n.age.groups)
 
 i_all_alive_F <- c()
 i_all_alive_M <- c()
-for(i in age_group_labs)
-{
-    i_all_alive_F <- c(i_all_alive_F,get_nathist_by_age_sex(i, "F", "Alive"))
-    i_all_alive_M <- c(i_all_alive_M,get_nathist_by_age_sex(i, "M", "Alive"))
-}
+i_chronic_sAgPos <- c()
+i_HCC <- c()
 
+
+## for(i in length(age_group_labs))
+## {
+##     i_chronic_sAgPos_byage <- append(i_chronic_sAgPos_byage,c())
+##     i_HCC_byage <- append(i_HCC_byage,c())
+## }
+for(i in 1:length(age_group_labs))
+{
+    i_all_alive_F <- c(i_all_alive_F,get_nathist_by_age_sex(age_group_labs[i], "F", "Alive"))
+    i_all_alive_M <- c(i_all_alive_M,get_nathist_by_age_sex(age_group_labs[i], "M", "Alive"))
+    i_chronic_sAgPos <- c(i_chronic_sAgPos, get_nathist_by_age_sex(age_group_labs[i], "F", "HBsAg_chronic"),get_nathist_by_age_sex(age_group_labs[i], "M", "HBsAg_chronic"))
+    i_HCC <- c(i_HCC, get_nathist_by_age_sex(age_group_labs[i], "F", "HCC"),get_nathist_by_age_sex(age_group_labs[i], "M", "HCC"))
+    if(i==1){
+        i_chronic_sAgPos_byage <- data.frame(t(c(get_nathist_by_age_sex(age_group_labs[i], "F", "HBsAg_chronic"),get_nathist_by_age_sex(age_group_labs[i], "M", "HBsAg_chronic"))))
+        i_HCC_byage <- data.frame(t(c(get_nathist_by_age_sex(age_group_labs[i], "F", "HCC"),get_nathist_by_age_sex(age_group_labs[i], "M", "HCC"))))
+    }else{
+        i_chronic_sAgPos_byage <- rbind(i_chronic_sAgPos_byage, data.frame(t(c(get_nathist_by_age_sex(age_group_labs[i], "F", "HBsAg_chronic"),get_nathist_by_age_sex(age_group_labs[i], "M", "HBsAg_chronic")))))
+        i_HCC_byage <- rbind(i_HCC_byage,data.frame(t(c(get_nathist_by_age_sex(age_group_labs[i], "F", "HCC"),get_nathist_by_age_sex(age_group_labs[i], "M", "HCC")))))
+    }
+}
 
 df <- currentfiles
 
+plot.df <- data.frame(matrix(nrow = 0, ncol = 2))
+for(y in currentfiles$Year)
+{
+    temp <- c(y)
+    for(i in 1:length(age_group_labs))
+    {
+        temp <- c(temp,sum(df[df$Year %in% y, as.numeric(i_HCC_byage[i,])]))
+    }
+    plot.df <- rbind(plot.df,temp)
+}
+colnames(plot.df) <- c("Year",age_group_labs)
 
 i_all_alive <- c(i_all_alive_F, i_all_alive_M)
 
 library(ggplot2)
 library(scales)
 
+
+
+
+p <- ggplot(df, aes(category, value, fill = category)) + 
+     geom_bar(stat = "identity") + 
+     scale_fill_manual(values = c("#FF9999",
+                                  "#66CCCC",
+                                  "#FFCC66")) + 
+     theme_minimal() +
+     labs(title = "Year: {closest_state}")
+
+p_animated <- p + transition_states(year,
+                                    transition_length = 1,
+                                    state_length = 1) +
+              enter_fade() +
+              exit_fade() +
+              ease_aes("linear")
+
+p_animated
+
 plot.it <- function(df, i_to_plot, y.name)
 {
-    df.to.plot <- data.frame(Year=df$Year, Pop=rowSums(df[,i_all_alive]))
+    df.to.plot <- data.frame(Year=df$Year, Pop=rowSums(df[,i_to_plot]))
     ggplot(df.to.plot, aes(x=Year, y=Pop)) +
         geom_line() +
         theme_bw() +
