@@ -5,6 +5,7 @@ library(ggplot2)
 ##library(gganimate)
 library(scales)
 library(animation)
+library(gganimate)
 
 
 current.dir <- "../outputs/"
@@ -157,22 +158,29 @@ for(y in currentfiles$Year)
 {
     for(i in 1:length(age_group_labs))
     {
-        temp <- data.frame(y,sum(df[df$Year %in% y, as.numeric(i_HCC_byage[i,])]), sum(df[df$Year %in% y, as.numeric(i_chronic_sAgPos_byage[i,])]), age_group_labs[i])
+        temp <- data.frame(y,sum(df[df$Year %in% y, as.numeric(i_HCC_byage[i,])]), sum(df[df$Year %in% y, as.numeric(i_chronic_sAgPos_byage[i,])]), age_group_labs[i], i)
         plot.df <- rbind(plot.df,temp)
     }
     
 }
-colnames(plot.df) <- c("Year","N_HCC","N_chronic_sAgPos","Age_group")
+colnames(plot.df) <- c("Year","N_HCC","N_chronic_sAgPos","Age_group","AgeGpNum")
 plot.df$Age_group <- factor(plot.df$Age_group, levels=age_group_labs)
+plot.df$GotBD <- ifelse((plot.df$Year - (plot.df$AgeGpNum*5))<=1980,"No BD", "Got BD")
 
 
 plot_frame <- function(frame_number) {
     i <- (frame_number-10)/5
-    ggplot(plot.df[plot.df$Year %in% (1980+frame_number),], aes(Age_group, N_HCC)) + 
+    ggplot(plot.df[plot.df$Year %in% (1979+frame_number),], aes(Age_group, N_HCC, fill=GotBD)) + 
         geom_bar(stat = "identity") + 
         theme_bw() +
-        geom_vline(xintercept=i, linetype="dashed", color = "red")+
-     labs(title = paste0("Year:", (1980+frame_number))
+    theme(axis.text.x = element_text(angle = 90, size=14),
+          axis.text.y = element_text(size=14),
+          axis.title = element_text(size=16)) +
+        scale_fill_brewer(palette="Dark2")+
+    ylab("Number of HCC cases") +
+    xlab("Age group") +
+        ##geom_vline(xintercept=frame_number, linetype="dashed", color = "red")+
+     labs(title = paste0("Year:", (1979+frame_number))
 
           ## plot(rnorm(100), rnorm(100),
           ##      xlim = c(-3, 3), ylim = c(-3, 3),
@@ -181,70 +189,74 @@ plot_frame <- function(frame_number) {
      )
 }
 
-plot_frame(20)
+pdf("BD_2026v2.pdf")
+plot_frame(47)
+dev.off()
 
-saveGIF({
-  for (i in 1:10) {
-    plot_frame(i)
-    ani.pause(0.5)
-  }
-}, movie.name = "random_points.gif",
-        ani.width = 480,
-        ani.height = 320)
+## saveGIF({
+##   for (i in 1:10) {
+##     plot_frame(i)
+##     ani.pause(0.5)
+##   }
+## }, movie.name = "random_points.gif",
+##         ani.width = 480,
+##         ani.height = 320)
 
 
 
-library(gganimate)
-p <- ggplot(plot.df[plot.df$Year %in% seq(1980,2100),], aes(Age_group, N_HCC)) + 
+p <- ggplot(plot.df[plot.df$Year %in% seq(1980,2100),], aes(Age_group, N_HCC, fill=GotBD)) + 
     geom_bar(stat = "identity") +
     theme_bw() +
     theme(axis.text.x = element_text(angle = 90, size=14),
           axis.text.y = element_text(size=14),
           axis.title = element_text(size=16)) +
+        scale_fill_brewer(palette="Dark2")+
     ylab("Number of HCC cases") +
     xlab("Age group") +
-    geom_vline(xintercept=((plot.df$Year-10)/5), linetype="dashed", color = "red")+
+    ##geom_vline(xintercept=((plot.df$Year-10)/5), linetype="dashed", color = "red")+
     labs(title = "Year: {closest_state}")
 
 p_animated <- p + transition_states(Year,
-                                    transition_length = 1,
-                                    state_length = 1) +
+                                    transition_length = 2,
+                                    state_length = 2) +
               enter_fade() +
               exit_fade() +
               ease_aes("linear")
 
-anim_save("p1.gif",p_animated)
+anim_save("p4.gif",p_animated)
 
-plot.it <- function(df, i_to_plot, y.name)
-{
-    df.to.plot <- data.frame(Year=df$Year, Pop=rowSums(df[,i_to_plot]))
-    ggplot(df.to.plot, aes(x=Year, y=Pop)) +
-        geom_line() +
-        theme_bw() +
-        theme(axis.text=element_text(size=16), axis.title=element_text(size=18)) + 
-        ylab(y.name) +
-        xlab("Year") +
-        scale_y_continuous(label=comma)
-        ##geom_bar(stat="identity")
+
+
+## plot.it <- function(df, i_to_plot, y.name)
+## {
+##     df.to.plot <- data.frame(Year=df$Year, Pop=rowSums(df[,i_to_plot]))
+##     ggplot(df.to.plot, aes(x=Year, y=Pop)) +
+##         geom_line() +
+##         theme_bw() +
+##         theme(axis.text=element_text(size=16), axis.title=element_text(size=18)) + 
+##         ylab(y.name) +
+##         xlab("Year") +
+##         scale_y_continuous(label=comma)
+##         ##geom_bar(stat="identity")
     
-df.plot <- c
+## df.plot <- c
 
 
 
 
-i_Susc = 1;         ## 'Susceptible', 
-i_ImmTol = 2;       ## 'HBV: Immune Tolerant',
-i_ImmReact = 3;     ## 'HBV: Immune Reactive',
-i_AsymptCarr = 4;   ## 'HBV: Asymptomatic Carrier',
-i_Chronic = 5;      ## 'HBV: Chronic Hep B',
-i_CompCirr = 6;     ## 'HBV: Comp Cirrhosis',
-i_DecompCirr = 7;   ## 'HBV: Decomp Cirrhosis',
-i_HCC = 8;          ## 'HBV: Liver Cancer',
-i_Immume = 9;       ## 'HBV: Immune (Rec. or vacc.)',
-i_TDFtreat = 10;    ## 'HBV: TDF-Treatment',
-i_HBVdeath = 11;    ## 'Prematurely dead due to HBV',
-i_3TCtreat = 12;    ## '3TC-Treatment',
-i_3TCfailed = 13;   ## 'Failed 3TC-Treatment',
-i_NonSevAcute = 14; ## 'Non-severe acute',
-i_SevereAcute = 15; ## 'Severe acute'
+## i_Susc = 1;         ## 'Susceptible', 
+## i_ImmTol = 2;       ## 'HBV: Immune Tolerant',
+## i_ImmReact = 3;     ## 'HBV: Immune Reactive',
+## i_AsymptCarr = 4;   ## 'HBV: Asymptomatic Carrier',
+## i_Chronic = 5;      ## 'HBV: Chronic Hep B',
+## i_CompCirr = 6;     ## 'HBV: Comp Cirrhosis',
+## i_DecompCirr = 7;   ## 'HBV: Decomp Cirrhosis',
+## i_HCC = 8;          ## 'HBV: Liver Cancer',
+## i_Immume = 9;       ## 'HBV: Immune (Rec. or vacc.)',
+## i_TDFtreat = 10;    ## 'HBV: TDF-Treatment',
+## i_HBVdeath = 11;    ## 'Prematurely dead due to HBV',
+## i_3TCtreat = 12;    ## '3TC-Treatment',
+## i_3TCfailed = 13;   ## 'Failed 3TC-Treatment',
+## i_NonSevAcute = 14; ## 'Non-severe acute',
+## i_SevereAcute = 15; ## 'Severe acute'
 

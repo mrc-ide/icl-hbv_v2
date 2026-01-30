@@ -30,11 +30,15 @@ basedir = fileparts(currentFolder); % path for folder one level up from script.
 % Sets up number of scenarios, sensitivity analyses and stochastic runs: 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+% MP: order of loops to be (from outermost to innermost loop):
+% MP: Country; Run; Scenario
+% Sensitivity analyses to run separately.
+
 % MP: Number of stochastic runs per country x scenario x sensitivity analysis:
 % MP: There are 200 runs from calibration so this is default. Use less for testing.
 %TUTAJ:
 %num_stochas_runs = 200;
-num_stochas_runs = 1;
+num_stochas_runs = 3;
 
 %TUTAJ:
 sensitivity_analysis_list = {'default'};
@@ -58,7 +62,7 @@ ListOfScenarios = {...
 num_scenarios = length(ListOfScenarios);
 assert(num_scenarios==12)
 %TUTAJ:
-num_scenarios = 1;
+num_scenarios = 2;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Set up parameters - first set parameters that are set by hand in code:
@@ -76,7 +80,7 @@ dt = 1/num_year_divisions; % time step
 ages = 0:dt:(100 - dt); % The age group at the beginning of each compartment; 1 x 1000 double; [0 0.1 0.2 ... 99.8 99.9]
 num_age_steps = length(ages); % Number of age-categories (assuming max age is 100 years (i.e. oldest person we see at the start of an iteration is aged 100-dt)
 
-%% Now model states:
+%% Now model states. Note that these aren't actually used anywhere.
 Snames = {
     'Susceptible', ... % 1
     'HBV: Immune Tolerant', ... % 2
@@ -97,6 +101,22 @@ Snames = {
 num_states = length(Snames);
 assert(num_states==15) % 15 disease states
 
+% i_Susceptible = 1;
+% i_ImmuneTol = 2;
+% i_ImmuneReactive = 3;
+% i_AsymptCarrier = 4;
+% i_ChronicHepB = 5;
+% i_CompCirrhosis = 6;
+% i_DecompCirrhosis = 7;
+% i_HCC = 8;
+% i_Immune = 9;   % Immune or vaccinated.
+% i_Chronic_TDFTreatment = 10;
+% i_HBV_death = 11;
+% i_3TCTreatment = 12;
+% i_3TCFailedTreatment = 13;
+% i_Nonsevere_acute = 14;
+% i_Severe_acute = 15;
+% 
 
 
 theta = 0.01; % proportion of persons newly infected that develop severe symptoms during acute infection
@@ -218,8 +238,9 @@ assert(num_countries==110)
 %i_end_country = num_countries;
 %i_end_country = 2;
 % Thailand is 92:
+%% TUTAJ:
 i_start_country = 92;
-i_end_country = 92;
+i_end_country = 93;
 
 %TUTAJ:
 %num_countries = 3;
