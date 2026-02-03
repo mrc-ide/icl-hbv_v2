@@ -145,7 +145,7 @@ function country_level_analyses(sensitivity_analysis,...
             max_BD_cov_val_25 = max([cov_BirthDose(end) 0.25]);
             max_BD_cov_val_50 = max([cov_BirthDose(end) 0.5]);
             max_BD_cov_val_75 = max([cov_BirthDose(end) 0.75]);
-            max_BD_cov_val_90 = max([cov_BirthDose(end) 0.9]);
+            
 
 
             if strcmp(sensitivity_analysis,'infant_100')
@@ -175,138 +175,75 @@ function country_level_analyses(sensitivity_analysis,...
                     assert(isequal(size(params.BirthDose),size(years_vec_01yr)))
 
                     label_array{scenario_num} = 'Status quo HepB3 & HepB-BD (baseline)';
-                case 'Status quo infant & BD expansion to 25%'
-                    % Any country that is <25%, goes to 25% by last_BD_scaleup_year (linear expansion); others that are >25% stay at that level.
+                case {'Status quo infant & BD expansion to 25%','Status quo infant & BD expansion to 50%','Status quo infant & BD expansion to 75%','Status quo infant & BD expansion to 90%'}
+                    label_array_string = replace(scenario, 'Status quo infant & BD expansion', 'HepB-BD scale-up');
+                    X = extract_percent_from_BDexpansion_scenario_label(scenario);
+                    % X in {25%, 50%, 75%, 90%}
+                    % Any country that is <X%, goes to X% by last_BD_scaleup_year (linear expansion); others that are >X% stay at that level.
 
                     params.InfantVacc = infant_vacc_vec;
 
                     future_xvals_vec = [2019.0 first_expansion_year last_BD_scaleup_year end_year];
-                    future_yvals_vec = [cov_BirthDose(end) cov_BirthDose(end) max_BD_cov_val_25 max_BD_cov_val_25];
+
+                    max_BD_cov_val = max([cov_BirthDose(end) X/100]);
+                    future_yvals_vec = [cov_BirthDose(end) cov_BirthDose(end) max_BD_cov_val max_BD_cov_val];
+                    
                     params.BirthDose = make_coverage_vec(start_year,num_year_divisions,dt,end_year,cov_BirthDose,future_xvals_vec,future_yvals_vec);
                     params.BirthDose = min(1,params.BirthDose);
                     assert(isequal(size(params.BirthDose),size(years_vec_01yr)))
+                    label_array{scenario_num} = label_array_string;
 
-                    label_array{scenario_num} = 'HepB-BD scale-up to 25%';
-                case 'Status quo infant & BD expansion to 50%'
-                    % Any country that is <50%, goes to 50% by last_BD_scaleup_year (linear expansion); others that are >50% stay at that level.
-
-                    params.InfantVacc = infant_vacc_vec;
-
-                    future_xvals_vec = [2019.0 first_expansion_year last_BD_scaleup_year end_year];
-                    future_yvals_vec = [cov_BirthDose(end) cov_BirthDose(end) max_BD_cov_val_50 max_BD_cov_val_50];
-                    params.BirthDose = make_coverage_vec(start_year,num_year_divisions,dt,end_year,cov_BirthDose,future_xvals_vec,future_yvals_vec);
-                    params.BirthDose = min(1,params.BirthDose);
-                    assert(isequal(size(params.BirthDose),size(years_vec_01yr)))
-
-                    label_array{scenario_num} = 'HepB-BD scale-up to 50%';
-                case 'Status quo infant & BD expansion to 75%'
-                    % Any country that is <75%, goes to 75% by last_BD_scaleup_year (linear expansion); others that are >75% stay at that level.
+                case {'Status quo infant & BD drop 5 2020', 'Status quo infant & BD drop 10 2020', 'Status quo infant & BD drop 15 2020', 'Status quo infant & BD drop 20 2020'}
+                    % Follows status quo but, during the year 2020, birth dose vaccination drops by X% in relative terms.
+                    % X in {5%, 10%, 15%, 20%}
+                    X = extract_percent_from_BDdrop_scenario_label(scenario);
+                    %% label_array_string should look like 'HepB-BD disruptions 5% in 2020'.
+                    label_array_string = replace(replace(scenario, 'Status quo infant & BD drop', 'HepB-BD disruptions'),' 2020','% in 2020');
 
                     params.InfantVacc = infant_vacc_vec;
-
-                    future_xvals_vec = [2019.0 first_expansion_year last_BD_scaleup_year end_year];
-                    future_yvals_vec = [cov_BirthDose(end) cov_BirthDose(end) max_BD_cov_val_75 max_BD_cov_val_75];
-                    params.BirthDose = make_coverage_vec(start_year,num_year_divisions,dt,end_year,cov_BirthDose,future_xvals_vec,future_yvals_vec);
-                    params.BirthDose = min(1,params.BirthDose);
-                    assert(isequal(size(params.BirthDose),size(years_vec_01yr)))
-
-                    label_array{scenario_num} = 'HepB-BD scale-up to 75%';
-                case 'Status quo infant & BD expansion to 90%'
-                    % Any country that is <90%, goes to 90% by last_BD_scaleup_year (linear expansion); others that are >90% stay at that level.
-
-                    params.InfantVacc = infant_vacc_vec;
-
-                    future_xvals_vec = [2019.0 first_expansion_year last_BD_scaleup_year end_year];
-                    future_yvals_vec = [cov_BirthDose(end) cov_BirthDose(end) max_BD_cov_val_90 max_BD_cov_val_90];
-                    params.BirthDose = make_coverage_vec(start_year,num_year_divisions,dt,end_year,cov_BirthDose,future_xvals_vec,future_yvals_vec);
-                    params.BirthDose = min(1,params.BirthDose);
-                    assert(isequal(size(params.BirthDose),size(years_vec_01yr)))
-
-                    label_array{scenario_num} = 'HepB-BD scale-up to 90%';
-                case 'Status quo infant & BD drop 5 2020'
-                    % Follows status quo but, during the year 2020, birth dose vaccination drops by 5% in relative terms.
-
-                    params.InfantVacc = infant_vacc_vec;
-
                     future_xvals_vec = [2019.0 2019.9 2020.0 2020.9 2021.0 2030 end_year];
-                    future_yvals_vec = [cov_BirthDose(end) cov_BirthDose(end) 0.95*cov_BirthDose(end) 0.95*cov_BirthDose(end) cov_BirthDose(end) cov_BirthDose(end) cov_BirthDose(end)];
+
+                    %% REMEMBER 1-X/100.
+                    pc_reduction = 1 - X/100;
+                    future_yvals_vec = [cov_BirthDose(end) cov_BirthDose(end) pc_reduction*cov_BirthDose(end) pc_reduction*cov_BirthDose(end) cov_BirthDose(end) cov_BirthDose(end) cov_BirthDose(end)];
                     params.BirthDose = make_coverage_vec(start_year,num_year_divisions,dt,end_year,cov_BirthDose,future_xvals_vec,future_yvals_vec);
                     params.BirthDose = min(1,params.BirthDose);
                     assert(isequal(size(params.BirthDose),size(years_vec_01yr)))
  
-                    label_array{scenario_num} = 'HepB-BD disruptions 5% in 2020';
-                case 'Status quo infant & BD drop 10 2020'
-                    % Follows status quo but, during the year 2020, birth dose vaccination drops by 10% in relative terms.
-
+                    label_array{scenario_num} = label_array_string;
+                
+                %%zawartosc:
+                case {'Status quo infant & BD delayed expansion 2023 to 2030','Status quo infant & BD delayed expansion 2023 to 2033','Status quo infant & BD delayed expansion 2025 to 2040'}
                     params.InfantVacc = infant_vacc_vec;
+                    max_BD_cov_val_90 = max([cov_BirthDose(end) 0.9]);                    
 
-                    future_xvals_vec = [2019.0 2019.9 2020.0 2020.9 2021.0 2030 end_year];
-                    future_yvals_vec = [cov_BirthDose(end) cov_BirthDose(end) 0.9*cov_BirthDose(end) 0.9*cov_BirthDose(end) cov_BirthDose(end) cov_BirthDose(end) cov_BirthDose(end)];
-                    params.BirthDose = make_coverage_vec(start_year,num_year_divisions,dt,end_year,cov_BirthDose,future_xvals_vec,future_yvals_vec);
+                    if(scenario=='Status quo infant & BD delayed expansion 2023 to 2030')
+                        % Planned expansion of birth-dose vaccination is
+                        % postponed by 3 years, finishing in 2030
+                        label_array{scenario_num} = 'HepB-BD delayed & fast scale-up 2023 to 2030';
+                        start_delay = 3;   % Delay in starting (after 2020)
+                        end_delay = 0;     % Delay in finishing (after 2030)
+                    elseif(scenario=='Status quo infant & BD delayed expansion 2023 to 2033')
+                        % Planned expansion of birth-dose vaccination is
+                        % postponed by 3 years, still taking 10 years
+                        label_array{scenario_num} = 'HepB-BD delayed & normal scale-up 2023 to 2033';
+                        start_delay = 3;   % Delay in starting (after 2020)
+                        end_delay = 3;     % Delay in finishing (after 2030)
+                    elseif(scenario=='Status quo infant & BD delayed expansion 2025 to 2040')
+                        % Planned expansion of birth-dose vaccination is postponed by 5 years and takes longer
+                        label_array{scenario_num} = 'HepB-BD delayed & slow scale-up 2025 to 2040';
+                        start_delay = 5;   % Delay in starting (after 2020)
+                        end_delay = 10;     % Delay in finishing (after 2030)
+                    else
+                        fprintf('Unknown scenario %s. Exiting',scenario)
+                        return
+                    end
+
+                    future_xvals_vec = [2019.0 first_expansion_year first_expansion_year+start_delay last_BD_scaleup_year+end_delay end_year];
+                    future_yvals_vec = [cov_BirthDose(end) cov_BirthDose(end) cov_BirthDose(end) max_BD_cov_val_90 max_BD_cov_val_90];                  
+                    params.BirthDose = make_coverage_vec(start_year,num_year_divisions,dt,end_year,cov_BirthDose,future_xvals_vec,future_yvals_vec);                    
                     params.BirthDose = min(1,params.BirthDose);
-                    assert(isequal(size(params.BirthDose),size(years_vec_01yr)))
-
-                    label_array{scenario_num} = 'HepB-BD disruptions 10% in 2020';
-                case 'Status quo infant & BD drop 15 2020'
-                    % Follows status quo but, during the year 2020, birth dose vaccination drops by 15% in relative terms.
-
-                    params.InfantVacc = infant_vacc_vec;
-
-                    future_xvals_vec = [2019.0 2019.9 2020.0 2020.9 2021.0 2030 end_year];
-                    future_yvals_vec = [cov_BirthDose(end) cov_BirthDose(end) 0.85*cov_BirthDose(end) 0.85*cov_BirthDose(end) cov_BirthDose(end) cov_BirthDose(end) cov_BirthDose(end)];
-                    params.BirthDose = make_coverage_vec(start_year,num_year_divisions,dt,end_year,cov_BirthDose,future_xvals_vec,future_yvals_vec);
-                    params.BirthDose = min(1,params.BirthDose);
-                    assert(isequal(size(params.BirthDose),size(years_vec_01yr)))
-
-                    label_array{scenario_num} = 'HepB-BD disruptions 15% in 2020';
-                case 'Status quo infant & BD drop 20 2020'
-                    % Follows status quo but, during the year 2020, birth dose vaccination drops by 20% in relative terms.
-
-                    params.InfantVacc = infant_vacc_vec;
-
-                    future_xvals_vec = [2019.0 2019.9 2020.0 2020.9 2021.0 2030 end_year];
-                    future_yvals_vec = [cov_BirthDose(end) cov_BirthDose(end) 0.8*cov_BirthDose(end) 0.8*cov_BirthDose(end) cov_BirthDose(end) cov_BirthDose(end) cov_BirthDose(end)];
-                    params.BirthDose = make_coverage_vec(start_year,num_year_divisions,dt,end_year,cov_BirthDose,future_xvals_vec,future_yvals_vec);
-                    params.BirthDose = min(1,params.BirthDose);
-                    assert(isequal(size(params.BirthDose),size(years_vec_01yr)))
-
-                    label_array{scenario_num} = 'HepB-BD disruptions 20% in 2020';
-                case 'Status quo infant & BD delayed expansion 2023 to 2030'
-                    % Planned expansion of birth-dose vaccination is postponed by 3 years
-
-                    params.InfantVacc = infant_vacc_vec;
-
-                    future_xvals_vec = [2019.0 first_expansion_year first_expansion_year+3 last_BD_scaleup_year end_year];
-                    future_yvals_vec = [cov_BirthDose(end) cov_BirthDose(end) cov_BirthDose(end) max_BD_cov_val_90 max_BD_cov_val_90];
-                    params.BirthDose = make_coverage_vec(start_year,num_year_divisions,dt,end_year,cov_BirthDose,future_xvals_vec,future_yvals_vec);
-                    params.BirthDose = min(1,params.BirthDose);
-                    assert(isequal(size(params.BirthDose),size(years_vec_01yr)))
-
-                    label_array{scenario_num} = 'HepB-BD delayed & fast scale-up 2023 to 2030';
-                case 'Status quo infant & BD delayed expansion 2023 to 2033'
-                    % Planned expansion of birth-dose vaccination is postponed by 3 years
-
-                    params.InfantVacc = infant_vacc_vec;
-
-                    future_xvals_vec = [2019.0 first_expansion_year first_expansion_year+3 last_BD_scaleup_year+3 end_year];
-                    future_yvals_vec = [cov_BirthDose(end) cov_BirthDose(end) cov_BirthDose(end) max_BD_cov_val_90 max_BD_cov_val_90];
-                    params.BirthDose = make_coverage_vec(start_year,num_year_divisions,dt,end_year,cov_BirthDose,future_xvals_vec,future_yvals_vec);
-                    params.BirthDose = min(1,params.BirthDose);
-                    assert(isequal(size(params.BirthDose),size(years_vec_01yr)))
-
-                    label_array{scenario_num} = 'HepB-BD delayed & normal scale-up 2023 to 2033';
-                case 'Status quo infant & BD delayed expansion 2025 to 2040'
-                    % Planned expansion of birth-dose vaccination is postponed by 5 years and takes longer
-
-                    params.InfantVacc = infant_vacc_vec;
-
-                    future_xvals_vec = [2019.0 first_expansion_year first_expansion_year+5 last_BD_scaleup_year+10 end_year];
-                    future_yvals_vec = [cov_BirthDose(end) cov_BirthDose(end) cov_BirthDose(end) max_BD_cov_val_90 max_BD_cov_val_90];
-                    params.BirthDose = make_coverage_vec(start_year,num_year_divisions,dt,end_year,cov_BirthDose,future_xvals_vec,future_yvals_vec);
-                    params.BirthDose = min(1,params.BirthDose);
-                    assert(isequal(size(params.BirthDose),size(years_vec_01yr)))
-
-                    label_array{scenario_num} = 'HepB-BD delayed & slow scale-up 2025 to 2040';
+                    assert(isequal(size(params.BirthDose),size(years_vec_01yr)))                
             end
 
     
@@ -510,6 +447,7 @@ function country_level_analyses(sensitivity_analysis,...
 
             num_year_1980_2100 = 2100 - 1980 + 1;
 
+            %% MP: added so we just store the CSV from the default scenario for now to save on storage. Can be changed as needed.
             if(strcmp(sensitivity_analysis,'default')==1)
                 store_results_as_text = 1;
             else
@@ -699,3 +637,15 @@ function out = make_coverage_vec(start_year,num_year_divisions,dt,end_year,yleft
 end
 
 
+%% Extract % from 'Status quo infant & BD expansion to 25%' etc
+function pc = extract_percent_from_BDexpansion_scenario_label(s)
+    string_array = strsplit(s);
+    percent_with_symbol = string_array{end};
+    pc = str2num(replace(percent_with_symbol,'%',''));
+end
+
+%% Extract % from 'Status quo infant & BD drop 5 2020' etc
+function pc = extract_percent_from_BDdrop_scenario_label(s)
+    pc_cell=string_array(7)
+    pc = str2num(cell2mat(pc_cell))
+end
