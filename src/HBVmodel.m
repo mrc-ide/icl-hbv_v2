@@ -322,9 +322,7 @@ for time = TimeSteps
                     temp_store = reshape(squeeze(sum(X(:, agegroups_5yr == ag, :, :),2)), [1,ncol_X_to_print]); % k is gender
                     assert(isequal(size(temp_store),[1 60]))
                     X_to_print_unshaped(ag,:) = temp_store;
-                    if(time==2005 && ag==1)
-                        fprintf("In 2005 %12.10f\n", temp_store(1))
-                    end
+                    
                 end
             X_to_print(:,OutputEventNum-1) = reshape(X_to_print_unshaped,[1, max(agegroups_5yr)*ncol_X_to_print]);
             end
@@ -386,13 +384,13 @@ for time = TimeSteps
              
         end % end genders for loop
 
-        if((OutputEventNum>115 && OutputEventNum<120) || OutputEventNum==160) 
-            fprintf("AYear %5d Time %5d X%10.8f D2 %10.8f age2 %10.8f age3 %10.8f M%10.8f Treat%10.8f Pop %12.6f\n",1889+OutputEventNum, time, sum(X(1, agegroups_5yr == 1, 1, 1)), sum(X(2, agegroups_5yr == 1, 1, 1)), sum(X(1, agegroups_5yr == 2, 1, 1)), sum(X(1, agegroups_5yr == 3, 1, 1)), sum(X(1, agegroups_5yr == 1, 2, 1)), sum(X(1, agegroups_5yr == 1, 1, 2)), sum(sum(sum(sum(X(i_alive, :, :, :), 2), 4),1),3));
-            if(OutputEventNum==116)
-                writematrix(squeeze(X(i_alive, 1, 1, 1)),fullfile(basedir,'temp.csv'));
-            end
+        %if((OutputEventNum>115 && OutputEventNum<120) || OutputEventNum==160) 
+            %%fprintf("AYear %5d Time %5d X%10.8f D2 %10.8f age2 %10.8f age3 %10.8f M%10.8f Treat%10.8f Pop %12.6f\n",1889+OutputEventNum, time, sum(X(1, agegroups_5yr == 1, 1, 1)), sum(X(2, agegroups_5yr == 1, 1, 1)), sum(X(1, agegroups_5yr == 2, 1, 1)), sum(X(1, agegroups_5yr == 3, 1, 1)), sum(X(1, agegroups_5yr == 1, 2, 1)), sum(X(1, agegroups_5yr == 1, 1, 2)), sum(sum(sum(sum(X(i_alive, :, :, :), 2), 4),1),3));
+        %    if(OutputEventNum==116)
+        %        writematrix(squeeze(X(i_alive, 1, 1, 1)),fullfile(basedir,'temp.csv'));
+        %    end
             %disp([1889+OutputEventNum, sum(sum(sum(sum(X(i_alive, :, :, :), 2), 4),1),3)])
-        end
+        %end
 
 
         if OutputEventNum > 1
@@ -609,7 +607,7 @@ output.Prev_Deaths_1yr = Prev_Deaths_1yr; % 2 x 100 x (num_years_simul + 1)
 
 if(store_results_as_text==1)
     if(stochas_run_str=="1")
-        disp("Making header.txt file")
+        %disp("Making header.txt file")
         output_header = construct_header(agegroups_5yr, num_disease_states, num_sexes, num_treat_blocks);
         writelines(output_header, fullfile(basedir,'outputs',"header.txt"))
     end

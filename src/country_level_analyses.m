@@ -563,7 +563,7 @@ function country_level_analyses(sensitivity_analysis,...
         min_time_left = num_scenarios_left * min_time_per_scenario;
         max_time_left = num_scenarios_left * max_time_per_scenario;
         if num_scenarios_left>0
-            disp(['There are ' num2str(num_scenarios_left) ' scenarios left for run number ' stochas_run_str ' (' sensitivity_analysis '), which will take about ' char(mean_time_left) ' hours.'])
+            disp(['There are ' num2str(num_scenarios_left) ' scenarios left for run number ' stochas_run_str ' (' sensitivity_analysis '), which will take about ' char(mean_time_left) ' hh:mm:ss.'])
         end
 
 
@@ -646,6 +646,7 @@ end
 
 %% Extract % from 'Status quo infant & BD drop 5 2020' etc
 function pc = extract_percent_from_BDdrop_scenario_label(s)
-    pc_cell=string_array(7)
-    pc = str2num(cell2mat(pc_cell))
+    string_array = strsplit(s);
+    pc_cell=string_array(7);
+    pc = str2num(cell2mat(pc_cell));
 end

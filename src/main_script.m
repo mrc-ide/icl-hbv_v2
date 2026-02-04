@@ -82,7 +82,7 @@ ListOfScenarios = {...
 num_scenarios = length(ListOfScenarios);
 assert(num_scenarios==12)
 %TUTAJ:
-num_scenarios = 2;
+num_scenarios = 12;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Set up parameters - first set parameters that are set by hand in code:
@@ -330,7 +330,7 @@ disp(['This analysis started at ' datestr(begin_time_run)])
 
 disp(['Number of sensitivity analyses: ' num2str(num_sensitivity_analyses)])
 disp(['Number of scenarios: ' num2str(num_scenarios)])
-disp(['Number of countries: ' num2str(num_countries)])
+disp(['Number of countries: ' num2str(length(countries_to_run))])
 disp(['Number of runs per country: ' num2str(num_stochas_runs)])
 
 
@@ -382,7 +382,7 @@ for sensitivity_analysis_num=1:num_sensitivity_analyses
     end
 
     time_taken_for_sensitivity_analysis = datetime('now') - begin_time_sensitivity_analysis;
-    disp(['The duration of this sensitivity analysis (' sensitivity_analysis ') was ' char(time_taken_for_sensitivity_analysis) ' hours.\n\n'])
+    disp(['The duration of this sensitivity analysis (' sensitivity_analysis ') was ' char(time_taken_for_sensitivity_analysis) ' hh:mm:ss.\n\n'])
     sensitivity_analysis_hours_vec(sensitivity_analysis_num) = time_taken_for_sensitivity_analysis;
     assert(all(sensitivity_analysis_hours_vec(1:sensitivity_analysis_num)>0))
     average_time_per_sensitivity_analysis = mean(sensitivity_analysis_hours_vec(1:sensitivity_analysis_num));
@@ -393,7 +393,7 @@ for sensitivity_analysis_num=1:num_sensitivity_analyses
     %%max_time_left = num_sensitivity_analyses_left * max_time_per_sensitivity_analysis;
     %%max_time_per_sensitivity_analysis = max(sensitivity_analysis_hours_vec(1:sensitivity_analysis_num));
     if num_sensitivity_analyses_left>0
-        disp(['There are ' num2str(num_sensitivity_analyses_left) ' sensitivity analyses left, which will take about ' char(mean_time_left) ' hours.'])
+        disp(['There are ' num2str(num_sensitivity_analyses_left) ' sensitivity analyses left, which will take about ' char(mean_time_left) ' hh:m:ss.'])
     end
     
 end
@@ -401,7 +401,7 @@ end
 end_time_run = datetime('now');
 %disp(end_time_run)
 time_taken_for_run = end_time_run - begin_time_run;
-disp(['Run ended at ' char(end_time_run) '. The duration of this analysis was ' char(time_taken_for_run) ' hours.\n\n'])
+disp(['Run ended at ' char(end_time_run) '. The duration of this analysis was ' char(time_taken_for_run) ' hh:mm:ss.\n\n'])
 
 
 diary off
