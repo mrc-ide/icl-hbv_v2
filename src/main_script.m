@@ -3,6 +3,26 @@
 clear
 
 MAKE_PARAMETER_FILE_MP = 0; % Set to 1 to write the input parameter files into a series of text files.
+RUN_ON_CLUSTER = 0;     % When 1, look for a text file countries_to_run.txt to determine the range of countries to run.
+
+% Set the start and end countries (so we can run specific countries only):
+%i_start_country = 1;
+%i_end_country = num_countries;
+%i_end_country = 2;
+
+%% TUTAJ:
+%i_start_country = 92;  % Thailand is 92
+%i_end_country = 93;
+if RUN_ON_CLUSTER==0
+    countries_to_run = [92, 93];
+else
+    fileID = fopen('countries_to_run.txt','r');
+    formatSpec = '%i';
+    countries_to_run = fscanf(fileID,formatSpec); % Read in numbers of first and last country:
+    %i_start_country = A(1);
+    %i_end_country = A(2);
+    fclose(fileID);
+end
 
 %% To remove to allow full run (labelled with TUTAJ):
 %% num_stochas_runs = 2;
@@ -233,14 +253,6 @@ end
 
 
 assert(num_countries==110)
-% Set the start and end countries (so we can run specific countries only):
-%i_start_country = 1;
-%i_end_country = num_countries;
-%i_end_country = 2;
-% Thailand is 92:
-%% TUTAJ:
-i_start_country = 92;
-i_end_country = 93;
 
 %TUTAJ:
 %num_countries = 3;
@@ -358,7 +370,7 @@ for sensitivity_analysis_num=1:num_sensitivity_analyses
         country_level_analyses(sensitivity_analysis,...
             num2str(stochas_run),num_stochas_runs,...
             ListOfScenarios,num_scenarios,...
-            ListOfISOs,i_start_country,i_end_country,...
+            ListOfISOs,countries_to_run,...
             BD_table,HepB3_table,...
             num_in_treatment_2016_map,pop_size_HBsAg_treatment_map,treatment_rates_map,...
             country_s_e_HCCdeaths_map,...
