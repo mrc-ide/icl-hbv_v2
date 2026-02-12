@@ -157,6 +157,12 @@ SpeedUpELoss_F = 9.5;
 CancerRate_WomenCoFactor = 1;
 CirrhosisRate_WomenCoFactor = 1;    
 
+%% Efficacy of the mother being on treatment (interferon or TDF) preventing mother-to-child transmission (MTCT):
+%% Note that this is for births without BD. BD+treatment is dealt with separately in p_VerticalTransmission_Tr_BirthDoseVacc.
+Efficacy_Treatment_MTCT = 0.98; 
+%% Probability of MTCT when the mother is on treatemnt and BD is given:
+p_VerticalTransmission_Tr_BirthDoseVacc = 0.005;
+
 
 
 % Probability that an infant <0.5 becomes a chronic carrier
@@ -403,7 +409,8 @@ for sensitivity_analysis_num=1:num_sensitivity_analyses
             params_map,stochas_params_mat,country_start_cols,...
             basedir,filename_diaries,...
             num_states,num_year_divisions,dt,ages,num_age_steps,start_year,num_years_simul,end_year,...
-            theta,CFR_Acute,rate_6months,ECofactor,p_ChronicCarriage,life_expectancy)
+            theta,CFR_Acute,rate_6months,ECofactor,p_ChronicCarriage,life_expectancy,...
+            Efficacy_Treatment_MTCT, p_VerticalTransmission_Tr_BirthDoseVacc)
 
     end
 

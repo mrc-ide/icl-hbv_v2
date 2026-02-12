@@ -1,6 +1,7 @@
 function output = HBVmodel(source_HBsAg,...
     num_disease_states,num_year_divisions,dt,ages,num_age_steps,start_year,num_years_simul,...
     theta,ECofactor,treat_start_year,treat_coverage_in_2016,params,p_ChronicCarriage,Prog,Transactions, ...
+    Efficacy_Treatment_MTCT, p_VerticalTransmission_Tr_BirthDoseVacc,...
     ISO, scenario_num, stochas_run_str, sensitivity_analysis, basedir, store_results_as_text)
 
 % X-stocks are (infection_state, age, sex(1=women, 2=men), accessible*)   {*accessible
@@ -66,8 +67,7 @@ TimeSteps = start_year:dt:end_year; % 1 x 2101 double; [1890 1890.1 1890.2 ... 2
 Efficacy_BirthDoseVacc_HbEAg = params.Efficacy_BirthDoseVacc_HbEAg;
 Efficacy_BirthDoseVacc_HbSAg = params.Efficacy_BirthDoseVacc_HbSAg;
 
-%% Efficacy of the mother being on treatment (interferon or TDF) preventing mother-to-child transmission (MTCT):
-Efficacy_Treatment_MTCT = 0.98;
+
 
 %% MP: note - I am using p_VerticalTransmission_HbSAg_NoBD instead of "p_VerticalTransmission_HbSAg_NoIntv" (similarly for EAg).
 %% The "Intv" refers to birth-dose vaccination (either normal vaccination, microarray patches (MAPs), or compact prefilled auto-disable devices (CPAD)).
@@ -81,7 +81,6 @@ assert(p_VerticalTransmission_HbSAg_NoBD>=0 && p_VerticalTransmission_HbSAg_NoBD
 p_VerticalTransmission_HbEAg_BirthDoseVacc = p_VerticalTransmission_HbEAg_NoBD * (1 - Efficacy_BirthDoseVacc_HbEAg); 
 
 p_VerticalTransmission_Tr_NoBD = p_VerticalTransmission_HbEAg_NoBD * (1 - Efficacy_Treatment_MTCT); % probability of transmission from an HBeAg+ mother on treatment to her baby without intervention
-p_VerticalTransmission_Tr_BirthDoseVacc = 0.005;
 
 
 
@@ -92,7 +91,6 @@ beta_5plus = params.beta_5plus;
 ReducInTransmission = params.ReducInTransmission;              % Fractional reduction in transmission. Currently set to 0
 YearReducInTransmission = params.YearReducInTransmission;      % Turning point year for reduction. Currently set to 2100
 DurReducInTransmission = 15;                                  % Time taken to complete change
-PriorTDFTreatRate = params.PriorTDFTreatRate;                  % Treatment rate since 2005
 
 
 
