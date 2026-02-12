@@ -5,29 +5,10 @@ clear
 MAKE_PARAMETER_FILE_MP = 0; % Set to 1 to write the input parameter files into a series of text files.
 RUN_ON_CLUSTER = 0;     % When 1, look for a text file countries_to_run.txt to determine the range of countries to run.
 
-% Set the start and end countries (so we can run specific countries only):
-%i_start_country = 1;
-%i_end_country = num_countries;
-%i_end_country = 2;
-
-%% TUTAJ:
-%i_start_country = 92;  % Thailand is 92
-%i_end_country = 93;
-if RUN_ON_CLUSTER==0
-    countries_to_run = [92, 93];
-else
-    fileID = fopen('countries_to_run.txt','r');
-    formatSpec = '%i';
-    countries_to_run = fscanf(fileID,formatSpec); % Read in numbers of first and last country:
-    %i_start_country = A(1);
-    %i_end_country = A(2);
-    fclose(fileID);
-end
 
 %% To remove to allow full run (labelled with TUTAJ):
 %% num_stochas_runs = 2;
 %% num_scenarios = 1;
-%% num_countries = 3;
 %% sensitivity_analysis_list = {'default'};
 
 
@@ -59,6 +40,28 @@ basedir = fileparts(currentFolder); % path for folder one level up from script.
 %TUTAJ:
 %num_stochas_runs = 200;
 num_stochas_runs = 3;
+
+
+% Set the start and end countries (so we can run specific countries only):
+%i_start_country = 1;
+%i_end_country = num_countries;
+%i_end_country = 2;
+
+%% TUTAJ:
+%i_start_country = 92;  % Thailand is 92
+%i_end_country = 93;
+if RUN_ON_CLUSTER==0
+    countries_to_run = [92, 93];
+else
+    fileID = fopen('countries_to_run.txt','r');
+    formatSpec = '%i';
+    countries_to_run = fscanf(fileID,formatSpec); % Read in numbers of first and last country:
+    %i_start_country = A(1);
+    %i_end_country = A(2);
+    fclose(fileID);
+end
+
+
 
 %TUTAJ:
 sensitivity_analysis_list = {'default'};
@@ -146,6 +149,18 @@ rate_6months = 2; % the rate necessary to move everyone out of States 14 and 15 
 ECofactor = 15; % Multiple for rate of transmission for horizontal transmission with HbEAg vs HbSAg
 % epsilon_2 and epsilon_3 in Table S2, p. 6 of the appendix to the publication
 
+life_expectancy = 85; % the approximate life-expectancy at birth for persons in Japan and the highest life-expectnacy in the world, which is often taken as the benchmark
+
+
+%% MP added these although they are added to params below:
+SpeedUpELoss_F = 9.5;
+CancerRate_WomenCoFactor = 1;
+CirrhosisRate_WomenCoFactor = 1;    
+
+
+
+% Probability that an infant <0.5 becomes a chronic carrier
+p_infant_becomes_chronic_carrier = 0.885;
 
 
 % risk of chronic carriage due to horizontal and vertical transmission
@@ -156,13 +171,11 @@ risk_ages_edmunds_func = @(age) exp(-0.645*age^(0.455));
 
 
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% SERNIK - stuff to do: move these into here.
 
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Set up parameters - now load parameters set in calibration:
+%% Load parameters previously determined during calibration:
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 load(fullfile(basedir,'resources','ListOfISOs.mat')) % contains ListOfISOs
@@ -176,7 +189,9 @@ load(fullfile(basedir,'resources','vaccination_coverages.mat')) % contains BD_ta
 
 load(fullfile(basedir,'resources','reference_prevalences.mat')) % contains country_s_e_HCCdeaths_map
 % country_s_e_HCCdeaths_map is a container map with 110 entries indexed by
-% country name (e.g. ZWE)
+% country name (e.g. ZWE).
+% MP: as far as I can tell, it *does not* include HCC deaths. It just has
+% HBsAg prevalence
 % country_s_e_HCCdeaths_map("ZWE") is a struct with the following fields:
 %   source_HBsAg: 'CDA'
 %   HBsAg_prevs_year_1: 2016
@@ -233,6 +248,16 @@ load(fullfile(basedir,'resources','treatment_2016_map.mat')) % contains num_in_t
 %  A container map with 110 entries indexed by country name (e.g. ZWE). Each
 % entry is a double (one number!) - npte that this is just used as a check
 % in country_level_analyses.m (in_treatment_2016_CDA==pop_size_HBsAg_treatment_2016_vec(5)
+
+%% pop_size_HBsAg_treatment_map: 
+% A container map with *only* 66 entries (so a subset of the 110 countries) indexed by country name (e.g. ZWE). 
+% Each entry is 5 numbers. In country_level_analyses.m we have the
+% following code:
+%% pop_size_HBsAg_treatment_2016_vec = pop_size_HBsAg_treatment_map(ISO);
+%% HBsAg_treat_cov_all_ages = pop_size_HBsAg_treatment_2016_vec(4);
+%% assert(in_treatment_2016_CDA==pop_size_HBsAg_treatment_2016_vec(5)).
+%% So (if it exists) it is used to set the (2016???) HBsAg_treat_cov_all_ages (which is the 4th number). The 5th number is a check. 
+%% The remaining numbers are ignored.
 
 load(fullfile(basedir,'resources','treatment_rates_map.mat')) % contains treatment_rates_map
 
@@ -314,13 +339,13 @@ for country_num = 1:num_countries
     ISO = ListOfISOs{country_num};
     temp = params_map(ISO); % MatLab can't deal with direct modification of params_map(ISO)
     temp.dwvec = dwvec;
-    temp.SpeedUpELoss_F = 9.5;
-    temp.CancerRate_WomenCoFactor = 1;
-    temp.CirrhosisRate_WomenCoFactor = 1;    
+    
+    temp.SpeedUpELoss_F = SpeedUpELoss_F;
+    temp.CancerRate_WomenCoFactor = CancerRate_WomenCoFactor;
+    temp.CirrhosisRate_WomenCoFactor = CirrhosisRate_WomenCoFactor;    
     params_map(ISO) = temp;    
 end
 
-life_expectancy = 85; % the approximate life-expectancy at birth for persons in Japan and the highest life-expectnacy in the world, which is often taken as the benchmark
 
 
 
@@ -347,8 +372,9 @@ risk_p_ChronicCarriage = repmat(risk_p_ChronicCarriage,1,1,2,2);
 % Set up the probability that an individual becomes a chronic carrier given
 % they get infected at a specific age, their sex, and *accessible* (whether
 % can be reached by treatment progs, 1=no, 2=yes).
-p_ChronicCarriage = 0.885 * ones(1, num_age_steps, 2, 2);
+p_ChronicCarriage = p_infant_becomes_chronic_carrier * ones(1, num_age_steps, 2, 2);
 p_ChronicCarriage(:, ages>0.5, :, :) = risk_p_ChronicCarriage;
+
 
 
 sensitivity_analysis_hours_vec = repmat(duration(0,0,0),1,num_sensitivity_analyses);
