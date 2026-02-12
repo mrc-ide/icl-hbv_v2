@@ -63,22 +63,16 @@ TimeSteps = start_year:dt:end_year; % 1 x 2101 double; [1890 1890.1 1890.2 ... 2
 
 % ---- Intervention Parameters ----
 
-% the efficacy of the vaccination i.e. the proportion of all eAg+/sAg+ mothers (no treatment) that do not infect their babies
-Efficacy_BirthDoseVacc_HbEAg = params.Efficacy_BirthDoseVacc_HbEAg;
-Efficacy_BirthDoseVacc_HbSAg = params.Efficacy_BirthDoseVacc_HbSAg;
-
-
-
 %% MP: note - I am using p_VerticalTransmission_HbSAg_NoBD instead of "p_VerticalTransmission_HbSAg_NoIntv" (similarly for EAg).
 %% The "Intv" refers to birth-dose vaccination (either normal vaccination, microarray patches (MAPs), or compact prefilled auto-disable devices (CPAD)).
 p_VerticalTransmission_HbSAg_NoBD = params.p_VerticalTransmission_HbSAg_NoIntv; % probability of transmission from an HBeAg-, HBsAg+ mother to her baby without intervention
 p_VerticalTransmission_HbEAg_NoBD = params.p_VerticalTransmission_HbEAg_NoIntv;
 
-p_VerticalTransmission_HbSAg_BirthDoseVacc = p_VerticalTransmission_HbSAg_NoBD * (1 - Efficacy_BirthDoseVacc_HbSAg);
+p_VerticalTransmission_HbSAg_BirthDoseVacc = p_VerticalTransmission_HbSAg_NoBD * (1 - params.Efficacy_BirthDoseVacc_HbSAg);
 assert(p_VerticalTransmission_HbSAg_NoBD>=0 && p_VerticalTransmission_HbSAg_NoBD<=1)
 
 % probability of transmission from an HBeAg+ mother to her baby after the baby is given BD vaccination
-p_VerticalTransmission_HbEAg_BirthDoseVacc = p_VerticalTransmission_HbEAg_NoBD * (1 - Efficacy_BirthDoseVacc_HbEAg); 
+p_VerticalTransmission_HbEAg_BirthDoseVacc = p_VerticalTransmission_HbEAg_NoBD * (1 - params.Efficacy_BirthDoseVacc_HbEAg); 
 
 p_VerticalTransmission_Tr_NoBD = p_VerticalTransmission_HbEAg_NoBD * (1 - Efficacy_Treatment_MTCT); % probability of transmission from an HBeAg+ mother on treatment to her baby without intervention
 
@@ -88,14 +82,16 @@ p_VerticalTransmission_Tr_NoBD = p_VerticalTransmission_HbEAg_NoBD * (1 - Effica
 beta_U5 = params.beta_U5; % Rate of horizontal transmission between susceptible and infected persons - UNDER FIVE
 beta_1to15 = params.beta_1to15;                                % Rate of generation transmission between susceptible and infected persons - All Ages
 beta_5plus = params.beta_5plus;
-ReducInTransmission = params.ReducInTransmission;              % Fractional reduction in transmission. Currently set to 0
-YearReducInTransmission = params.YearReducInTransmission;      % Turning point year for reduction. Currently set to 2100
-DurReducInTransmission = 15;                                  % Time taken to complete change
+
 
 
 
 % ----- Infection-relate parameters -----
 
+%% The following would make the horiontal transmission probability time-dependent (decreasing by some fraction beta_scaler.
+ReducInTransmission = params.ReducInTransmission;              % Fractional reduction in transmission. Currently set to 0
+YearReducInTransmission = params.YearReducInTransmission;      % Turning point year for reduction. Currently set to 2100
+DurReducInTransmission = 15;                                  % Time taken to complete change - MP: note that this is not actually that. 
 %% MP: beta_scaler seems to be legacy code. Currently ReducInTransmission is 0. Otherwise (even with YearReducInTransmission=2100)
 %% we still get some reduction in beta, and quite a large reduction after 2080 (reaching 50% reduction in 2100).
 beta_scaler = ReducInTransmission ./ (1 + exp( (TimeSteps - (YearReducInTransmission)) ./ (DurReducInTransmission / 10) ));
@@ -442,8 +438,8 @@ for time = TimeSteps
     % Disease Progression
     next_X = X;
     for tr = 1:length(Transactions.From)
-        transaction_vals = Transactions.Values{tr};
-        transaction_vals = transaction_vals(:);
+        %%transaction_vals = Transactions.Values{tr};
+        %%transaction_vals = transaction_vals(:);
         moving_btw_states(1, :, :, :) = X(Transactions.From(tr), :, :, :) .* Transactions.Values{tr};
         next_X(Transactions.From(tr), :, :, :) = next_X(Transactions.From(tr), :, :, :) + dt * ( -moving_btw_states ); % move people out of "from" state
         next_X(Transactions.To(tr), :, :, :) = next_X(Transactions.To(tr), :, :, :)  + dt * ( +moving_btw_states ); % move people into "to" state
