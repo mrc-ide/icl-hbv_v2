@@ -132,6 +132,8 @@ StartPop = params.Pop_byAgeGroups_1950(agegroups_1yr, :) * dt;
 X = zeros(num_disease_states, num_age_steps, num_sexes, num_treat_blocks);
 % dimensions: disease states, age, gender, accessible to treatment
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Initialise prevalence using HBsAg data:
 if strcmp(source_HBsAg,'Cui')
     StartPrev_byAgeGroups = params.HBsAg_prevs_middle_year_1;
     %% MP: Magic number 18
