@@ -79,6 +79,14 @@ p_VerticalTransmission_Tr_NoBD = p_VerticalTransmission_HbEAg_NoBD * (1 - Effica
 
 
 % ---- Load Epidemiological Parameters from fitting procedure ----
+
+% beta_AGE are the (per-year) rate of horizontal transmission from an infected person (age gp AGE) who is sAg+ but 
+% eAG- (for eAg+, this is multiplied by ECofactor, and capped at 1/yr), and a susceptible person
+% (also in age gp AGE). 
+% Note that for some age groups they will appear twice (e.g. 1-4 are both in the "U5" and "1to15" groups).
+% This corresponds to them having 2 separate types of interactions (with other U5s, and with 1to15s).
+% Finally, the code allows beta to be made time-dependent (so declines in future) via beta_scaler below - this is 
+% currently not implemented.
 beta_U5 = params.beta_U5; % Rate of horizontal transmission between susceptible and infected persons - UNDER FIVE
 beta_1to15 = params.beta_1to15;                                % Rate of generation transmission between susceptible and infected persons - All Ages
 beta_5plus = params.beta_5plus;

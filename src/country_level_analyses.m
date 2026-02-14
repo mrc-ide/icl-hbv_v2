@@ -11,23 +11,19 @@ function country_level_analyses(sensitivity_analysis,...
     theta,CFR_Acute,rate_6months,ECofactor,p_ChronicCarriage,life_expectancy,...
     Efficacy_Treatment_MTCT, p_VerticalTransmission_Tr_BirthDoseVacc)
 
-
     if nargin < 1
        error('No input')
     end
 
     assert(ismember(sensitivity_analysis,{'default','infant_100','treat_medium','treat_high'}))
 
-
     stochas_run_num = str2double(stochas_run_str);
 
-    
     filename_results = ['results_countries_', sensitivity_analysis, '_stochastic_run_', stochas_run_str, '.mat'];
 
 
-    begin_time_run_num = datetime('now');
+    %%begin_time_run_num = datetime('now');
     %disp(['Run number ' stochas_run_str ' (of ' num2str(num_stochas_runs) ') started at ' datestr(begin_time_run_num)])
-
 
     outMap = containers.Map; 
     % for this particle (stochas_run_num), outMap contains the 12 scenarios, each of which contains countryMap, which contains the model results (lastrun) for 110 countries
@@ -41,16 +37,12 @@ function country_level_analyses(sensitivity_analysis,...
         scenario = ListOfScenarios{scenario_num};
         %disp(scenario)
         disp(['The "' scenario '" scenario (run number ' stochas_run_str ') started at ' datestr(begin_time_scenario)])
-                
         diary off
         diary(fullfile(basedir,'outputs',filename_diaries))
-
 
         countryMap = containers.Map; 
         % for this particle (stochas_run_num) and scenario (scenario), countryMap contains the model results (lastrun) of each of the 110 countries in this scenario
 
-
-        %for country_num = i_start_country:i_end_country
         for country_num = countries_to_run
             ISO = ListOfISOs{country_num};
 
@@ -240,7 +232,7 @@ function country_level_analyses(sensitivity_analysis,...
     
             country_ref_data_struct = country_s_e_HCCdeaths_map(ISO);
             source_HBsAg = country_ref_data_struct.source_HBsAg;
-            HBsAg_prevs_year_1 = country_ref_data_struct.HBsAg_prevs_year_1;
+            %% HBsAg_prevs_year_1 = country_ref_data_struct.HBsAg_prevs_year_1; %% MP: this is not used.
             params.country_HBsAg_prevalences_by_ages_mid_1_young_old = country_ref_data_struct.country_HBsAg_prevalences_by_ages_mid_1_young_old;
             if strcmp(source_HBsAg,'Cui')
                 params.HBsAg_prevs_middle_year_1 = country_ref_data_struct.HBsAg_prevs_middle_year_1;
@@ -306,7 +298,7 @@ function country_level_analyses(sensitivity_analysis,...
 
 
             % Summarise this matrix as transactions lists.
-            [transactions_from transactions_to] = find(Prog > 0);
+            [transactions_from, transactions_to] = find(Prog > 0);
 
             % Load these into a data-structure:
             Transactions = [];
@@ -356,7 +348,7 @@ function country_level_analyses(sensitivity_analysis,...
             shortcut_rate_age = 20;
             indicator_vec = [zeros(1,shortcut_rate_age*10) ones(1,num_age_steps - shortcut_rate_age*10)];
             tmp_pos = find((Transactions.From == 3) & (Transactions.To == 5));
-            assert(length(tmp_pos)==1)
+            assert(isscalar(tmp_pos))
             tmp_mat = Transactions.Values(tmp_pos);
             tmp_mat = tmp_mat{1};
             assert(min(min(min(min(tmp_mat))))==max(max(max(max(tmp_mat)))))
@@ -369,7 +361,7 @@ function country_level_analyses(sensitivity_analysis,...
             % Modify (5,6) to an age-specific progression
             trans_rate_by_age_5_6 = Prog(5,6)*trans_rate_by_age;
             tmp_pos = find((Transactions.From == 5) & (Transactions.To == 6));
-            assert(length(tmp_pos)==1)
+            assert(isscalar(tmp_pos))
             tmp_mat = Transactions.Values(tmp_pos);
             tmp_mat = tmp_mat{1};
             assert(min(min(min(min(tmp_mat))))==max(max(max(max(tmp_mat)))))
@@ -382,7 +374,7 @@ function country_level_analyses(sensitivity_analysis,...
             % Modify (3,6) to an age-specific progression
             trans_rate_by_age_3_6 = Prog(3,6)*trans_rate_by_age;
             tmp_pos = find((Transactions.From == 3) & (Transactions.To == 6));
-            assert(length(tmp_pos)==1)
+            assert(isscalar(tmp_pos))
             tmp_mat = Transactions.Values(tmp_pos);
             tmp_mat = tmp_mat{1};
             assert(min(min(min(min(tmp_mat))))==max(max(max(max(tmp_mat)))))
@@ -395,7 +387,7 @@ function country_level_analyses(sensitivity_analysis,...
 
             % Add sex-specific co-factor to clearance (4, 9)
             tmp_pos = find((Transactions.From == 4) & (Transactions.To == 9));
-            assert(length(tmp_pos)==1)
+            assert(isscalar(tmp_pos))
             tmp = Transactions.Values{tmp_pos}; % 1 x num_age_steps x 2 x 2 double giving progression rates for this to-from pair
             tmp(:, :, 1, :) = tmp(:, :, 1, :) * params.ClearanceRateWomenCoFactor;
             Transactions.Values(tmp_pos) = {tmp};
@@ -548,12 +540,12 @@ function country_level_analyses(sensitivity_analysis,...
         scenario_hours_vec(scenario_num) = time_taken_for_scenario;
         assert(all(scenario_hours_vec(1:scenario_num)>0))
         average_time_per_scenario = mean(scenario_hours_vec(1:scenario_num));
-        min_time_per_scenario = min(scenario_hours_vec(1:scenario_num));
-        max_time_per_scenario = max(scenario_hours_vec(1:scenario_num));
+        %% min_time_per_scenario = min(scenario_hours_vec(1:scenario_num)); %% MP: not used.
+        %% max_time_per_scenario = max(scenario_hours_vec(1:scenario_num)); %% MP: not used.
         num_scenarios_left = num_scenarios - scenario_num;
         mean_time_left = num_scenarios_left * average_time_per_scenario;
-        min_time_left = num_scenarios_left * min_time_per_scenario;
-        max_time_left = num_scenarios_left * max_time_per_scenario;
+        %% min_time_left = num_scenarios_left * min_time_per_scenario; %% MP: not used.
+        %% max_time_left = num_scenarios_left * max_time_per_scenario; %% MP: not used.
         if num_scenarios_left>0
             disp(['There are ' num2str(num_scenarios_left) ' scenarios left for run number ' stochas_run_str ' (' sensitivity_analysis '), which will take about ' char(mean_time_left) ' hh:mm:ss.'])
         end
@@ -562,9 +554,9 @@ function country_level_analyses(sensitivity_analysis,...
     end % end for scenario_num loop
 
     assert(length(scenario_hours_vec)==num_scenarios)
-    end_time_run_num = datetime('now');
+    %%end_time_run_num = datetime('now');
     %%disp(end_time_run_num)
-    time_taken_for_run = end_time_run_num - begin_time_run_num;
+    %%time_taken_for_run = end_time_run_num - begin_time_run_num;
     %%disp(['The duration of run number ' stochas_run_str ' (of ' num2str(num_stochas_runs) ') was ' char(time_taken_for_run) ' hours.\n\n'])
     %%if stochas_run_num<num_stochas_runs
     %%    num_runs_left = num_stochas_runs - stochas_run_num;

@@ -123,23 +123,22 @@ Snames = {
     }; % 1 x 15 cell array
 num_states = length(Snames);
 assert(num_states==15) % 15 disease states
+% i_Susc = 1;         % 'Susceptible', 
+% i_ImmTol = 2;       % 'HBV: Immune Tolerant',
+% i_ImmReact = 3;     % 'HBV: Immune Reactive',
+% i_AsymptCarr = 4;   % 'HBV: Asymptomatic Carrier',
+% i_Chronic = 5;      % 'HBV: Chronic Hep B',
+% i_CompCirr = 6;     % 'HBV: Comp Cirrhosis',
+% i_DecompCirr = 7;   % 'HBV: Decomp Cirrhosis',
+% i_HCC = 8;          % 'HBV: Liver Cancer',
+% i_Immune = 9;       % 'HBV: Immune (Rec. or vacc.)',
+% i_TDFtreat = 10;    % 'HBV: TDF-Treatment',
+% i_HBVdeath = 11;    % 'Prematurely dead due to HBV', ... % 11
+% i_3TCtreat = 12;    % '3TC-Treatment', ... % 12
+% i_3TCfailed = 13;   % 'Failed 3TC-Treatment', ...  % 13
+% i_NonSevAcute = 14; % 'Non-severe acute', ...  % 14
+% i_SevereAcute = 15; % 'Severe acute' ...  % 15
 
-% i_Susceptible = 1;
-% i_ImmuneTol = 2;
-% i_ImmuneReactive = 3;
-% i_AsymptCarrier = 4;
-% i_ChronicHepB = 5;
-% i_CompCirrhosis = 6;
-% i_DecompCirrhosis = 7;
-% i_HCC = 8;
-% i_Immune = 9;   % Immune or vaccinated.
-% i_Chronic_TDFTreatment = 10;
-% i_HBV_death = 11;
-% i_3TCTreatment = 12;
-% i_3TCFailedTreatment = 13;
-% i_Nonsevere_acute = 14;
-% i_Severe_acute = 15;
-% 
 
 
 theta = 0.01; % proportion of persons newly infected that develop severe symptoms during acute infection
