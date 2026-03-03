@@ -1,19 +1,22 @@
 function country_level_analyses(sensitivity_analysis,...
-    stochas_run_str,num_stochas_runs,...
-    ListOfScenarios,num_scenarios,...
+    stochas_run_str,...
     ListOfISOs,countries_to_run,...
     BD_table,HepB3_table,...
     num_in_treatment_2016_map,pop_size_HBsAg_treatment_map,treatment_rates_map,...
     country_s_e_HCCdeaths_map,...
     params_map,stochas_params_mat,country_start_cols,...
+    WUENIC2024BDdata, WUENIC2024HepB3data, ...
     basedir,filename_diaries,...
     num_states,num_year_divisions,dt,ages,num_age_steps,start_year,num_years_simul,end_year,...
     theta,CFR_Acute,rate_6months,ECofactor,p_ChronicCarriage,life_expectancy,...
-    Efficacy_Treatment_MTCT, p_VerticalTransmission_Tr_BirthDoseVacc)
+    Efficacy_Treatment_MTCT, p_VerticalTransmission_Tr_BirthDoseVacc, ...
+    p_VerticalTransmission_Tr_BirthDose_MAP_CPAD, Prog)
 
     if nargin < 1
        error('No input')
     end
+
+    num_scenarios = 8;
 
     assert(ismember(sensitivity_analysis,{'default','infant_100','treat_medium','treat_high'}))
 
@@ -32,11 +35,14 @@ function country_level_analyses(sensitivity_analysis,...
 
     for scenario_num = 1:num_scenarios
 
-        begin_time_scenario = datetime('now');
+        % Make a copy of "Prog" for the given scenario - we can change
+        % Prog_scenario in this loop if needed.
+        Prog_scenario = Prog;
 
-        scenario = ListOfScenarios{scenario_num};
+        begin_time_scenario = datetime('now');
+        %%scenario = ListOfScenarios{scenario_num};
         %disp(scenario)
-        disp(['The "' scenario '" scenario (run number ' stochas_run_str ') started at ' datestr(begin_time_scenario)])
+        disp(['The "' num2str(scenario_num) '" scenario (run number ' stochas_run_str ') started at ' string(begin_time_scenario)])
         diary off
         diary(fullfile(basedir,'outputs',filename_diaries))
 
@@ -66,18 +72,26 @@ function country_level_analyses(sensitivity_analysis,...
                 HBsAg_treat_cov_all_ages = 0;
             end
 
+            %% Load country-specific parameters from calibration:
             params = params_map(ISO);
-            params = rmfield(params,'Efficacy_BirthDoseVacc_HbEAg');
-            params = rmfield(params,'Efficacy_InfantVacc');
+            %params = rmfield(params,'Efficacy_BirthDoseVacc_HbEAg');
+            %params = rmfield(params,'Efficacy_InfantVacc');
+
+            Prog_scenario(8, 11) = params.CancerDeathRate;  % HCC to HBV death.
+
 
             % Parameters
             assert(params.Efficacy_BirthDoseVacc_HbSAg==0.95)
             assert(params.p_VerticalTransmission_HbEAg_NoIntv==0.9)
             %% MP: moved to main_script.m %% params.dwvec = dwvec;
 
-            country_start_col = country_start_cols(find(strcmp(ISO,ListOfISOs)));
+            %% Load country-specific (non-stochastic - ie same across runs) parameters:
+            country_start_col = country_start_cols(strcmp(ISO,ListOfISOs));
             params.beta_U5 = stochas_params_mat(stochas_run_num,country_start_col);
+
             %% MP: moved to main_script.m %% params.SpeedUpELoss_F = 9.5;
+
+            %% Load country-specific stochastic parameters
             params.SpeedUpELoss_Beta = stochas_params_mat(stochas_run_num,country_start_col+1);
             params.p_VerticalTransmission_HbSAg_NoIntv = stochas_params_mat(stochas_run_num,country_start_col+2);
             params.cancer_rate_coeff = stochas_params_mat(stochas_run_num,country_start_col+3);
@@ -90,9 +104,6 @@ function country_level_analyses(sensitivity_analysis,...
             params.Efficacy_BirthDoseVacc_HbEAg = stochas_params_mat(stochas_run_num,end-1);
             params.Efficacy_InfantVacc = stochas_params_mat(stochas_run_num,end);
 
-    
-
-    
 
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             %% Load HBsAg prevalence data. This is used to initialise HBV prevalence in StartPrev_byAgeGroups
@@ -113,72 +124,23 @@ function country_level_analyses(sensitivity_analysis,...
 
 
 
-            % Progression Parameters
-            % Prog gives basic (identical across age, gender and treatment) progression rates between disease states
-            % Transactions then gives one finer control by allowing one to adjust rates
-            % according to age, gender and treatment
-            % Transactions.Values is then used in the disease progression part of the
-            % model
 
-            Prog = zeros(num_states, num_states); % Non-Age Specific Prog parameters stored as (from, to)
-
-            % Fill-in transitions from Immune Tolerant
-            Prog(2, 3) = 0.1;
-
-            % Fill-in transitions from Immune Reactive
-            Prog(3, 4) = 0.05;
-            Prog(3, 5) = 0.005;
-            Prog(3, 6) = 0.028;
-
-            % Fill-in constant transitions from Asymptomatic Carrier
-            Prog(4, 5) = 0.01;
-            Prog(4, 9) = 0.01;
-
-            % Fill-in transitions from Chronic Hep B.
-            Prog(5, 6) = 0.04;
-
-            % Fill-in transitions from Compensated Cirrhosis
-            Prog(6, 7) = 0.04;
-            Prog(6, 11) = 0.04;
-
-            % Fill-in transitions from Decompensated Cirrhsis
-            Prog(7, 8) = 0.04;
-            Prog(7, 11) = 0.30;
-
-            % Fill-in transitions from Liver Cancer
-            Prog(8, 11) = params.CancerDeathRate;
-
-            % Fill-in transition from TDF-Treatment
-            Prog(10, 11) = 0.001;
-
-            % Fill-in transition from 3TC-Treatment
-            Prog(12, 13) = 0.2;
-
-            % Fill-in transition from Failed 3TC-Treatment
-            Prog(13, 8) = 0.04;
-            Prog(13, 11) = 0.3;
-
-            % Fill-in transition from Severe acute
-            Prog(15, 11) = CFR_Acute * rate_6months;
-
-
-
-            % Summarise this matrix as transactions lists.
-            [transactions_from, transactions_to] = find(Prog > 0);
+            % Summarise the Prog_scenario matrix as transactions lists.
+            [transactions_from, transactions_to] = find(Prog_scenario > 0);
 
             % Load these into a data-structure:
             Transactions = [];
             for tr = 1:length(transactions_from)
                 Transactions.From(tr) = transactions_from(tr);
                 Transactions.To(tr) = transactions_to(tr);
-                Transactions.Values(tr) = {repmat(Prog(transactions_from(tr), transactions_to(tr)), [1, num_age_steps, 2, 2])}; 
+                Transactions.Values(tr) = {repmat(Prog_scenario(transactions_from(tr), transactions_to(tr)), [1, num_age_steps, 2, 2])}; 
                 % Transaction.Values is identical across age, gender, treatment
                 % For each to-from pair, form a 1 x num_age_steps x 2 x 2 double containing the progression parameter for that to-from transition
                 % Arrange this sequence of matrices in a cell array called Transactions.Values, which is contained in Transactions
             end
 
 
-            % Add age-specific progression (14, 15)-->(2, 9)
+            % Add age-specific progression acute severe/non-severe to immune tolerant or immune (14, 15)-->(2, 9)
             Transactions.From(length(Transactions.From) + 1) = 14;
             Transactions.To(length(Transactions.To) + 1) = 2;
             Transactions.Values(length(Transactions.Values) + 1) = {p_ChronicCarriage * rate_6months};
@@ -197,20 +159,20 @@ function country_level_analyses(sensitivity_analysis,...
 
 
 
-            % Add age-specific progression (2,3) and (3,4)
+            % Add age-specific progression immune tolerant -> immune reactive -> asymptomatic (2,3) and (3,4)
             AgeSpecELossFunction=params.SpeedUpELoss_F*exp(-params.SpeedUpELoss_Beta*ages);
 
             Transactions.From(length(Transactions.From)+1)=2;
             Transactions.To(length(Transactions.To)+1)=3;
-            Transactions.Values(length(Transactions.Values)+1)={repmat(Prog(2,3)*AgeSpecELossFunction,[1 1 2 2])};
+            Transactions.Values(length(Transactions.Values)+1)={repmat(Prog_scenario(2,3)*AgeSpecELossFunction,[1 1 2 2])};
 
             Transactions.From(length(Transactions.From)+1)=3;
             Transactions.To(length(Transactions.To)+1)=4;
-            Transactions.Values(length(Transactions.Values)+1)={repmat(Prog(3,4)*AgeSpecELossFunction,[1 1 2 2])};
+            Transactions.Values(length(Transactions.Values)+1)={repmat(Prog_scenario(3,4)*AgeSpecELossFunction,[1 1 2 2])};
 
 
 
-            % Modify (3,5) to an age-specific progression
+            % Modify immune reactive to chronic (3,5)  to an age-specific progression
             shortcut_rate_age = 20;
             indicator_vec = [zeros(1,shortcut_rate_age*10) ones(1,num_age_steps - shortcut_rate_age*10)];
             tmp_pos = find((Transactions.From == 3) & (Transactions.To == 5));
@@ -218,14 +180,15 @@ function country_level_analyses(sensitivity_analysis,...
             tmp_mat = Transactions.Values(tmp_pos);
             tmp_mat = tmp_mat{1};
             assert(min(min(min(min(tmp_mat))))==max(max(max(max(tmp_mat)))))
-            Transactions.Values(tmp_pos) = {repmat(Prog(3,5)*indicator_vec,[1 1 2 2])}; % 1 x num_age_steps x 2 x 2 double giving progression rates for this to-from pair
+            Transactions.Values(tmp_pos) = {repmat(Prog_scenario(3,5)*indicator_vec,[1 1 2 2])}; % 1 x num_age_steps x 2 x 2 double giving progression rates for this to-from pair
 
-            trans_rate_age = 25; % generic setting
+            trans_rate_age = 25; % generic setting - at this age the rate of transition from chronic Hep B to comp cirrhosis is minimised (it's 0).
             trans_rate_by_age = (params.cirrh_rate_coeff*(ages - trans_rate_age)).^2; 
             trans_rate_by_age = trans_rate_by_age .* [zeros(1,trans_rate_age*10) ones(1,num_age_steps - trans_rate_age*10)];
 
-            % Modify (5,6) to an age-specific progression
-            trans_rate_by_age_5_6 = Prog(5,6)*trans_rate_by_age;
+            % Modify Chronic Hep B to Comp Cirrhosis (5,6) to an
+            % age-specific progression:
+            trans_rate_by_age_5_6 = Prog_scenario(5,6)*trans_rate_by_age;
             tmp_pos = find((Transactions.From == 5) & (Transactions.To == 6));
             assert(isscalar(tmp_pos))
             tmp_mat = Transactions.Values(tmp_pos);
@@ -237,8 +200,8 @@ function country_level_analyses(sensitivity_analysis,...
             tmp_mat = min(5, tmp_mat);
             Transactions.Values(tmp_pos) = {tmp_mat};
 
-            % Modify (3,6) to an age-specific progression
-            trans_rate_by_age_3_6 = Prog(3,6)*trans_rate_by_age;
+            % Modify Immune Reactive to Comp Cirrhosis (3,6) to an age-specific progression
+            trans_rate_by_age_3_6 = Prog_scenario(3,6)*trans_rate_by_age;
             tmp_pos = find((Transactions.From == 3) & (Transactions.To == 6));
             assert(isscalar(tmp_pos))
             tmp_mat = Transactions.Values(tmp_pos);
@@ -251,7 +214,7 @@ function country_level_analyses(sensitivity_analysis,...
             Transactions.Values(tmp_pos) = {tmp_mat};
 
 
-            % Add sex-specific co-factor to clearance (4, 9)
+            % Add sex-specific co-factor to clearance (asympt -> immune) (4, 9)
             tmp_pos = find((Transactions.From == 4) & (Transactions.To == 9));
             assert(isscalar(tmp_pos))
             tmp = Transactions.Values{tmp_pos}; % 1 x num_age_steps x 2 x 2 double giving progression rates for this to-from pair
@@ -259,7 +222,7 @@ function country_level_analyses(sensitivity_analysis,...
             Transactions.Values(tmp_pos) = {tmp};
 
 
-            % Add age-specific progresion (2, 3, 4, 5, 6)-->8
+            % Add age-specific progresion to HCC (2, 3, 4, 5, 6)-->8
             cancer_rate_age = 10;
             cancer_rate_by_age = (params.cancer_rate_coeff*(ages - cancer_rate_age)).^2; 
             cancer_rate_by_age = cancer_rate_by_age .* [zeros(1,cancer_rate_age*10) ones(1,num_age_steps - cancer_rate_age*10)];
@@ -290,152 +253,470 @@ function country_level_analyses(sensitivity_analysis,...
             Transactions.To(length(Transactions.To) + 1) = 8;
             Transactions.Values(length(Transactions.Values) + 1) = {13 * AgeSpecificProgToCancer};
 
+
+
+
+            years_vec_01yr = start_year:dt:end_year;
+
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             %% Load (WUENIC) data on BD and HepB3 coverage - we will use/modify these in the scenarios below.
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % The code below loads WUENIC coverage data released in July
             % 2020 - this is what was used in the last round of fitting by
             % Margaret de Villers.
-            % Extracts the years from the array HepB3_table (years where we
-            % have HepB3 coverage data)
-            yearsHepB3_coverage_available = cellfun(@(yyy) str2num(erase(yyy,"x")),HepB3_table.Properties.VariableNames);
+            % Extracts the years from the array HepB3_table (years where we have HepB3 coverage data from WUENIC 2020)
+            yearsHepB3_coverage_available_wuenic2020 = cellfun(@(yyy) str2double(erase(yyy,"x")),HepB3_table.Properties.VariableNames);
             %InfantVacc_vec = HepB3_table; 
             %InfantVacc_vec = InfantVacc_vec(ISO,:);
-            InfantVacc_vec = HepB3_table(ISO,:);   %Extract the given country's BD coverage
-            InfantVacc_vec = InfantVacc_vec{:,:};  %Convert from a table to a vector
-            assert(yearsHepB3_coverage_available(1)==1980)
+            HepB3_wuenic2020 = HepB3_table(ISO,:);   %Extract the given country's BD coverage
+            HepB3_wuenic2020 = HepB3_wuenic2020{:,:};  %Convert from a table to a vector
+            assert(yearsHepB3_coverage_available_wuenic2020(1)==1980)
 
-            % Extracts the years from the array BD_table (years where we
-            % have BD coverage data)
-            yearsBD_coverage_available = cellfun(@(yyy) str2num(erase(yyy,"x")),BD_table.Properties.VariableNames);
+            % Extracts the years from the array BD_table (years where we have BD coverage data from WUENIC 2020)
+            yearsBD_coverage_available_wuenic2020 = cellfun(@(yyy) str2double(erase(yyy,"x")),BD_table.Properties.VariableNames);
             %BirthDose_vec = BD_table;
             %BirthDose_vec = BirthDose_vec(ISO,:);
-            BirthDose_vec = BD_table(ISO,:);    %Extract the given country's BD coverage
-            BirthDose_vec = BirthDose_vec{:,:}; %Convert from a table to a vector
-            assert(yearsBD_coverage_available(1)==1980)
-            assert(isequal(yearsBD_coverage_available,yearsHepB3_coverage_available))
-       
-            InfantVacc = InfantVacc_vec;
-            BirthDose = BirthDose_vec;
-            %% Check that the data contains the expected years (1980-2019):
-            assert(isequal(size(InfantVacc),[1 (2019-1979)]))
-            assert(isequal(size(BirthDose),[1 (2019-1979)]))
-            assert(all(InfantVacc>=0) && all(InfantVacc<=1), "HepB3 coverage must be between 0 and 1")
-            assert(all(BirthDose>=0) && all(BirthDose<=1), "BD coverage must be between 0 and 1")
-
-            years_vec_01yr = start_year:dt:end_year;
+            BirthDose_wuenic2020 = BD_table(ISO,:);    %Extract the given country's (2020 WUENIC) BD coverage
+            BirthDose_wuenic2020 = BirthDose_wuenic2020{:,:}; %Convert from a table to a vector
+            
             last_available_coverage_data_year_wuenic2020 = 2019.0;
             index_last_available_year_WUENIC2020 = last_available_coverage_data_year_wuenic2020 - 1979;
+
+            %% Check that the data contains the expected years (1980-2019):
+            assert(isequal(size(HepB3_wuenic2020),[1 (2019-1979)]))
+            assert(isequal(size(BirthDose_wuenic2020),[1 (2019-1979)]))
+            assert(all(HepB3_wuenic2020>=0) && all(HepB3_wuenic2020<=1), "WUENIC 2020 HepB3 coverage must be between 0 and 1")
+            assert(all(BirthDose_wuenic2020>=0) && all(BirthDose_wuenic2020<=1), "WUENIC 2020 BD coverage must be between 0 and 1")
+
+
+            HepB3_wuenic2020 = HepB3_wuenic2020(1:index_last_available_year_WUENIC2020); % coverage of vaccination from 1980 to last_available_year
+            BirthDose_wuenic2020 = BirthDose_wuenic2020(1:index_last_available_year_WUENIC2020); 
+
+            assert(yearsBD_coverage_available_wuenic2020(1)==1980)
+            assert(isequal(yearsBD_coverage_available_wuenic2020,yearsHepB3_coverage_available_wuenic2020))
+
+            % 2019 is the last year of vaccination available from WUENIC2020
+
+            %% Now load up the 2020-2024 BD and Hepb3 DATA
+            %% For now we append the 2020-2024 values onto the 2019 WUENIC data (there are small differences in estimates up to 2019)
+            %% So here we just extract the 2020-2024 data (2024 is the most recent year):
+            if(ISO=="NIC")  %% Nicaragua currently not in WUENIC 2025 data!?
+                BirthDose_wuenic2025 = [BirthDose_wuenic2020, ones(1,2024-last_available_coverage_data_year_wuenic2020)*BirthDose_wuenic2020(end)];
+                HepB3_wuenic2025 = [HepB3_wuenic2020, ones(1,2024-last_available_coverage_data_year_wuenic2020)*HepB3_wuenic2020(end)];
+                
+            else
+                firstyear_BD_coverage_available_wuenic2024 = min(table2array(WUENIC2024BDdata(strcmp(WUENIC2024BDdata.CODE,ISO), "YEAR")));
+                firstyear_HepB3_coverage_available_wuenic2024 = min(table2array(WUENIC2024HepB3data(strcmp(WUENIC2024HepB3data.CODE,ISO), "YEAR")));
+                
+                %% Extract rows of the table corresponding to the country "ISO":
+                BirthDose_wuenic2025_table_unsorted = WUENIC2024BDdata(strcmp(WUENIC2024BDdata.CODE,ISO), :);
+                HepB3_wuenic2025_table_unsorted = WUENIC2024HepB3data(strcmp(WUENIC2024HepB3data.CODE,ISO), :);
+                %% Sort the table by year (with year increasing)
+                BirthDose_wuenic2025_table_sorted = sortrows(BirthDose_wuenic2025_table_unsorted, "YEAR");
+                HepB3_wuenic2025_table_sorted = sortrows(HepB3_wuenic2025_table_unsorted, "YEAR");
+                %% Now just pull out the coverage column, then convert from table to vector and divide by 100 (so proportion instead of percentage)
+                BirthDose_wuenic2025 =  (table2array(BirthDose_wuenic2025_table_sorted(:,"COVERAGE"))')/100.0; 
+                HepB3_wuenic2025 =  (table2array(HepB3_wuenic2025_table_sorted(:,"COVERAGE"))')/100.0; 
+                %% Years where there is no coverage data are given as NA. Set these to be 0:
+                BirthDose_wuenic2025(isnan(BirthDose_wuenic2025)) = 0;
+                HepB3_wuenic2025(isnan(HepB3_wuenic2025)) = 0;
+
+                BirthDose_wuenic2025 = [BirthDose_wuenic2020(1:(firstyear_BD_coverage_available_wuenic2024-yearsBD_coverage_available_wuenic2020(1))), BirthDose_wuenic2025];
+                HepB3_wuenic2025 = [HepB3_wuenic2020(1:(firstyear_HepB3_coverage_available_wuenic2024-yearsHepB3_coverage_available_wuenic2020(1))), HepB3_wuenic2025];
+                assert(isequal(length(BirthDose_wuenic2025),(length(BirthDose_wuenic2020)+5))) %% Check that the 2024 wuenic is now the same length as 2019 + 5
+                assert(isequal(length(HepB3_wuenic2025),(length(HepB3_wuenic2020)+5))) %% Check that the 2024 wuenic is now the same length as 2019 + 5
+
+                assert(all(HepB3_wuenic2025>=0) && all(HepB3_wuenic2025<=1), "WUENIC 2024 HepB3 coverage must be between 0 and 1")
+                assert(all(BirthDose_wuenic2025>=0) && all(BirthDose_wuenic2025<=1), "WUENIC 2024 BD coverage must be between 0 and 1")
+
+            end
+
+       
+            
+
 
 
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             %%% Set up scenarios:
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            %% TUTAJ:
+            %% Here we define the indices for each scenario we are looking at:
+            iscenario_BASE2020 = 1; %% The 'default' scenario - WUENIC 2019 BD+HepB3, 2016 treatment, no new interventions.
+            iscenario_BASE2025 = 2;     %% WUENIC 2025 BD+HepB3, 2016 treatment, no new interventions. Addresses - how have changes in BD+Hep B3 coverage impacted result?
+            iscenario_INFACILITYBD = 3;  %% WUENIC 2025 HepB3, 2016 treatment, BD introduced in countries where it is not already present - coverage capped at in-facility birth coverage.
+            iscenario_MAP = 4; %% WUENIC 2025 BD+HepB3, 2016 treatment, Microarray patch introduced in 2026 (increase BD coverage, but lower efficacy).
+            iscenario_CPAD = 5; %% WUENIC 2025 BD+HepB3, 2016 treatment, CPAD patch introduced (increase BD but lower eff and different cost to MAP).
+            iscenario_BD2025_LA_TDF = 6; %% WUENIC 2025 BD+HepB3, 2016 treatment, long-acting treatment introduced (increases coverage of TDF treatment).
+            iscenario_BD2025_PoC_ALT_HBcrAg = 7;    %% WUENIC 2025 BD+HepB3, 2016 treatment, PoC ALT and HBcrAg introduced - higher treatment coverage, also some people on treatment who don't need it.
+            iscenario_BD2025_birthcohorttest = 8;   %% WUENIC 2025 BD+HepB3, 2016 treatment, Thai-B-type testing of pre-BD birth cohort on top of existing testing (cap so cannot test >100% of any age stratum).
+            iscenario_BD2025_cure = 9; %% WUENIC 2025 BD+HepB3, 2016 treatment, (hypothetical) cure replaces treatment at current test rates.
+            
+        
+        
+            %% Index values for scenario_BD: Governs BD coverage time trends, introduction of different BD devices (MAP, CPAD).
+            I_BD_WUENIC2020 = 1;  %% Follow WUENIC2020 (existing scenario) and after 2019 coverage remains at last (2019) value
+            I_BD_WUENIC2025 = 2;  %% Follow WUENIC2025 and after 2024 coverage remains at last (2024) value
+            I_BD_INFACILITY_INTRODUCTION = 3;  %% Follow WUENIC2025. For countries without BD, introduce BD in 2026 and scale up to be some % of the in-facility births. For countries with BD already this will be identical to I_BD_WUENIC2025.
+            I_BD_MAP = 4;  %% Follow WUENIC2025, then an extra (different efficacy) product increases overall BD coverage up to a level capped by out-of-facility deliveries.
+            I_BD_CPAD = 5; %% Follow WUENIC2025, then an extra (different efficacy) product increases overall BD coverage up to a level capped by out-of-facility deliveries.
+            
+            %% Index values for scenario_HepB3: Hep B3 scenarios. Currently just use 2020 or 2025 WUENIC data.
+            I_HEPB3_WUENIC2020 = 1;
+            I_HEPB3_WUENIC2025 = 2;
+            
+            %% Index values for scenario_PAP: peripartum antiviral prophylaxis (PAP) treatment for HBsAg+ mothers (treat all, treat high VL etc).
+            %%I_PAP_SQ = 0;      %% No PAP unless already present.
+            I_PAP_NOTREAT = 1;
+            I_PAP_TREAT = 2;   %% Current WHO recommendation is PAP for women HBsAg+ with HBV DNA levels >=200,000 IU/ml or if HBeAg+. In the model take this to correspond to HBeAg+ compartments. 
+            
+            %% scenario_Treatment: governs how treatment happens:
+            % Modified by treat-all, introduction of PoC HBcrAg, PoC ALT tests, 
+            I_TREAT_INIT_SQ = 1;         %% Use current rates of treatment uptake and failure.
+            I_TREAT_INIT_POC_cr_ALT = 2; %% Introduce PoC tests for HBcrAg and ALT - increase rate of treatment initiation in eligible groups.
+            I_TREAT_INIT_LA = 3;         % Introduce long-acting treatment. SQ treatment failure rate is very low (0.001), so we take the "TDF treatment" group to be "On treatment, adherent and not going to drop out". LA treatment then just increases the proportion of people in this compartment (either by improving adherence, preventing dropout, or offering a more convenient/preffered option).
+            I_CURE = 4;                  % Cure replaces treatment - in this case 
+        
+            % %% scenario_TreatmentRetention: governs introduction of long-acting treatment (TDF).
+            % I_TREAT_RET_SQ = 1;
+            % I_TREAT_RET_LA_TREAT = 2;
+            
+            
+            %% scenario_CohortTesting: governs whether we have testing of a birth cohort (like Thai-B). 
+            I_NO_COHORT_TEST = 1;
+            I_COHORT_TEST = 2;
        
-            cov_InfantVacc = InfantVacc(1:index_last_available_year_WUENIC2020); % coverage of vaccination from 1980 to last_available_year
-            cov_BirthDose = BirthDose(1:index_last_available_year_WUENIC2020); 
-            % 2019 is the last year of vaccination available from WUENIC
-            first_expansion_year = 2020.0;
+            %% For each scenario we determine which intervention "levers" are used.
+            switch scenario_num
+                case iscenario_BASE2020   %%case 'Status quo infant & BD'
+                    scenario_BD = I_BD_WUENIC2020;
+                    scenario_HepB3 = I_HEPB3_WUENIC2020;
+                    scenario_PAP = I_PAP_NOTREAT;
+                    scenario_Treatment = I_TREAT_INIT_SQ;
+                    scenario_CohortTesting = I_NO_COHORT_TEST;
+                case iscenario_BASE2025     %% WUENIC 2025 BD+HepB3, 2016 treatment, no new interventions. Addresses - how have changes in BD+Hep B3 coverage impacted result?
+                    scenario_BD = I_BD_WUENIC2025;
+                    scenario_HepB3 = I_HEPB3_WUENIC2025;
+                    scenario_PAP = I_PAP_NOTREAT;
+                    scenario_Treatment = I_TREAT_INIT_SQ;
+                    scenario_CohortTesting = I_NO_COHORT_TEST;
+                case iscenario_INFACILITYBD     %% WUENIC 2025 HepB3, 2016 treatment, BD introduced in countries where it is not already present - coverage capped at in-facility birth coverage.
+                    scenario_BD = I_BD_INFACILITY_INTRODUCTION;
+                    scenario_HepB3 = I_HEPB3_WUENIC2025;
+                    scenario_PAP = I_PAP_NOTREAT;
+                    scenario_Treatment = I_TREAT_INIT_SQ;
+                    scenario_CohortTesting = I_NO_COHORT_TEST;
+                case iscenario_MAP %% WUENIC 2025 BD+HepB3, 2016 treatment, Microarray patch introduced in 2026 (increase BD coverage, but lower efficacy).
+                    scenario_BD = I_BD_MAP;
+                    scenario_HepB3 = I_HEPB3_WUENIC2025;
+                    scenario_PAP = I_PAP_NOTREAT;
+                    scenario_Treatment = I_TREAT_INIT_SQ;
+                    scenario_CohortTesting = I_NO_COHORT_TEST;
+                case iscenario_CPAD %% WUENIC 2025 BD+HepB3, 2016 treatment, CPAD patch introduced (increase BD but lower eff and different cost to MAP).
+                    scenario_BD = I_BD_CPAD;
+                    scenario_HepB3 = I_HEPB3_WUENIC2025;
+                    scenario_PAP = I_PAP_NOTREAT;
+                    scenario_Treatment = I_TREAT_INIT_SQ;
+                    scenario_CohortTesting = I_NO_COHORT_TEST;
+                case iscenario_BD2025_LA_TDF %% WUENIC 2025 BD+HepB3, 2016 treatment, long-acting treatment introduced (increases coverage of TDF treatment).
+                    scenario_BD = I_BD_WUENIC2025;
+                    scenario_HepB3 = I_HEPB3_WUENIC2025;
+                    scenario_PAP = I_PAP_NOTREAT;
+                    scenario_Treatment = I_TREAT_INIT_LA;
+                    scenario_CohortTesting = I_NO_COHORT_TEST;
+                case iscenario_BD2025_PoC_ALT_HBcrAg   %% WUENIC 2025 BD+HepB3, 2016 treatment, PoC ALT and HBcrAg introduced - higher treatment coverage, also some people on treatment who don't need it.
+                    scenario_BD = I_BD_WUENIC2025;
+                    scenario_HepB3 = I_HEPB3_WUENIC2025;
+                    scenario_PAP = I_PAP_NOTREAT;
+                    scenario_Treatment = I_TREAT_INIT_POC_cr_ALT;
+                    scenario_CohortTesting = I_NO_COHORT_TEST;
+                case iscenario_BD2025_birthcohorttest   %% WUENIC 2025 BD+HepB3, 2016 treatment, Thai-B-type testing of pre-BD birth cohort on top of existing testing (cap so cannot test >100% of any age stratum).
+                    scenario_BD = I_BD_WUENIC2025;
+                    scenario_HepB3 = I_HEPB3_WUENIC2025;
+                    scenario_PAP = I_PAP_NOTREAT;
+                    scenario_Treatment = I_TREAT_INIT_SQ;
+                    scenario_CohortTesting = I_COHORT_TEST;
+                case iscenario_BD2025_cure
+                    scenario_BD = I_BD_WUENIC2025;
+                    scenario_HepB3 = I_HEPB3_WUENIC2025;
+                    scenario_PAP = I_PAP_NOTREAT;
+                    scenario_Treatment = I_CURE;
+                    scenario_CohortTesting = I_NO_COHORT_TEST;
+                otherwise
+                    disp("Error - unknown scenario. Exiting")
+                    return  %% Exit the script.
+            end
 
-            if strcmp(sensitivity_analysis,'infant_100')
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            %% PARAMETERS FOR BD SCENARIOS:
+            %% Here we specify what the maximum increase in BD coverage from MAP/CPAD would be:
+            prop_accept_MAP = 0.9;   %% Placeholder assumption - easier to accept a patch than a needle
+            prop_accept_CPAD = 0.85; %% Placeholder assumption
+
+            %% Out-of-facility births: %% Placeholders
+            if(strcmp(ISO,"GMB"))
+                prop_OOF_births = 0.837;
+            elseif(strcmp(ISO,"ETH"))
+                prop_OOF_births = 0.475;
+            else 
+                prop_OOF_births = 0.95; %% Placeholder - update to something better... 
+            end
+
+            % Make model scenario birth dose coverage over time:
+            last_BD_scaleup_year = 2030.0;  %% Assumption that BD plateaus after this time.
+            
+            switch scenario_BD
+                case I_BD_WUENIC2020   
+                    disp("I_BD_WUENIC2020")
+                    coverage_BD_to_last_datapoint = BirthDose_wuenic2020;
+                    year_last_BD_data = 2019;
+                    %% Previously called 'Status quo infant & BD'. Follow WUENIC2020 (existing scenario) and after 2019 coverage remains at last (2019) value
+                    future_xvals_vec = [2019.0, 2020.0, end_year];
+                    future_yvals_vec = [BirthDose_wuenic2020(end), BirthDose_wuenic2020(end), BirthDose_wuenic2020(end)];
+                    %% No MAP or CPAD introduced:
+                    scenario_BDcoverage_fromMAP_CPAD = zeros(1,length(years_vec_01yr));
+                    efficacy_MAP_CPAD_HbSAg = 0;
+                    efficacy_MAP_CPAD_HbEAg = 0;
+                    %%label_array{scenario_num} = 'Status quo HepB3 & Hep2B-BD (baseline)';
+                case I_BD_WUENIC2025
+                    disp("I_BD_WUENIC2025")
+                    year_last_BD_data = 2024;
+                    %% Update using WUENIC 2025: follow WUENIC2025 and after 2024 coverage remains at last (2024) value
+                    coverage_BD_to_last_datapoint = BirthDose_wuenic2025;
+                    future_xvals_vec = [2024.0, 2025.0, end_year];
+                    future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end), BirthDose_wuenic2025(end)];
+                    %% No MAP or CPAD introduced:
+                    scenario_BDcoverage_fromMAP_CPAD = zeros(1,length(years_vec_01yr));
+                    efficacy_MAP_CPAD_HbSAg = 0;
+                    efficacy_MAP_CPAD_HbEAg = 0;
+                case I_BD_INFACILITY_INTRODUCTION
+                    year_last_BD_data = 2024;
+                    disp("I_BD_INFACILITY_INTRODUCTION")
+                    coverage_BD_to_last_datapoint = BirthDose_wuenic2025;
+                    future_xvals_vec = [2024.0, 2025.0, end_year];  
+                    future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end), BirthDose_wuenic2025(end)];
+                    %% No MAP or CPAD introduced:
+                    scenario_BDcoverage_fromMAP_CPAD = zeros(1,length(years_vec_01yr));
+                    efficacy_MAP_CPAD_HbSAg = 0;
+                    efficacy_MAP_CPAD_HbEAg = 0;
+                case {I_BD_MAP,I_BD_CPAD}  %% MAP or CPAD introduced:
+                    disp("I_BD_MAP or I_BD_MAP")
+                    year_last_BD_data = 2024;
+                    %% Follow WUENIC2025, then an extra (different efficacy) product increases overall BD coverage up to a level capped by out-of-facility deliveries.
+                    coverage_BD_to_last_datapoint = BirthDose_wuenic2025;
+                    %% This governs the coverage of the standard BD injection:
+                    future_xvals_vec = [2024.0, 2025.0, end_year];  
+                    future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end), BirthDose_wuenic2025(end)];
+                    %% This governs the coverage of the additional (MAP/CPAD) injection:
+                    future_xvals_vec_MAP_CPAD = [2024.0, 2026.0, 2028.0, end_year];
+                    %% Increase in BD if introduce MAP/CPAD (requires BD to currently be available):
+                    if(BirthDose_wuenic2025(end)>0)  %% BD already available
+                        %% Increase in BD is capped to not exceed the current proportion not getting BD.
+                        current_prop_not_getting_BD = (1-BirthDose_wuenic2025(end));
+                        BD_increase_from_MAP  = min((1-prop_OOF_births)*prop_accept_MAP, current_prop_not_getting_BD);
+                        BD_increase_from_CPAD = min((1-prop_OOF_births)*prop_accept_CPAD, current_prop_not_getting_BD);
+                    else                             %% BD not currently available
+                        BD_increase_from_MAP = 0;
+                        BD_increase_from_CPAD = 0;
+                    end
+
+                    if(scenario_BD==I_BD_MAP)
+                        future_yvals_vec_MAP_CPAD = [0, 0, BD_increase_from_MAP, BD_increase_from_MAP];
+                        efficacy_MAP_CPAD_HbSAg = params.efficacy_MAP_HbSAg;
+                        efficacy_MAP_CPAD_HbEAg = params.efficacy_MAP_HbEAg;
+                    else
+                        future_yvals_vec_MAP_CPAD = [0, 0, BD_increase_from_CPAD, BD_increase_from_CPAD];
+                        efficacy_MAP_CPAD_HbSAg = params.efficacy_CPAD_HbSAg;
+                        efficacy_MAP_CPAD_HbEAg = params.efficacy_CPAD_HbEAg;
+                    end
+                    coverageMAP_CPAD_to_present = zeros(1,length(BirthDose_wuenic2025));  
+                    disp("MAP_CPAD1")
+                    
+                    scenario_BDcoverage_fromMAP_CPAD = make_coverage_vec(start_year,num_year_divisions,dt,end_year,coverageMAP_CPAD_to_present,future_xvals_vec_MAP_CPAD,future_yvals_vec_MAP_CPAD, year_last_BD_data);
+                    disp("MAP_CPAD2")
+                otherwise 
+                    disp("Error - unknown scenario_BD. Exiting")
+                    return  %% Exit the script.
+            end  %% end switch scenario_BD
+            
+            %% Now get the full timetrend of BD coverage from start_year to end_year (note that MAP/CPAD coverage is stored separately in scenario_BDcoverage_fromMAP_CPAD)
+            disp("BD1")
+            scenario_BDcoverage = make_coverage_vec(start_year,num_year_divisions,dt,end_year,coverage_BD_to_last_datapoint,future_xvals_vec,future_yvals_vec,year_last_BD_data);
+            disp("BD2")
+            scenario_BDcoverage = min(1,scenario_BDcoverage);    % Ensure coverage is <=100% at every timestep:
+            assert(isequal(size(scenario_BDcoverage),size(years_vec_01yr)))
+            assert(isequal(size(scenario_BDcoverage_fromMAP_CPAD),size(years_vec_01yr)))
+            %% Make sure scenario_BDcoverage_fromMAP_CPAD lies in range 0-1:
+            mustBeBetween(scenario_BDcoverage_fromMAP_CPAD,0,1);
+            
+            %% Make sure that the total (normal BD + MAP/CPAD) BD coverage is 100% or less:
+            scenario_BDcoverage_fromMAP_CPAD = min(scenario_BDcoverage_fromMAP_CPAD, 1 - scenario_BDcoverage);
+            
+
+
+            %     %%case {'Status quo infant & BD expansion to 25%','Status quo infant & BD expansion to 50%','Status quo infant & BD expansion to 75%','Status quo infant & BD expansion to 90%'}
+            %         X = extract_percent_from_BDexpansion_scenario_label(scenario);
+            %         % X in {25%, 50%, 75%, 90%}
+            %         % Any country that is <X%, goes to X% by last_BD_scaleup_year (linear expansion); others that are >X% stay at that level.
+            %         max_BD_cov_val = max([BirthDose_wuenic2020(end) X/100]);
+            %         future_xvals_vec = [2019.0 first_expansion_year last_BD_scaleup_year end_year];
+            %         future_yvals_vec = [BirthDose_wuenic2020(end) BirthDose_wuenic2020(end) max_BD_cov_val max_BD_cov_val];
+            % 
+            %         label_array_string = replace(scenario, 'Status quo infant & BD expansion', 'HepB-BD scale-up');
+            %         label_array{scenario_num} = label_array_string;
+            % 
+            %     case {'Status quo infant & BD drop 5 2020', 'Status quo infant & BD drop 10 2020', 'Status quo infant & BD drop 15 2020', 'Status quo infant & BD drop 20 2020'}
+            %         % Follows status quo but, during the year 2020, birth dose vaccination drops by X% in relative terms.
+            %         % X in {5%, 10%, 15%, 20%}
+            %         X = extract_percent_from_BDdrop_scenario_label(scenario);
+            % 
+            %         future_xvals_vec = [2019.0 2019.9 2020.0 2020.9 2021.0 2030 end_year];
+            %         %% Reduce BD by X/100, so the remaining BD coverage is (1-X/100) times original coverage.
+            %         pc_reduction = 1 - X/100;
+            %         future_yvals_vec = [BirthDose_wuenic2020(end) BirthDose_wuenic2020(end) pc_reduction*BirthDose_wuenic2020(end) pc_reduction*BirthDose_wuenic2020(end) BirthDose_wuenic2020(end) BirthDose_wuenic2020(end) BirthDose_wuenic2020(end)];
+            % 
+            %         %% label_array_string should look like 'HepB-BD disruptions 5% in 2020'.
+            %         label_array_string = replace(replace(scenario, 'Status quo infant & BD drop', 'HepB-BD disruptions'),' 2020','% in 2020');
+            %         label_array{scenario_num} = label_array_string;
+            %     case {'Status quo infant & BD delayed expansion 2023 to 2030','Status quo infant & BD delayed expansion 2023 to 2033','Status quo infant & BD delayed expansion 2025 to 2040'}
+            % 
+            %         max_BD_cov_val_90 = max([BirthDose_wuenic2020(end) 0.9]);                    
+            % 
+            %         if(scenario=='Status quo infant & BD delayed expansion 2023 to 2030')
+            %             % Planned expansion of birth-dose vaccination is
+            %             % postponed by 3 years, finishing in 2030
+            %             label_array{scenario_num} = 'HepB-BD delayed & fast scale-up 2023 to 2030';
+            %             start_delay = 3;   % Delay in starting (after 2020)
+            %             end_delay = 0;     % Delay in finishing (after 2030)
+            %         elseif(scenario=='Status quo infant & BD delayed expansion 2023 to 2033')
+            %             % Planned expansion of birth-dose vaccination is
+            %             % postponed by 3 years, still taking 10 years
+            %             label_array{scenario_num} = 'HepB-BD delayed & normal scale-up 2023 to 2033';
+            %             start_delay = 3;   % Delay in starting (after 2020)
+            %             end_delay = 3;     % Delay in finishing (after 2030)
+            %         elseif(scenario=='Status quo infant & BD delayed expansion 2025 to 2040')
+            %             % Planned expansion of birth-dose vaccination is postponed by 5 years and takes longer
+            %             label_array{scenario_num} = 'HepB-BD delayed & slow scale-up 2025 to 2040';
+            %             start_delay = 5;   % Delay in starting (after 2020)
+            %             end_delay = 10;     % Delay in finishing (after 2030)
+            %         else
+            %             fprintf('Unknown scenario %s. Exiting',scenario)
+            %             return
+            %         end
+            % 
+            %         future_xvals_vec = [2019.0 first_expansion_year first_expansion_year+start_delay last_BD_scaleup_year+end_delay end_year];
+            %         future_yvals_vec = [BirthDose_wuenic2020(end) BirthDose_wuenic2020(end) BirthDose_wuenic2020(end) max_BD_cov_val_90 max_BD_cov_val_90];                  
+            % end
+            % switch scenario_BD
+            %     case I_BD_WUENIC2020
+            %         future_xvals_vec = [2019.0 first_expansion_year (first_expansion_year+0.1) end_year];
+            %     future_yvals_vec = [HepB3_wuenic2020(end) HepB3_wuenic2020(end) 1 1];
+            % 
+
+
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            %% Now HepB3 coverage scenarios:
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            
+            switch scenario_HepB3
+                case I_HEPB3_WUENIC2020
+                    disp("I_HEPB3_WUENIC2020")
+                    year_last_HepB3_data = 2019;
+                    %% Previously called 'Status quo infant & BD'. Follow WUENIC2020 (existing scenario) and after 2019 coverage remains at last (2019) value
+                    coverage_HepB3_to_last_datapoint = HepB3_wuenic2020;
+                    future_xvals_vec = [2019.0 2020.0 end_year];
+                    future_yvals_vec = [HepB3_wuenic2020(end) HepB3_wuenic2020(end) HepB3_wuenic2020(end)];
+                    %%label_array{scenario_num} = 'Status quo HepB3 & Hep2B-BD (baseline)';
+                case I_HEPB3_WUENIC2025
+                    disp("I_HEPB3_WUENIC2025")
+                    year_last_HepB3_data = 2024;
+                    coverage_HepB3_to_last_datapoint = HepB3_wuenic2025;
+                    future_xvals_vec = [2024.0, 2025.0, end_year];
+                    future_yvals_vec = [HepB3_wuenic2020(end), HepB3_wuenic2020(end), HepB3_wuenic2020(end)];
+                otherwise
+                    disp("Error: Unknown value for scenario_HepB3. Exiting")
+                    return
+                %if strcmp(sensitivity_analysis,'infant_100')
                 % Ramp up coverage to 100% from first_expansion_year to
                 % (first_expansion_year+0.1), and then keep it at 100%
                 % until the end of the simulation.
-                future_xvals_vec = [2019.0 first_expansion_year (first_expansion_year+0.1) end_year];
-                future_yvals_vec = [cov_InfantVacc(end) cov_InfantVacc(end) 1 1];
-            else
-                % Maintain at same (2019) level until end of simulation.
-                future_xvals_vec = [2019.0 first_expansion_year end_year];
-                future_yvals_vec = [cov_InfantVacc(end) cov_InfantVacc(end) cov_InfantVacc(end)];
-            end
+                %future_xvals_vec = [2019.0 first_expansion_year (first_expansion_year+0.1) end_year];
+                %future_yvals_vec = [HepB3_wuenic2020(end) HepB3_wuenic2020(end) 1 1];
+                
+            end  %% End switch scenario_HepB3
 
             % Using the above, create coverage vector that has coverage at each timestep:
-            infant_vacc_vec = make_coverage_vec(start_year,num_year_divisions,dt,end_year,cov_InfantVacc,future_xvals_vec,future_yvals_vec);
+            disp("HepB3a")
+            scenario_HepB3coverage = make_coverage_vec(start_year,num_year_divisions,dt,end_year,coverage_HepB3_to_last_datapoint,future_xvals_vec,future_yvals_vec,year_last_HepB3_data);
+            disp("HepB3b")
+            disp(ISO)
             % Ensure coverage is <=100% at every timestep:
-            infant_vacc_vec = min(1,infant_vacc_vec);
-            assert(isequal(size(infant_vacc_vec),size(years_vec_01yr)))
-
+            scenario_HepB3coverage = min(1,scenario_HepB3coverage);
+            assert(isequal(size(scenario_HepB3coverage),size(years_vec_01yr)))
+            %% Make sure scenario_HepB3coverage lies in range 0-1:
+            mustBeBetween(scenario_HepB3coverage,0,1);
+            
+            %% Dead code:
             %% Now copy infant_vacc_vec into params (from now on we use params.InfantVacc):
-            params.InfantVacc = infant_vacc_vec;
+            %% params.InfantVacc = infant_vacc_vec;
                     
-            % Get BD coverage from 2019 onwards:
-            last_BD_scaleup_year = 2030.0;  %% Assumption that BD plateaus after this time.
-            switch scenario
-                case 'Status quo infant & BD'
-                    % Current level for each country is maintained forever
-                    future_xvals_vec = [2019.0 first_expansion_year end_year];
-                    future_yvals_vec = [cov_BirthDose(end) cov_BirthDose(end) cov_BirthDose(end)];
-                    
-                    label_array{scenario_num} = 'Status quo HepB3 & HepB-BD (baseline)';
-                case {'Status quo infant & BD expansion to 25%','Status quo infant & BD expansion to 50%','Status quo infant & BD expansion to 75%','Status quo infant & BD expansion to 90%'}
-                    X = extract_percent_from_BDexpansion_scenario_label(scenario);
-                    % X in {25%, 50%, 75%, 90%}
-                    % Any country that is <X%, goes to X% by last_BD_scaleup_year (linear expansion); others that are >X% stay at that level.
-                    max_BD_cov_val = max([cov_BirthDose(end) X/100]);
-                    future_xvals_vec = [2019.0 first_expansion_year last_BD_scaleup_year end_year];
-                    future_yvals_vec = [cov_BirthDose(end) cov_BirthDose(end) max_BD_cov_val max_BD_cov_val];
-                    
-                    label_array_string = replace(scenario, 'Status quo infant & BD expansion', 'HepB-BD scale-up');
-                    label_array{scenario_num} = label_array_string;
-
-                case {'Status quo infant & BD drop 5 2020', 'Status quo infant & BD drop 10 2020', 'Status quo infant & BD drop 15 2020', 'Status quo infant & BD drop 20 2020'}
-                    % Follows status quo but, during the year 2020, birth dose vaccination drops by X% in relative terms.
-                    % X in {5%, 10%, 15%, 20%}
-                    X = extract_percent_from_BDdrop_scenario_label(scenario);
-
-                    future_xvals_vec = [2019.0 2019.9 2020.0 2020.9 2021.0 2030 end_year];
-                    %% Reduce BD by X/100, so the remaining BD coverage is (1-X/100) times original coverage.
-                    pc_reduction = 1 - X/100;
-                    future_yvals_vec = [cov_BirthDose(end) cov_BirthDose(end) pc_reduction*cov_BirthDose(end) pc_reduction*cov_BirthDose(end) cov_BirthDose(end) cov_BirthDose(end) cov_BirthDose(end)];
- 
-                    %% label_array_string should look like 'HepB-BD disruptions 5% in 2020'.
-                    label_array_string = replace(replace(scenario, 'Status quo infant & BD drop', 'HepB-BD disruptions'),' 2020','% in 2020');
-                    label_array{scenario_num} = label_array_string;
-                case {'Status quo infant & BD delayed expansion 2023 to 2030','Status quo infant & BD delayed expansion 2023 to 2033','Status quo infant & BD delayed expansion 2025 to 2040'}
-                    
-                    max_BD_cov_val_90 = max([cov_BirthDose(end) 0.9]);                    
-
-                    if(scenario=='Status quo infant & BD delayed expansion 2023 to 2030')
-                        % Planned expansion of birth-dose vaccination is
-                        % postponed by 3 years, finishing in 2030
-                        label_array{scenario_num} = 'HepB-BD delayed & fast scale-up 2023 to 2030';
-                        start_delay = 3;   % Delay in starting (after 2020)
-                        end_delay = 0;     % Delay in finishing (after 2030)
-                    elseif(scenario=='Status quo infant & BD delayed expansion 2023 to 2033')
-                        % Planned expansion of birth-dose vaccination is
-                        % postponed by 3 years, still taking 10 years
-                        label_array{scenario_num} = 'HepB-BD delayed & normal scale-up 2023 to 2033';
-                        start_delay = 3;   % Delay in starting (after 2020)
-                        end_delay = 3;     % Delay in finishing (after 2030)
-                    elseif(scenario=='Status quo infant & BD delayed expansion 2025 to 2040')
-                        % Planned expansion of birth-dose vaccination is postponed by 5 years and takes longer
-                        label_array{scenario_num} = 'HepB-BD delayed & slow scale-up 2025 to 2040';
-                        start_delay = 5;   % Delay in starting (after 2020)
-                        end_delay = 10;     % Delay in finishing (after 2030)
-                    else
-                        fprintf('Unknown scenario %s. Exiting',scenario)
-                        return
-                    end
-
-                    future_xvals_vec = [2019.0 first_expansion_year first_expansion_year+start_delay last_BD_scaleup_year+end_delay end_year];
-                    future_yvals_vec = [cov_BirthDose(end) cov_BirthDose(end) cov_BirthDose(end) max_BD_cov_val_90 max_BD_cov_val_90];                  
-            end
+            
  
             %% Now make the BirthDose coverage vector and store it in params:
-            params.BirthDose = make_coverage_vec(start_year,num_year_divisions,dt,end_year,cov_BirthDose,future_xvals_vec,future_yvals_vec);
-            params.BirthDose = min(1,params.BirthDose);
-            assert(isequal(size(params.BirthDose),size(years_vec_01yr)))
+            % params.scenario_BirthDose_coverage = make_coverage_vec(start_year,num_year_divisions,dt,end_year,BirthDose_wuenic2020,future_xvals_vec,future_yvals_vec);
+            % params.scenario_BirthDose_coverage = min(1,params.scenario_BirthDose_coverage);
+            % assert(isequal(size(params.scenario_BirthDose_coverage),size(years_vec_01yr)))
 
-
-            switch sensitivity_analysis
-                case {'default','infant_100'}
-                    params.PriorTDFTreatRate = stochas_params_mat(stochas_run_num,country_start_col+7);
-                    assert((params.PriorTDFTreatRate>=treatment_boundaries_vec(2)) && (params.PriorTDFTreatRate<=treatment_boundaries_vec(3)))
-                case 'treat_medium'
-                    params.PriorTDFTreatRate = treatment_boundaries_vec(3); % 40%
-                case 'treat_high'
-                    params.PriorTDFTreatRate = treatment_boundaries_vec(5); % 80%
+            switch scenario_PAP 
+                case I_PAP_NOTREAT
+                    a=1;
+                case I_PAP_TREAT
+                    a=2;
+                otherwise
+                    disp("Error: Unknown value for scenario_PAP. Exiting")
+                    return
             end
+
+            switch scenario_Treatment
+                case I_TREAT_INIT_SQ           %% Use current rates of treatment uptake and failure.
+                    params.PriorTDFTreatRate = stochas_params_mat(stochas_run_num,country_start_col+7);
+                case I_TREAT_INIT_POC_cr_ALT   %% Introduce PoC tests for HBcrAg and ALT - increase rate of treatment initiation in eligible groups.
+                    params.PriorTDFTreatRate = treatment_boundaries_vec(3); % Place holder - was 40% scenario
+                case I_TREAT_INIT_LA           %% Introduce long-acting treatment. SQ treatment failure rate is very low (0.001), so we take the "TDF treatment" group to be "On treatment, adherent and not going to drop out". LA treatment then just increases the proportion of people in this compartment (either by improving adherence, preventing dropout, or offering a more convenient/preffered option).
+                    params.PriorTDFTreatRate = treatment_boundaries_vec(5); % Place holder - was 80% scenario
+                case I_CURE                    %% Cure replaces treatment - in this case 
+                    a=6;
+                %     case 'treat_medium'
+                %         params.PriorTDFTreatRate = treatment_boundaries_vec(3); % 40%
+                %     case 'treat_high'
+                %         params.PriorTDFTreatRate = treatment_boundaries_vec(5); % 80%
+                otherwise
+                    disp("Error: Unknown value for scenario_Treatment. Exiting")
+                    return
+            end
+
+            %% This is now dealt with in HBVmodel.m:
+            % switch scenario_CohortTesting
+            %     case I_NO_COHORT_TEST
+            %         a=7;
+            %     case I_COHORT_TEST
+            %         a=8;
+            %     otherwise
+            %         disp("Error: Unknown value for scenario_CohortTesting. Exiting")
+            %         return
+            % end  
+
+            % switch sensitivity_analysis
+            %     case {'default','infant_100'}
+            %         params.PriorTDFTreatRate = stochas_params_mat(stochas_run_num,country_start_col+7);
+            %         assert((params.PriorTDFTreatRate>=treatment_boundaries_vec(2)) && (params.PriorTDFTreatRate<=treatment_boundaries_vec(3)))
+            %     case 'treat_medium'
+            %         params.PriorTDFTreatRate = treatment_boundaries_vec(3); % 40%
+            %     case 'treat_high'
+            %         params.PriorTDFTreatRate = treatment_boundaries_vec(5); % 80%
+            %     % otherwise
+            %     %     disp("Error: Unknown value for sensitivity_analysis. Exiting")
+            %     %     return
+            % end
 
 
 
@@ -455,9 +736,13 @@ function country_level_analyses(sensitivity_analysis,...
             %% Run scenarios:
             lastrun = HBVmodel(source_HBsAg,...
                 num_states,num_year_divisions,dt,ages,num_age_steps,start_year,num_years_simul,...
-                theta,ECofactor,treat_start_year-dt,HBsAg_treat_cov_all_ages,params,p_ChronicCarriage,Prog,Transactions,...
+                theta,ECofactor,treat_start_year-dt,HBsAg_treat_cov_all_ages,params,p_ChronicCarriage,Prog_scenario,Transactions,...
                 Efficacy_Treatment_MTCT, p_VerticalTransmission_Tr_BirthDoseVacc, ...
-                ISO, scenario_num, stochas_run_str, sensitivity_analysis, basedir, store_results_as_text);
+                p_VerticalTransmission_Tr_BirthDose_MAP_CPAD, ...
+                scenario_BDcoverage, scenario_BDcoverage_fromMAP_CPAD, scenario_HepB3coverage, ...
+                efficacy_MAP_CPAD_HbSAg, efficacy_MAP_CPAD_HbEAg, ...
+                ISO, scenario_num, scenario_CohortTesting,...
+                stochas_run_str, sensitivity_analysis, basedir, store_results_as_text);
             lastrun.DALYPerYear = make_daly_mat(lastrun,num_years_simul,num_year_1980_2100,life_expectancy);
             assert(isequal(size(lastrun.DALYPerYear),[100 num_years_simul + 1]))
 
@@ -532,12 +817,12 @@ function country_level_analyses(sensitivity_analysis,...
 
             if strcmp(stochas_run_str,'1')
                 lastrun.country_name = params.country_name;
-                lastrun.scenario = scenario;
+                %%lastrun.scenario = scenario;
 
                 i1980 = find(years_vec_01yr>=1980,1);
                 i2100 = find(years_vec_01yr>=2100,1);
-                lastrun.InfantVacc = params.InfantVacc(i1980:i2100);
-                lastrun.BirthDoseVacc = params.BirthDose(i1980:i2100);
+                lastrun.InfantVacc = scenario_HepB3coverage(i1980:i2100);
+                lastrun.BirthDoseVacc = scenario_BDcoverage(i1980:i2100);
             end
 
 
@@ -545,7 +830,7 @@ function country_level_analyses(sensitivity_analysis,...
 
         end % end for country_num loop
 
-        outMap(scenario) = countryMap;
+        outMap(num2str(scenario_num)) = countryMap;
         save(fullfile(basedir,'outputs',filename_results),'outMap') 
         if strcmp(stochas_run_str,'1') && strcmp(sensitivity_analysis,'default')
             save(fullfile(basedir,'outputs','scenarios_array.mat'),'label_array') % only version saved after last scenario is correct
@@ -584,12 +869,12 @@ end % end function country_level_analyses
 
 
 
-function outmat = make_daly_mat(model_run,num_years_simul,num_year_1980_2100,yll_max_age)
+function outmat = make_daly_mat(model_run,num_years_simul,num_year_1980_2100,life_expectancy)
 
-    yll_spread = squeeze(sum(model_run.Prev_Deaths_1yr(:,1:(yll_max_age-1),:),1)); % sum over gender
+    yll_spread = squeeze(sum(model_run.Prev_Deaths_1yr(:,1:(life_expectancy-1),:),1)); % sum over gender
     % prevalence of deaths because one wants to count total deaths
-    assert(isequal(size(yll_spread),[(yll_max_age-1) num_years_simul+1]))
-    yll_spread = [yll_spread; zeros(100-(yll_max_age-1),num_years_simul+1)];
+    assert(isequal(size(yll_spread),[(life_expectancy-1) num_years_simul+1]))
+    yll_spread = [yll_spread; zeros(100-(life_expectancy-1),num_years_simul+1)];
     assert(isequal(size(yll_spread),[100 num_years_simul+1]))
     
     yld_spread = squeeze(sum(model_run.yld_1yr,1)); % years living with the disease
@@ -607,7 +892,7 @@ end % end function make_daly_mat
 
 
 
-function out = make_coverage_vec(start_year,num_year_divisions,dt,end_year,yleft,xright,yright)
+function out = make_coverage_vec(start_year,num_year_divisions,dt,end_year,yleft,xright,yright,last_available_year)
 % yleft contains Montagu coverage values from 1980 to last_available_year
 % xright contains boundary years from (last_available_year+dt) onwards
 % yright contains coverage values from (last_available_year+dt) to 2101 for boundary years in xright
@@ -620,32 +905,33 @@ function out = make_coverage_vec(start_year,num_year_divisions,dt,end_year,yleft
     num_time_steps_before_1980 = length(x_vec_before_1980);
     y_vec_before_1980 = repmat(yleft(1),1,num_time_steps_before_1980);
 
-    x_vec_1980_2019 = 1980:dt:(2019-dt);
-    num_time_steps_1980_2019 = length(x_vec_1980_2019);
-    y_vec_1980_2019 = repmat(yleft(1:(end-1)),num_year_divisions,1);
-    assert(isequal(size(y_vec_1980_2019),[num_year_divisions 2018-1979]))
-    y_vec_1980_2019 = y_vec_1980_2019(:);
-    assert(isequal(size(y_vec_1980_2019),[num_time_steps_1980_2019 1]))
+    x_vec_1980_last_available_year = 1980:dt:(last_available_year-dt);
+    num_time_steps_1980_last_available_year = length(x_vec_1980_last_available_year);
+    y_vec_1980_last_available_year = repmat(yleft(1:(end-1)),num_year_divisions,1);
+    size(y_vec_1980_last_available_year)
+    assert(isequal(size(y_vec_1980_last_available_year),[num_year_divisions (last_available_year-1)-1979]))
+    y_vec_1980_last_available_year = y_vec_1980_last_available_year(:);
+    assert(isequal(size(y_vec_1980_last_available_year),[num_time_steps_1980_last_available_year 1]))
 
-    assert(xright(1)==2019)
-    outright = interp1(xright, yright, 2019:dt:end_year, 'linear');
+    assert(xright(1)==last_available_year)
+    outright = interp1(xright, yright, last_available_year:dt:end_year, 'linear');
 
-    out = [y_vec_before_1980 y_vec_1980_2019' outright];
+    out = [y_vec_before_1980 y_vec_1980_last_available_year' outright];
     assert(isequal(size(out),size(start_year:dt:end_year)))
 
 end
 
 
 %% Extract % from 'Status quo infant & BD expansion to 25%' etc
-function pc = extract_percent_from_BDexpansion_scenario_label(s)
-    string_array = strsplit(s);
-    percent_with_symbol = string_array{end};
-    pc = str2num(replace(percent_with_symbol,'%',''));
-end
-
-%% Extract % from 'Status quo infant & BD drop 5 2020' etc
-function pc = extract_percent_from_BDdrop_scenario_label(s)
-    string_array = strsplit(s);
-    pc_cell=string_array(7);
-    pc = str2num(cell2mat(pc_cell));
-end
+% function pc = extract_percent_from_BDexpansion_scenario_label(s)
+%     string_array = strsplit(s);
+%     percent_with_symbol = string_array{end};
+%     pc = str2double(replace(percent_with_symbol,'%',''));
+% end
+% 
+% %% Extract % from 'Status quo infant & BD drop 5 2020' etc
+% function pc = extract_percent_from_BDdrop_scenario_label(s)
+%     string_array = strsplit(s);
+%     pc_cell=string_array(7);
+%     pc = str2double(cell2mat(pc_cell));
+% end

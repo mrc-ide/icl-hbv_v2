@@ -7,7 +7,7 @@ library(scales)
 library(animation)
 library(gganimate)
 
-
+setwd("C:/Users/mpickles/Documents/Hepatitis_B/icl-hbv/scripts/")
 current.dir <- "../outputs/"
 n.runs <- 1
 
@@ -34,9 +34,9 @@ get_header <- function(filedir)
 
 
 ## Read in the csv, and format as needed:
-loadfiles <- function(i,filedir, header)
+loadfiles <- function(i,country_ISO,filedir, header)
 {
-    output <- read.csv(paste0(filedir,"results_THA_scenario1_default_run_",as.character(i),".csv"),header=FALSE)
+    output <- read.csv(paste0(filedir,"results_",country_ISO,"_scenario1_default_run_",as.character(i),".csv"),header=FALSE)
     ## Last column is -1
     output <- output[1:(nrow(output)-1),]
     ## Add column names:
@@ -47,16 +47,16 @@ loadfiles <- function(i,filedir, header)
 
 
 ##
-make_average <- function(n.files,filedir, header)
+make_average <- function(country_ISO, n.files,filedir, header)
 {
 
-    output <- loadfiles(1,filedir, header)
+    output <- loadfiles(1,country_ISO, filedir, header)
     
     if(n.files>1)
     {
         for(i in 2:n.files)
         {
-            infile <- loadfiles(i,filedir, header)
+            infile <- loadfiles(i,country_ISO, filedir, header)
             output <- output + infile
         }
         output <- output/n.files
@@ -71,7 +71,9 @@ if(is.na(header[length(header)]))
 {
     header <- header[1:(length(header)-1)]
 }
-currentfiles <- loadfiles(n.runs,current.dir, header)
+
+
+currentfiles <- loadfiles(n.runs,country_ISO, current.dir, header)
 
 
 ##t <- currentfiles[[1]]$Year
