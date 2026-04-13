@@ -6,17 +6,17 @@ function country_level_analyses(sensitivity_analysis,...
     country_s_e_HCCdeaths_map,...
     params_map,stochas_params_mat,country_start_cols,...
     WUENIC2024BDdata, WUENIC2024HepB3data, ...
-    basedir,filename_diaries,...
+    basedir,...
     num_states,num_year_divisions,dt,ages,num_age_steps,start_year,num_years_simul,end_year,...
-    theta,CFR_Acute,rate_6months,ECofactor,p_ChronicCarriage,life_expectancy,...
-    Efficacy_Treatment_MTCT, p_VerticalTransmission_Tr_BirthDoseVacc, ...
-    p_VerticalTransmission_Tr_BirthDose_MAP_CPAD, Prog)
+    theta,CFR_Acute,rate_6months,ECofactor,p_ChronicCarriage,life_expectancy, Prog)
 
     if nargin < 1
        error('No input')
     end
 
-    num_scenarios = 8;
+    % TUTAJ:
+    %num_scenarios = 8;
+    num_scenarios = 1;
 
     assert(ismember(sensitivity_analysis,{'default','infant_100','treat_medium','treat_high'}))
 
@@ -26,12 +26,14 @@ function country_level_analyses(sensitivity_analysis,...
 
 
     %%begin_time_run_num = datetime('now');
-    %disp(['Run number ' stochas_run_str ' (of ' num2str(num_stochas_runs) ') started at ' datestr(begin_time_run_num)])
+    %disp(append('Run number ',stochas_run_str,' (of ',num2str(num_stochas_runs),') started at ',string(begin_time_run_num)));
 
     outMap = containers.Map; 
     % for this particle (stochas_run_num), outMap contains the 12 scenarios, each of which contains countryMap, which contains the model results (lastrun) for 110 countries
     label_array = cell(1,num_scenarios);
     scenario_hours_vec = repmat(duration(0,0,0),1,num_scenarios);
+
+    
 
     for scenario_num = 1:num_scenarios
 
@@ -42,9 +44,9 @@ function country_level_analyses(sensitivity_analysis,...
         begin_time_scenario = datetime('now');
         %%scenario = ListOfScenarios{scenario_num};
         %disp(scenario)
-        disp(['The "' num2str(scenario_num) '" scenario (run number ' stochas_run_str ') started at ' string(begin_time_scenario)])
-        diary off
-        diary(fullfile(basedir,'outputs',filename_diaries))
+        disp(append('The "',num2str(scenario_num),'" scenario (run number ',stochas_run_str,') started at ',string(begin_time_scenario)));
+        %%diary off
+        %%diary(fullfile(basedir,'outputs',filename_diaries))
 
         countryMap = containers.Map; 
         % for this particle (stochas_run_num) and scenario (scenario), countryMap contains the model results (lastrun) of each of the 110 countries in this scenario
@@ -77,6 +79,18 @@ function country_level_analyses(sensitivity_analysis,...
             %params = rmfield(params,'Efficacy_BirthDoseVacc_HbEAg');
             %params = rmfield(params,'Efficacy_InfantVacc');
 
+
+            %% The previous code (copied from the PAP_scripts github repo branch) was the following:
+            %% pr_VerticalTransmission_HbSAgHighVL_PAP and pr_VerticalTransmission_HbEAgHighVL_PAP
+            %% pr_VerticalTransmission_HbSAgHighVL_PAP takes values 0.05, 0.06, or 0.1-1.0 in steps of 0.1
+            %%parameter_to_vary_values_vec = [0.05 0.06 0.1:0.1:1];
+            %%parameter_to_vary_num_vals = length(parameter_to_vary_values_vec);
+            %%other_parameter_to_vary = strrep(parameter_to_vary,'HbSAg','HbEAg');
+            %%effparams.(parameter_to_vary) = parameter_to_vary_values_vec(param_val_num);
+            %%effparams.(other_parameter_to_vary) = parameter_to_vary_values_vec(param_val_num);
+           
+            
+
             Prog_scenario(8, 11) = params.CancerDeathRate;  % HCC to HBV death.
 
 
@@ -93,16 +107,24 @@ function country_level_analyses(sensitivity_analysis,...
 
             %% Load country-specific stochastic parameters
             params.SpeedUpELoss_Beta = stochas_params_mat(stochas_run_num,country_start_col+1);
+            
+            %% ***WARNING*** This overwrites the value (0.0762) initially assigned when we load from params_map.mat in main_script.m
             params.p_VerticalTransmission_HbSAg_NoIntv = stochas_params_mat(stochas_run_num,country_start_col+2);
             params.cancer_rate_coeff = stochas_params_mat(stochas_run_num,country_start_col+3);
             params.cirrh_rate_coeff = stochas_params_mat(stochas_run_num,country_start_col+4);
             %% MP: moved to main_script.m %% params.CancerRate_WomenCoFactor = 1;
-            %% MP: moved to main_script.m %% params.CirrhosisRate_WomenCoFactor = 1;    
+            %% MP: moved to main_script.m %% params.CirrhosisRate_WomenCoFactor = 1;
             params.CancerRate_MenCoFactor = stochas_params_mat(stochas_run_num,country_start_col+5);
             params.CirrhosisRate_MenCoFactor = stochas_params_mat(stochas_run_num,country_start_col+6);
 
             params.Efficacy_BirthDoseVacc_HbEAg = stochas_params_mat(stochas_run_num,end-1);
             params.Efficacy_InfantVacc = stochas_params_mat(stochas_run_num,end);
+
+
+            %% TAM: assign PAP/VL parameters:
+            %% ***WARNING***: because we overwrite params.p_VerticalTransmission_HbSAg_NoIntv using stochas_params_mat,
+            %% we need to call assign_PAP_VL_params() here, otherwise it uses the wrong value of p_VerticalTransmission_HbSAg_NoIntv.
+            PAP_VL_params = assign_PAP_VL_params(params);  %% PAP_VL_params was previously called effparams in the PAP branch.
 
 
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -367,8 +389,11 @@ function country_level_analyses(sensitivity_analysis,...
             %% Index values for scenario_PAP: peripartum antiviral prophylaxis (PAP) treatment for HBsAg+ mothers (treat all, treat high VL etc).
             %%I_PAP_SQ = 0;      %% No PAP unless already present.
             I_PAP_NOTREAT = 1;
-            I_PAP_TREAT = 2;   %% Current WHO recommendation is PAP for women HBsAg+ with HBV DNA levels >=200,000 IU/ml or if HBeAg+. In the model take this to correspond to HBeAg+ compartments. 
-            
+            %% Current WHO recommendation is PAP for women HBsAg+ with HBV DNA levels >=200,000 IU/ml or if HBeAg+. 
+            I_PAP_TREAThighVL = 2;             %% High VL
+            I_PAP_TREATeAgpos = 3;             %% eAg+
+            I_PAP_TREAT_highVL_or_eAgpos = 4;  %% Either high VL or eAg+ (or both)
+
             %% scenario_Treatment: governs how treatment happens:
             % Modified by treat-all, introduction of PoC HBcrAg, PoC ALT tests, 
             I_TREAT_INIT_SQ = 1;         %% Use current rates of treatment uptake and failure.
@@ -473,9 +498,8 @@ function country_level_analyses(sensitivity_analysis,...
                     future_xvals_vec = [2019.0, 2020.0, end_year];
                     future_yvals_vec = [BirthDose_wuenic2020(end), BirthDose_wuenic2020(end), BirthDose_wuenic2020(end)];
                     %% No MAP or CPAD introduced:
-                    scenario_BDcoverage_fromMAP_CPAD = zeros(1,length(years_vec_01yr));
-                    efficacy_MAP_CPAD_HbSAg = 0;
-                    efficacy_MAP_CPAD_HbEAg = 0;
+                    scenario_BDcoverage_fromMAP = zeros(1,length(years_vec_01yr));
+                    scenario_BDcoverage_fromCPAD = zeros(1,length(years_vec_01yr));
                     %%label_array{scenario_num} = 'Status quo HepB3 & Hep2B-BD (baseline)';
                 case I_BD_WUENIC2025
                     disp("I_BD_WUENIC2025")
@@ -485,9 +509,8 @@ function country_level_analyses(sensitivity_analysis,...
                     future_xvals_vec = [2024.0, 2025.0, end_year];
                     future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end), BirthDose_wuenic2025(end)];
                     %% No MAP or CPAD introduced:
-                    scenario_BDcoverage_fromMAP_CPAD = zeros(1,length(years_vec_01yr));
-                    efficacy_MAP_CPAD_HbSAg = 0;
-                    efficacy_MAP_CPAD_HbEAg = 0;
+                    scenario_BDcoverage_fromMAP = zeros(1,length(years_vec_01yr));
+                    scenario_BDcoverage_fromCPAD = zeros(1,length(years_vec_01yr));
                 case I_BD_INFACILITY_INTRODUCTION
                     year_last_BD_data = 2024;
                     disp("I_BD_INFACILITY_INTRODUCTION")
@@ -495,61 +518,80 @@ function country_level_analyses(sensitivity_analysis,...
                     future_xvals_vec = [2024.0, 2025.0, end_year];  
                     future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end), BirthDose_wuenic2025(end)];
                     %% No MAP or CPAD introduced:
-                    scenario_BDcoverage_fromMAP_CPAD = zeros(1,length(years_vec_01yr));
-                    efficacy_MAP_CPAD_HbSAg = 0;
-                    efficacy_MAP_CPAD_HbEAg = 0;
-                case {I_BD_MAP,I_BD_CPAD}  %% MAP or CPAD introduced:
-                    disp("I_BD_MAP or I_BD_MAP")
+                    scenario_BDcoverage_fromMAP = zeros(1,length(years_vec_01yr));
+                    scenario_BDcoverage_fromCPAD = zeros(1,length(years_vec_01yr));
+                case I_BD_MAP  %% MAP introduced:
+                    disp("I_BD_MAP")
                     year_last_BD_data = 2024;
                     %% Follow WUENIC2025, then an extra (different efficacy) product increases overall BD coverage up to a level capped by out-of-facility deliveries.
                     coverage_BD_to_last_datapoint = BirthDose_wuenic2025;
                     %% This governs the coverage of the standard BD injection:
                     future_xvals_vec = [2024.0, 2025.0, end_year];  
                     future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end), BirthDose_wuenic2025(end)];
-                    %% This governs the coverage of the additional (MAP/CPAD) injection:
-                    future_xvals_vec_MAP_CPAD = [2024.0, 2026.0, 2028.0, end_year];
-                    %% Increase in BD if introduce MAP/CPAD (requires BD to currently be available):
+                    %% This governs the coverage of the additional MAP injection:
+                    future_xvals_vec_MAP = [2024.0, 2026.0, 2028.0, end_year];
+                    %% Increase in BD if introduce MAP (requires BD to currently be available):
                     if(BirthDose_wuenic2025(end)>0)  %% BD already available
                         %% Increase in BD is capped to not exceed the current proportion not getting BD.
                         current_prop_not_getting_BD = (1-BirthDose_wuenic2025(end));
                         BD_increase_from_MAP  = min((1-prop_OOF_births)*prop_accept_MAP, current_prop_not_getting_BD);
-                        BD_increase_from_CPAD = min((1-prop_OOF_births)*prop_accept_CPAD, current_prop_not_getting_BD);
                     else                             %% BD not currently available
                         BD_increase_from_MAP = 0;
+                    end
+
+                    future_yvals_vec_MAP = [0, 0, BD_increase_from_MAP, BD_increase_from_MAP];
+                    coverageMAP_to_present = zeros(1,length(BirthDose_wuenic2025));  
+                    disp("MAP1")
+                    scenario_BDcoverage_fromMAP = make_coverage_vec(start_year,num_year_divisions,dt,end_year,coverageMAP_to_present,future_xvals_vec_MAP, future_yvals_vec_MAP, year_last_BD_data);
+                    scenario_BDcoverage_fromCPAD = zeros(1,length(years_vec_01yr));
+                case I_BD_CPAD  %% CPAD introduced:
+                    disp("I_BD_CPAD")
+                    year_last_BD_data = 2024;
+                    %% Follow WUENIC2025, then an extra (different efficacy) product increases overall BD coverage up to a level capped by out-of-facility deliveries.
+                    coverage_BD_to_last_datapoint = BirthDose_wuenic2025;
+                    %% This governs the coverage of the standard BD injection:
+                    future_xvals_vec = [2024.0, 2025.0, end_year];  
+                    future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end), BirthDose_wuenic2025(end)];
+                    
+                    %% This governs the coverage of the additional CPAD injection:
+                    future_xvals_vec_CPAD = [2024.0, 2026.0, 2028.0, end_year];
+                    %% Increase in BD if introduce CPAD (requires BD to currently be available):
+                    if(BirthDose_wuenic2025(end)>0)  %% BD already available
+                        %% Increase in BD is capped to not exceed the current proportion not getting BD.
+                        current_prop_not_getting_BD = (1-BirthDose_wuenic2025(end));
+                        BD_increase_from_CPAD = min((1-prop_OOF_births)*prop_accept_CPAD, current_prop_not_getting_BD);
+                    else                             %% BD not currently available
                         BD_increase_from_CPAD = 0;
                     end
 
-                    if(scenario_BD==I_BD_MAP)
-                        future_yvals_vec_MAP_CPAD = [0, 0, BD_increase_from_MAP, BD_increase_from_MAP];
-                        efficacy_MAP_CPAD_HbSAg = params.efficacy_MAP_HbSAg;
-                        efficacy_MAP_CPAD_HbEAg = params.efficacy_MAP_HbEAg;
-                    else
-                        future_yvals_vec_MAP_CPAD = [0, 0, BD_increase_from_CPAD, BD_increase_from_CPAD];
-                        efficacy_MAP_CPAD_HbSAg = params.efficacy_CPAD_HbSAg;
-                        efficacy_MAP_CPAD_HbEAg = params.efficacy_CPAD_HbEAg;
-                    end
-                    coverageMAP_CPAD_to_present = zeros(1,length(BirthDose_wuenic2025));  
-                    disp("MAP_CPAD1")
-                    
-                    scenario_BDcoverage_fromMAP_CPAD = make_coverage_vec(start_year,num_year_divisions,dt,end_year,coverageMAP_CPAD_to_present,future_xvals_vec_MAP_CPAD,future_yvals_vec_MAP_CPAD, year_last_BD_data);
-                    disp("MAP_CPAD2")
+                    future_yvals_vec_CPAD = [0, 0, BD_increase_from_CPAD, BD_increase_from_CPAD];                    
+                    coverageCPAD_to_present = zeros(1,length(BirthDose_wuenic2025));  
+                    disp("CPAD1")                    
+                    scenario_BDcoverage_fromCPAD = make_coverage_vec(start_year, num_year_divisions, dt, end_year, coverageCPAD_to_present, future_xvals_vec_CPAD, future_yvals_vec_CPAD, year_last_BD_data);
+                    scenario_BDcoverage_fromMAP = zeros(1,length(years_vec_01yr));
+
                 otherwise 
                     disp("Error - unknown scenario_BD. Exiting")
                     return  %% Exit the script.
+
             end  %% end switch scenario_BD
             
-            %% Now get the full timetrend of BD coverage from start_year to end_year (note that MAP/CPAD coverage is stored separately in scenario_BDcoverage_fromMAP_CPAD)
+            %% Now get the full timetrend of BD coverage from start_year to end_year (note that MAP/CPAD coverage is stored separately in scenario_BDcoverage_fromMAP/CPAD)
             disp("BD1")
             scenario_BDcoverage = make_coverage_vec(start_year,num_year_divisions,dt,end_year,coverage_BD_to_last_datapoint,future_xvals_vec,future_yvals_vec,year_last_BD_data);
             disp("BD2")
             scenario_BDcoverage = min(1,scenario_BDcoverage);    % Ensure coverage is <=100% at every timestep:
             assert(isequal(size(scenario_BDcoverage),size(years_vec_01yr)))
-            assert(isequal(size(scenario_BDcoverage_fromMAP_CPAD),size(years_vec_01yr)))
-            %% Make sure scenario_BDcoverage_fromMAP_CPAD lies in range 0-1:
-            mustBeBetween(scenario_BDcoverage_fromMAP_CPAD,0,1);
-            
+            assert(isequal(size(scenario_BDcoverage_fromMAP),size(years_vec_01yr)))
+            assert(isequal(size(scenario_BDcoverage_fromCPAD),size(years_vec_01yr)))
+            %% Make sure scenario_BDcoverage_fromMAP/CPAD lies in range 0-1:
+            mustBeBetween(scenario_BDcoverage_fromMAP,0,1);
+            mustBeBetween(scenario_BDcoverage_fromCPAD,0,1);
+            %% Make sure total coverage of BD (normal BD/MAP/CPAD) is in range 0-1:
+            mustBeBetween((scenario_BDcoverage+scenario_BDcoverage_fromMAP+scenario_BDcoverage_fromCPAD),0,1);
+
             %% Make sure that the total (normal BD + MAP/CPAD) BD coverage is 100% or less:
-            scenario_BDcoverage_fromMAP_CPAD = min(scenario_BDcoverage_fromMAP_CPAD, 1 - scenario_BDcoverage);
+            %%scenario_BDcoverage_fromMAP_CPAD = min(scenario_BDcoverage_fromMAP_CPAD, 1 - scenario_BDcoverage);
             
 
 
@@ -579,7 +621,7 @@ function country_level_analyses(sensitivity_analysis,...
             %         label_array{scenario_num} = label_array_string;
             %     case {'Status quo infant & BD delayed expansion 2023 to 2030','Status quo infant & BD delayed expansion 2023 to 2033','Status quo infant & BD delayed expansion 2025 to 2040'}
             % 
-            %         max_BD_cov_val_90 = max([BirthDose_wuenic2020(end) 0.9]);                    
+            %         max_BD_cov_val_90 = max([BirthDose_wuenic2020(end) 0.9]);                
             % 
             %         if(scenario=='Status quo infant & BD delayed expansion 2023 to 2030')
             %             % Planned expansion of birth-dose vaccination is
@@ -666,11 +708,77 @@ function country_level_analyses(sensitivity_analysis,...
             % params.scenario_BirthDose_coverage = min(1,params.scenario_BirthDose_coverage);
             % assert(isequal(size(params.scenario_BirthDose_coverage),size(years_vec_01yr)))
 
+            %% Of women who received BD, the % of PAP-eligible who get PAP:
+            PAP_coverage_withBD = 1.0;
+            %% Of women who DID NOT received BD, the % of PAP-eligible who get PAP:
+            PAP_coverage_withoutBD = 1.0;
+            PAP_scaleup_end_year = 2030;
+            PAP_cov_params = struct('max_cov_BDandPAP_EAgHighVL', 0,...
+                    'max_cov_BDandPAP_SAgHighVL', 0,...
+                    'max_cov_BDandPAP_EAgLowVL', 0,...
+                    'max_cov_BDandPAP_SAgLowVL', 0,...
+                    'max_cov_PAPonly_EAgHighVL', 0,...
+                    'max_cov_PAPonly_SAgHighVL', 0,...
+                    'max_cov_PAPonly_EAgLowVL', 0,...
+                    'max_cov_PAPonly_SAgLowVL', 0,...
+                    'TScaleup_PAP', 2020);
             switch scenario_PAP 
                 case I_PAP_NOTREAT
-                    a=1;
-                case I_PAP_TREAT
-                    a=2;
+                    % No PAP
+                    PAP_cov_params.max_cov_BDandPAP_EAgHighVL = 0;
+                    PAP_cov_params.max_cov_BDandPAP_SAgHighVL = 0;
+                    PAP_cov_params.max_cov_BDandPAP_EAgLowVL  = 0;
+                    PAP_cov_params.max_cov_BDandPAP_SAgLowVL  = 0;
+                    % Fraction of those who do not get BD that do get PAP:
+                    PAP_cov_params.max_cov_PAPonly_EAgHighVL = 0;   
+                    PAP_cov_params.max_cov_PAPonly_SAgHighVL = 0;
+                    PAP_cov_params.max_cov_PAPonly_EAgLowVL  = 0;
+                    PAP_cov_params.max_cov_PAPonly_SAgLowVL  = 0;
+                    PAP_cov_params.TScaleup_PAP = PAP_scaleup_end_year;
+                case I_PAP_TREAThighVL
+                    % PAP to (PAP_coverage)% of the pregnant women who have High VL (whatever eAg status) (irrespective of BD)
+                    PAP_cov_params.max_cov_BDandPAP_EAgHighVL = PAP_coverage_withBD;
+                    PAP_cov_params.max_cov_BDandPAP_SAgHighVL = PAP_coverage_withBD;
+                    PAP_cov_params.max_cov_BDandPAP_EAgLowVL  = 0;  
+                    PAP_cov_params.max_cov_BDandPAP_SAgLowVL  = 0;
+                    PAP_cov_params.max_cov_PAPonly_EAgHighVL = PAP_coverage_withoutBD;   % coverage among those who missed BD
+                    PAP_cov_params.max_cov_PAPonly_SAgHighVL = PAP_coverage_withoutBD;
+                    PAP_cov_params.max_cov_PAPonly_EAgLowVL  = 0;
+                    PAP_cov_params.max_cov_PAPonly_SAgLowVL  = 0;
+                    PAP_cov_params.TScaleup_PAP = PAP_scaleup_end_year;
+                case I_PAP_TREATeAgpos
+                    % PAP to (PAP_coverage)% of the pregnant women who are HBeAg+ (whatever VL status) (irrespective of BD)
+                    PAP_cov_params.max_cov_BDandPAP_EAgHighVL = PAP_coverage_withBD;
+                    PAP_cov_params.max_cov_BDandPAP_SAgHighVL = 0;
+                    PAP_cov_params.max_cov_BDandPAP_EAgLowVL = PAP_coverage_withBD;  
+                    PAP_cov_params.max_cov_BDandPAP_SAgLowVL = 0;
+                    PAP_cov_params.max_cov_PAPonly_EAgHighVL = PAP_coverage_withoutBD;   % coverage among those who missed BD
+                    PAP_cov_params.max_cov_PAPonly_SAgHighVL = 0;
+                    PAP_cov_params.max_cov_PAPonly_EAgLowVL  = PAP_coverage_withoutBD;
+                    PAP_cov_params.max_cov_PAPonly_SAgLowVL  = 0;
+                    PAP_cov_params.TScaleup_PAP = PAP_scaleup_end_year;
+                case I_PAP_TREAT_highVL_or_eAgpos
+                    % PAP to (PAP_coverage)% of the pregnant women who are HBeAg+ or high VL (or both) (irrespective of BD)
+                    PAP_cov_params.max_cov_BDandPAP_EAgHighVL = PAP_coverage_withBD;
+                    PAP_cov_params.max_cov_BDandPAP_SAgHighVL = PAP_coverage_withBD;
+                    PAP_cov_params.max_cov_BDandPAP_EAgLowVL = PAP_coverage_withBD;  
+                    PAP_cov_params.max_cov_BDandPAP_SAgLowVL = 0;
+                    PAP_cov_params.max_cov_PAPonly_EAgHighVL = PAP_coverage_withoutBD;   % coverage among those who missed BD
+                    PAP_cov_params.max_cov_PAPonly_SAgHighVL = PAP_coverage_withoutBD;
+                    PAP_cov_params.max_cov_PAPonly_EAgLowVL  = PAP_coverage_withoutBD;
+                    PAP_cov_params.max_cov_PAPonly_SAgLowVL  = 0;
+                    PAP_cov_params.TScaleup_PAP = PAP_scaleup_end_year;
+                case I_PAP_TREAT_sAgpos
+                    % PAP to (PAP_coverage)% of the pregnant women who are HBeAg+ or high VL (or both) (irrespective of BD)
+                    PAP_cov_params.max_cov_BDandPAP_EAgHighVL = PAP_coverage_withBD;
+                    PAP_cov_params.max_cov_BDandPAP_SAgHighVL = PAP_coverage_withBD;
+                    PAP_cov_params.max_cov_BDandPAP_EAgLowVL = PAP_coverage_withBD;
+                    PAP_cov_params.max_cov_BDandPAP_SAgLowVL = PAP_coverage_withBD;
+                    PAP_cov_params.max_cov_PAPonly_EAgHighVL = PAP_coverage_withoutBD;   % coverage among those who missed BD
+                    PAP_cov_params.max_cov_PAPonly_SAgHighVL = PAP_coverage_withoutBD;
+                    PAP_cov_params.max_cov_PAPonly_EAgLowVL  = PAP_coverage_withoutBD;
+                    PAP_cov_params.max_cov_PAPonly_SAgLowVL  = PAP_coverage_withoutBD;
+                    PAP_cov_params.TScaleup_PAP = PAP_scaleup_end_year;
                 otherwise
                     disp("Error: Unknown value for scenario_PAP. Exiting")
                     return
@@ -719,6 +827,38 @@ function country_level_analyses(sensitivity_analysis,...
             % end
 
 
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            %% Now get time trends of PAP coverage (divided into those with/without BD, and by whether EAg+/SAg+ and high/low VL): 
+            % Coverage of PAP among those with BD
+            %% TAM cov_BirthDoseAndTDF_EAgHighVL_itt
+            start_year_vacc_coverage = 1890;
+            last_year_run = end_year;
+            PAP_cov_params.scenario_PAPcoverage_BDandPAP_EAgHighVL = PAP_coverage_scaleup(start_year_vacc_coverage, PAP_cov_params.TScaleup_PAP, ...
+                last_year_run, dt, PAP_cov_params.max_cov_BDandPAP_EAgHighVL);
+
+            PAP_cov_params.scenario_PAPcoverage_BDandPAP_EAgLowVL = PAP_coverage_scaleup(start_year_vacc_coverage, PAP_cov_params.TScaleup_PAP, ...
+                last_year_run, dt, PAP_cov_params.max_cov_BDandPAP_EAgLowVL);
+
+            PAP_cov_params.scenario_PAPcoverage_BDandPAP_SAgHighVL = PAP_coverage_scaleup(start_year_vacc_coverage, PAP_cov_params.TScaleup_PAP, ...
+                last_year_run, dt, PAP_cov_params.max_cov_BDandPAP_SAgHighVL);
+    
+            PAP_cov_params.scenario_PAPcoverage_BDandPAP_SAgLowVL = PAP_coverage_scaleup(start_year_vacc_coverage, PAP_cov_params.TScaleup_PAP, ...
+                last_year_run, dt, PAP_cov_params.max_cov_BDandPAP_SAgLowVL);
+
+            % Coverage of PAP among those not with BD
+            %%xvals_vec = [start_year_vacc_coverage TScaleup_PAP-1 TScaleup_PAP last_year_run];
+            PAP_cov_params.scenario_PAPcoverage_PAPonly_EAgHighVL = PAP_coverage_scaleup(start_year_vacc_coverage, PAP_cov_params.TScaleup_PAP, ...
+                last_year_run, dt, PAP_cov_params.max_cov_PAPonly_EAgHighVL);
+
+            PAP_cov_params.scenario_PAPcoverage_PAPonly_EAgLowVL = PAP_coverage_scaleup(start_year_vacc_coverage, PAP_cov_params.TScaleup_PAP, ...
+                last_year_run, dt, PAP_cov_params.max_cov_PAPonly_EAgLowVL);
+
+            PAP_cov_params.scenario_PAPcoverage_PAPonly_SAgHighVL = PAP_coverage_scaleup(start_year_vacc_coverage, PAP_cov_params.TScaleup_PAP, ...
+                last_year_run, dt, PAP_cov_params.max_cov_PAPonly_SAgHighVL);
+   
+            PAP_cov_params.scenario_PAPcoverage_PAPonly_SAgLowVL = PAP_coverage_scaleup(start_year_vacc_coverage, PAP_cov_params.TScaleup_PAP, ...
+                last_year_run, dt, PAP_cov_params.max_cov_PAPonly_SAgLowVL);
+
 
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             %%% Now call HBVmodel.m:
@@ -736,11 +876,11 @@ function country_level_analyses(sensitivity_analysis,...
             %% Run scenarios:
             lastrun = HBVmodel(source_HBsAg,...
                 num_states,num_year_divisions,dt,ages,num_age_steps,start_year,num_years_simul,...
-                theta,ECofactor,treat_start_year-dt,HBsAg_treat_cov_all_ages,params,p_ChronicCarriage,Prog_scenario,Transactions,...
-                Efficacy_Treatment_MTCT, p_VerticalTransmission_Tr_BirthDoseVacc, ...
-                p_VerticalTransmission_Tr_BirthDose_MAP_CPAD, ...
-                scenario_BDcoverage, scenario_BDcoverage_fromMAP_CPAD, scenario_HepB3coverage, ...
-                efficacy_MAP_CPAD_HbSAg, efficacy_MAP_CPAD_HbEAg, ...
+                theta,ECofactor,treat_start_year-dt,HBsAg_treat_cov_all_ages, ...
+                params, PAP_VL_params, PAP_cov_params, ...
+                p_ChronicCarriage,Prog_scenario,Transactions,......
+                scenario_BDcoverage, scenario_BDcoverage_fromMAP,...
+                scenario_BDcoverage_fromCPAD, scenario_HepB3coverage, ...
                 ISO, scenario_num, scenario_CohortTesting,...
                 stochas_run_str, sensitivity_analysis, basedir, store_results_as_text);
             lastrun.DALYPerYear = make_daly_mat(lastrun,num_years_simul,num_year_1980_2100,life_expectancy);
@@ -847,7 +987,7 @@ function country_level_analyses(sensitivity_analysis,...
         %% min_time_left = num_scenarios_left * min_time_per_scenario; %% MP: not used.
         %% max_time_left = num_scenarios_left * max_time_per_scenario; %% MP: not used.
         if num_scenarios_left>0
-            disp(['There are ' num2str(num_scenarios_left) ' scenarios left for run number ' stochas_run_str ' (' sensitivity_analysis '), which will take about ' char(mean_time_left) ' hh:mm:ss.'])
+            disp(append('There are ',num2str(num_scenarios_left),' scenarios left for run number ',stochas_run_str,' (',sensitivity_analysis,'), which will take about ',char(mean_time_left),' hh:mm:ss.'));
         end
 
 
@@ -935,3 +1075,19 @@ end
 %     pc_cell=string_array(7);
 %     pc = str2double(cell2mat(pc_cell));
 % end
+
+
+function coverage = PAP_coverage_scaleup(start_year_vacc_coverage, TScaleup_PAP, ...
+    last_year_run, dt, PAP_coverage_thissubgroup)
+    xvals_vec = [start_year_vacc_coverage TScaleup_PAP-1 TScaleup_PAP last_year_run];
+    % Scales up linearly from 0 to PAP_coverage_thissubgroup over the period
+    % (TScaleup_PAP-1) to TScaleup_PAP
+    yvals_vec = [0 0 PAP_coverage_thissubgroup PAP_coverage_thissubgroup];
+
+    TimeSteps = start_year_vacc_coverage:dt:last_year_run; % 1 x 2101 double; [1890 1890.1 1890.2 ... 2099.8 2099.9 2100 2100.1 ... 2100.8 2100.9 2101]
+
+
+    coverage = interp1(xvals_vec,yvals_vec,TimeSteps,'linear','extrap');
+    % Ensure coverage is capped at 100%:
+    coverage = min(1,coverage); 
+end

@@ -1,10 +1,10 @@
 function output = HBVmodel(source_HBsAg,...
     num_disease_states,num_year_divisions,dt,ages,num_age_steps,start_year,num_years_simul,...
-    theta,ECofactor,treat_start_year,treat_coverage_in_2016,params,p_ChronicCarriage,Prog,Transactions, ...
-    Efficacy_Treatment_MTCT, p_VerticalTransmission_Tr_BirthDoseVacc,...
-    p_VerticalTransmission_Tr_BirthDose_MAP_CPAD, ...
-    scenario_BDcoverage, scenario_BDcoverage_fromMAP_CPAD, scenario_HepB3coverage, ...
-    efficacy_MAP_CPAD_HbSAg, efficacy_MAP_CPAD_HbEAg, ...
+    theta,ECofactor,treat_start_year,treat_coverage_in_2016, ...
+    params, PAP_VL_params, PAP_cov_params, ...
+    p_ChronicCarriage,Prog,Transactions, ...
+    scenario_BDcoverage, scenario_BDcoverage_fromMAP, ...
+    scenario_BDcoverage_fromCPAD, scenario_HepB3coverage, ...
     ISO, scenario_num, scenario_CohortTesting, ...
     stochas_run_str, sensitivity_analysis, basedir, store_results_as_text)
 
@@ -23,13 +23,13 @@ I_NO_COHORT_TEST = 1;
 I_COHORT_TEST = 2;
 
 i_Susc = 1;         % 'Susceptible', 
-i_ImmTol = 2;       % 'HBV: Immune Tolerant', - 
-i_ImmReact = 3;     % 'HBV: Immune Reactive',
-i_AsymptCarr = 4;   % 'HBV: Asymptomatic Carrier',
-i_Chronic = 5;      % 'HBV: Chronic Hep B',
+i_ImmTol = 2;       % 'HBV: Immune Tolerant' : HBeAg+ with very high HBV DNA (>1e6IU/ml), normal ALT
+i_ImmReact = 3;     % 'HBV: Immune Reactive' :  HBeAg+ with high HBV DNA (>20000IU/ml), elevated ALT
+i_AsymptCarr = 4;   % 'HBV: Asymptomatic Carrier': HBeAg- low/undetectable HBV DNA, normal ALT
+i_Chronic = 5;      % 'HBV: Chronic Hep B': HBeAg-, moderate to high HBV DNA levels, fluctuating/persistently elevated ALT 
 i_CompCirr = 6;     % 'HBV: Comp Cirrhosis',
 i_DecompCirr = 7;   % 'HBV: Decomp Cirrhosis',
-%%i_HCC = 8;          % 'HBV: Liver Cancer',
+i_HCC = 8;          % 'HBV: Liver Cancer',
 i_Immune = 9;       % 'HBV: Immune (Rec. or vacc.)',
 i_TDFtreat = 10;    % 'HBV: TDF-Treatment',
 i_HBVdeath = 11;    % 'Prematurely dead due to HBV', ... % 11
@@ -37,12 +37,14 @@ i_3TCtreat = 12;    % '3TC-Treatment', ... % 12
 i_3TCfailed = 13;   % 'Failed 3TC-Treatment', ...  % 13
 i_NonSevAcute = 14; % 'Non-severe acute', ...  % 14
 i_SevereAcute = 15; % 'Severe acute' ...  % 15
-
+ 
 i_alive = [1:10 12:15];
+i_eAgpos_chronic = 2:3;  %% Immune Tolerant, Immune Reactive, Non-severe + severe acute.
 i_eAgpos = [2:3 14:15];  %% Immune Tolerant, Immune Reactive, Non-severe + severe acute.
-i_sAgpos = [4:8 13];     %% Asymptomatic carrier, Chronic, Comp+Decom Cirr, HCC, failed 3TC.
+i_sAgpos_notEagpos = [4:8 13];     %% Asymptomatic carrier, Chronic, Comp+Decom Cirr, HCC, failed 3TC.
 i_treateligible = [3 5 6 7]; %% Immune Reactive, Chronic, Comp+Decomp Cirr
-    
+i_sAgpos = [2:8 10 12:15];
+i_sAgpos_chronic = [2:8 10 12:13]; 
 
 DUMMY_VALUE = -99;  % Used in initialising arrays to a dummy value (-99 should be easy to spot).
 
@@ -68,18 +70,260 @@ TimeSteps = start_year:dt:end_year; % 1 x 2101 double; [1890 1890.1 1890.2 ... 2
 
 %% MP: note - I am using p_VerticalTransmission_HbSAg_NoBD instead of "p_VerticalTransmission_HbSAg_NoIntv" (similarly for EAg).
 %% The "Intv" refers to birth-dose vaccination (either normal vaccination, microarray patches (MAPs), or compact prefilled auto-disable devices (CPAD)).
-p_VerticalTransmission_HbSAg_NoBD = params.p_VerticalTransmission_HbSAg_NoIntv; % probability of transmission from an HBeAg-, HBsAg+ mother to her baby without intervention
-p_VerticalTransmission_HbEAg_NoBD = params.p_VerticalTransmission_HbEAg_NoIntv;
+%% WLASNY - cut 11 April 2026 (as we move transmission to be by high/low VL):
+%% p_VerticalTransmission_HbSAg_NoBD = params.p_VerticalTransmission_HbSAg_NoIntv; % probability of transmission from an HBeAg-, HBsAg+ mother to her baby without intervention
+%% p_VerticalTransmission_HbEAg_NoBD = params.p_VerticalTransmission_HbEAg_NoIntv;
 
-p_VerticalTransmission_HbSAg_BirthDoseVacc = p_VerticalTransmission_HbSAg_NoBD * (1 - params.Efficacy_BirthDoseVacc_HbSAg);
-p_VerticalTransmission_HbSAg_BirthDose_MAP_CPAD = p_VerticalTransmission_HbSAg_NoBD * (1 - efficacy_MAP_CPAD_HbSAg);
-assert(p_VerticalTransmission_HbSAg_NoBD>=0 && p_VerticalTransmission_HbSAg_NoBD<=1)
-mustBeBetween(p_VerticalTransmission_HbSAg_BirthDoseVacc, 0, 1)
-mustBeBetween(p_VerticalTransmission_HbSAg_BirthDose_MAP_CPAD, 0, 1)
+%% p_VerticalTransmission_HbSAg_BD = p_VerticalTransmission_HbSAg_NoBD * (1 - params.Efficacy_BirthDoseVacc_HbSAg);
+%% p_VerticalTransmission_HbSAg_BirthDose_MAP_CPAD = p_VerticalTransmission_HbSAg_NoBD * (1 - efficacy_MAP_CPAD_HbSAg);
+%% assert(p_VerticalTransmission_HbSAg_NoBD>=0 && p_VerticalTransmission_HbSAg_NoBD<=1)
+%% mustBeBetween(p_VerticalTransmission_HbSAg_BD, 0, 1)
+%% mustBeBetween(p_VerticalTransmission_HbSAg_BirthDose_MAP_CPAD, 0, 1)
 % probability of transmission from an HBeAg+ mother to her baby after the baby is given BD vaccination
-p_VerticalTransmission_HbEAg_BirthDoseVacc = p_VerticalTransmission_HbEAg_NoBD * (1 - params.Efficacy_BirthDoseVacc_HbEAg); 
-p_VerticalTransmission_HbEAg_BirthDose_MAP_CPAD = p_VerticalTransmission_HbEAg_NoBD * (1 - efficacy_MAP_CPAD_HbEAg); 
-p_VerticalTransmission_Tr_NoBD = p_VerticalTransmission_HbEAg_NoBD * (1 - Efficacy_Treatment_MTCT); % probability of transmission from an HBeAg+ mother on treatment to her baby without intervention
+%%% KAWA:
+%%%p_VerticalTransmission_HbEAg_BD = p_VerticalTransmission_HbEAg_NoBD * (1 - params.Efficacy_BirthDoseVacc_HbEAg); 
+%%%p_VerticalTransmission_HbEAg_BirthDose_MAP_CPAD = p_VerticalTransmission_HbEAg_NoBD * (1 - efficacy_MAP_CPAD_HbEAg); 
+%%%p_VerticalTransmission_Tr_NoBD = p_VerticalTransmission_HbEAg_NoBD * (1 - Efficacy_Treatment_MTCT); % probability of transmission from an HBeAg+ mother on treatment to her baby without intervention
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% TAM: PAP chunk 1:
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% % PAP in addition to Birth dose (Fraction of those who have BD that also get PAP)
+% cov_BirthDoseAndTDF_EAgHighVL = 0;
+% cov_BirthDoseAndTDF_SAgHighVL = 0;
+% cov_BirthDoseAndTDF_EAgLowVL = 0;
+% cov_BirthDoseAndTDF_SAgLowVL = 0;
+% % PAP instead of BD (Fraction of those who do not get BD that do get PAP)
+% cov_TDFOnly_EAgHighVL = 0;
+% cov_TDFOnly_SAgHighVL = 0;
+% cov_TDFOnly_EAgLowVL = 0;
+% cov_TDFOnly_SAgLowVL = 0;
+% % This scale-up parameter pertains to both types of PAP usage (instantaneously)
+% TScaleup_PAP = 2025;
+
+% PMTCT Asssumptions
+% IMPORT THE PAP_VL_params (Now mandatory to give a full set of parameters)
+%%FracEPosHighVL = PAP_VL_params.FracEPosHighVL;
+%%FracSPosHighVL = PAP_VL_params.FracSPosHighVL;
+%%p_VerticalTransmission_HbSAg_NoIntv_Ratio_HighVL_to_LowVL = PAP_VL_params.p_VerticalTransmission_HbSAg_NoIntv_Ratio_HighVL_to_LowVL;
+%%p_VerticalTransmission_HbEAg_NoIntv_Ratio_HighVL_to_LowVL = PAP_VL_params.PAP_VL_params.p_VerticalTransmission_HbEAg_NoIntv_Ratio_HighVL_to_LowVL;
+%%pr_VerticalTransmission_HbSAgLowVL_BirthDoseVacc = PAP_VL_params.pr_VerticalTransmission_HbSAgLowVL_BirthDoseVacc;
+%%pr_VerticalTransmission_HbSAgLowVL_BirthDoseVacc_PAP = PAP_VL_params.pr_VerticalTransmission_HbSAgLowVL_BirthDoseVacc_PAP;
+%%pr_VerticalTransmission_HbSAgLowVL_PAP = PAP_VL_params.pr_VerticalTransmission_HbSAgLowVL_PAP;
+%%pr_VerticalTransmission_HbSAgHighVL_BirthDoseVacc = PAP_VL_params.pr_VerticalTransmission_HbSAgHighVL_BirthDoseVacc;
+%%pr_VerticalTransmission_HbSAgHighVL_BirthDoseVacc_PAP = PAP_VL_params.pr_VerticalTransmission_HbSAgHighVL_BirthDoseVacc_PAP;
+%%pr_VerticalTransmission_HbSAgHighVL_PAP = PAP_VL_params.pr_VerticalTransmission_HbSAgHighVL_PAP;
+%%pr_VerticalTransmission_HbEAgLowVL_BirthDoseVacc = PAP_VL_params.pr_VerticalTransmission_HbEAgLowVL_BirthDoseVacc;
+%%pr_VerticalTransmission_HbEAgLowVL_BirthDoseVacc_PAP = PAP_VL_params.pr_VerticalTransmission_HbEAgLowVL_BirthDoseVacc_PAP;
+%%pr_VerticalTransmission_HbEAgLowVL_PAP = PAP_VL_params.pr_VerticalTransmission_HbEAgLowVL_PAP;
+%%pr_VerticalTransmission_HbEAgHighVL_BirthDoseVacc = PAP_VL_params.pr_VerticalTransmission_HbEAgHighVL_BirthDoseVacc;
+%%pr_VerticalTransmission_HbEAgHighVL_BirthDoseVacc_PAP = PAP_VL_params.pr_VerticalTransmission_HbEAgHighVL_BirthDoseVacc_PAP;
+%%pr_VerticalTransmission_HbEAgHighVL_PAP = PAP_VL_params.pr_VerticalTransmission_HbEAgHighVL_PAP;
+
+
+% % Confirm that the correct PAP_VL_params have been entered:
+% PAP_VL_params_required_params = {'FracEPosHighVL',...
+%                             'FracSPosHighVL',...
+%                             'p_VerticalTransmission_HbSAg_NoIntv_Ratio_HighVL_to_LowVL',...
+%                             'p_VerticalTransmission_HbEAg_NoIntv_Ratio_HighVL_to_LowVL',...
+%                             'pr_VerticalTransmission_HbSAgLowVL_BirthDoseVacc',...
+%                             'pr_VerticalTransmission_HbSAgLowVL_BirthDoseVacc_PAP',...
+%                             'pr_VerticalTransmission_HbSAgLowVL_PAP',...
+%                             'pr_VerticalTransmission_HbSAgHighVL_BirthDoseVacc',...
+%                             'pr_VerticalTransmission_HbSAgHighVL_BirthDoseVacc_PAP',...
+%                             'pr_VerticalTransmission_HbSAgHighVL_PAP',...
+%                             'pr_VerticalTransmission_HbEAgLowVL_BirthDoseVacc',...
+%                             'pr_VerticalTransmission_HbEAgLowVL_BirthDoseVacc_PAP',...
+%                             'pr_VerticalTransmission_HbEAgLowVL_PAP',...
+%                             'pr_VerticalTransmission_HbEAgHighVL_BirthDoseVacc',...
+%                             'pr_VerticalTransmission_HbEAgHighVL_BirthDoseVacc_PAP',...
+%                             'pr_VerticalTransmission_HbEAgHighVL_PAP'};
+% 
+% for i=1:length(PAP_VL_params_required_params)
+%     assert(exist(PAP_VL_params_required_params{i},'var')>0)
+% end
+
+% Compute p_VertTrans_HbSAgHighVL_NoIntv and p_VertTrans_HbSAgLowVL_NoIntv
+p_HbSAg_av = params.p_VerticalTransmission_HbSAg_NoIntv; % From fitting (this average rate to be preserved)
+%% These are now calculated in assign_PAP_VL_params:
+p_VertTrans_HbSAgLowVL_NoIntv = PAP_VL_params.p_VertTrans_HbSAgLowVL_NoIntv;
+p_VertTrans_HbSAgHighVL_NoIntv = PAP_VL_params.p_VertTrans_HbSAgHighVL_NoIntv;
+
+% Check close to original p_HbSAg_av value:
+assert(abs(p_HbSAg_av - (p_VertTrans_HbSAgLowVL_NoIntv*(1-PAP_VL_params.FracSPosHighVL) + p_VertTrans_HbSAgHighVL_NoIntv*PAP_VL_params.FracSPosHighVL))<0.001)
+mustBeBetween(p_VertTrans_HbSAgLowVL_NoIntv, 0, 1)
+mustBeBetween(p_VertTrans_HbSAgHighVL_NoIntv, 0, 1)
+
+
+p_HbEAg_av = params.p_VerticalTransmission_HbEAg_NoIntv; % From assumption in the version of the model used in fitting  (this average rate to be preserved) [NB. if this varied in different region then specifiy that here!)]
+%% These are now calculated in assign_PAP_VL_params:
+p_VertTrans_HbEAgLowVL_NoIntv = PAP_VL_params.p_VertTrans_HbEAgLowVL_NoIntv;
+p_VertTrans_HbEAgHighVL_NoIntv = PAP_VL_params.p_VertTrans_HbEAgHighVL_NoIntv;
+
+% Check close to original p_HbEAg_av value:
+assert(abs(p_HbEAg_av - (p_VertTrans_HbEAgLowVL_NoIntv*(1-PAP_VL_params.FracEPosHighVL) + p_VertTrans_HbEAgHighVL_NoIntv*PAP_VL_params.FracEPosHighVL))<0.001)
+mustBeBetween(p_VertTrans_HbEAgLowVL_NoIntv, 0, 1)
+mustBeBetween(p_VertTrans_HbEAgHighVL_NoIntv, 0, 1)
+
+% Compute the transmission probabilities using probability ratios (i.e.
+% (1-effectiveness)). Note that for now we do not assume independence
+% between the different interventions.
+p_VertTrans_HbSAgLowVL_BD         = PAP_VL_params.pRatio_VertTrans_HbSAgLowVL_BD * p_VertTrans_HbSAgLowVL_NoIntv;
+p_VertTrans_HbSAgLowVL_PAP        = PAP_VL_params.pRatio_VertTrans_HbSAgLowVL_PAP * p_VertTrans_HbSAgLowVL_NoIntv;
+p_VertTrans_HbSAgLowVL_MAP        = PAP_VL_params.pRatio_VertTrans_HbSAgLowVL_MAP * p_VertTrans_HbSAgLowVL_NoIntv;
+p_VertTrans_HbSAgLowVL_CPAD       = PAP_VL_params.pRatio_VertTrans_HbSAgLowVL_CPAD * p_VertTrans_HbSAgLowVL_NoIntv;
+p_VertTrans_HbSAgLowVL_BD_PAP     = PAP_VL_params.pRatio_VertTrans_HbSAgLowVL_BD_PAP * p_VertTrans_HbSAgLowVL_NoIntv;
+p_VertTrans_HbSAgLowVL_MAP_PAP    = PAP_VL_params.pRatio_VertTrans_HbSAgLowVL_MAP_PAP * p_VertTrans_HbSAgLowVL_NoIntv;
+p_VertTrans_HbSAgLowVL_CPAD_PAP   = PAP_VL_params.pRatio_VertTrans_HbSAgLowVL_CPAD_PAP * p_VertTrans_HbSAgLowVL_NoIntv;
+%%p_VertTrans_HbSAgLowVL_Treat      = PAP_VL_params.pRatio_VertTrans_HbSAgLowVL_Treat * p_VertTrans_HbSAgLowVL_NoIntv;
+%%p_VertTrans_HbSAgLowVL_BD_Treat   = PAP_VL_params.pRatio_VertTrans_HbSAgLowVL_BD_Treat * p_VertTrans_HbSAgLowVL_NoIntv;
+%%p_VertTrans_HbSAgLowVL_MAP_Treat  = PAP_VL_params.pRatio_VertTrans_HbSAgLowVL_MAP_Treat * p_VertTrans_HbSAgLowVL_NoIntv;
+%%p_VertTrans_HbSAgLowVL_CPAD_Treat = PAP_VL_params.pRatio_VertTrans_HbSAgLowVL_CPAD_Treat * p_VertTrans_HbSAgLowVL_NoIntv;
+
+p_VertTrans_HbSAgHighVL_BD         = PAP_VL_params.pRatio_VertTrans_HbSAgHighVL_BD * p_VertTrans_HbSAgHighVL_NoIntv;
+p_VertTrans_HbSAgHighVL_PAP        = PAP_VL_params.pRatio_VertTrans_HbSAgHighVL_PAP * p_VertTrans_HbSAgHighVL_NoIntv;
+p_VertTrans_HbSAgHighVL_MAP        = PAP_VL_params.pRatio_VertTrans_HbSAgHighVL_MAP * p_VertTrans_HbSAgHighVL_NoIntv;
+p_VertTrans_HbSAgHighVL_CPAD       = PAP_VL_params.pRatio_VertTrans_HbSAgHighVL_CPAD * p_VertTrans_HbSAgHighVL_NoIntv;
+p_VertTrans_HbSAgHighVL_BD_PAP     = PAP_VL_params.pRatio_VertTrans_HbSAgHighVL_BD_PAP * p_VertTrans_HbSAgHighVL_NoIntv;
+p_VertTrans_HbSAgHighVL_MAP_PAP    = PAP_VL_params.pRatio_VertTrans_HbSAgHighVL_MAP_PAP * p_VertTrans_HbSAgHighVL_NoIntv;
+p_VertTrans_HbSAgHighVL_CPAD_PAP   = PAP_VL_params.pRatio_VertTrans_HbSAgHighVL_CPAD_PAP * p_VertTrans_HbSAgHighVL_NoIntv;
+%%p_VertTrans_HbSAgHighVL_Treat      = PAP_VL_params.pRatio_VertTrans_HbSAgHighVL_Treat * p_VertTrans_HbSAgHighVL_NoIntv;
+%%p_VertTrans_HbSAgHighVL_BD_Treat   = PAP_VL_params.pRatio_VertTrans_HbSAgHighVL_BD_Treat * p_VertTrans_HbSAgHighVL_NoIntv;
+%%p_VertTrans_HbSAgHighVL_MAP_Treat  = PAP_VL_params.pRatio_VertTrans_HbSAgHighVL_MAP_Treat * p_VertTrans_HbSAgHighVL_NoIntv;
+%%p_VertTrans_HbSAgHighVL_CPAD_Treat = PAP_VL_params.pRatio_VertTrans_HbSAgHighVL_CPAD_Treat * p_VertTrans_HbSAgHighVL_NoIntv;
+
+p_VertTrans_HbEAgLowVL_BD         = PAP_VL_params.pRatio_VertTrans_HbEAgLowVL_BD * p_VertTrans_HbEAgLowVL_NoIntv;
+p_VertTrans_HbEAgLowVL_PAP        = PAP_VL_params.pRatio_VertTrans_HbEAgLowVL_PAP * p_VertTrans_HbEAgLowVL_NoIntv;
+p_VertTrans_HbEAgLowVL_MAP        = PAP_VL_params.pRatio_VertTrans_HbEAgLowVL_MAP * p_VertTrans_HbEAgLowVL_NoIntv;
+p_VertTrans_HbEAgLowVL_CPAD       = PAP_VL_params.pRatio_VertTrans_HbEAgLowVL_CPAD * p_VertTrans_HbEAgLowVL_NoIntv;
+p_VertTrans_HbEAgLowVL_BD_PAP     = PAP_VL_params.pRatio_VertTrans_HbEAgLowVL_BD_PAP * p_VertTrans_HbEAgLowVL_NoIntv;
+p_VertTrans_HbEAgLowVL_MAP_PAP    = PAP_VL_params.pRatio_VertTrans_HbEAgLowVL_MAP_PAP * p_VertTrans_HbEAgLowVL_NoIntv;
+p_VertTrans_HbEAgLowVL_CPAD_PAP   = PAP_VL_params.pRatio_VertTrans_HbEAgLowVL_CPAD_PAP * p_VertTrans_HbEAgLowVL_NoIntv;
+%%p_VertTrans_HbEAgLowVL_Treat      = PAP_VL_params.pRatio_VertTrans_HbEAgLowVL_Treat * p_VertTrans_HbEAgLowVL_NoIntv;
+%%p_VertTrans_HbEAgLowVL_BD_Treat   = PAP_VL_params.pRatio_VertTrans_HbEAgLowVL_BD_Treat * p_VertTrans_HbEAgLowVL_NoIntv;
+%%p_VertTrans_HbEAgLowVL_MAP_Treat  = PAP_VL_params.pRatio_VertTrans_HbEAgLowVL_MAP_Treat * p_VertTrans_HbEAgLowVL_NoIntv;
+%%p_VertTrans_HbEAgLowVL_CPAD_Treat = PAP_VL_params.pRatio_VertTrans_HbEAgLowVL_CPAD_Treat * p_VertTrans_HbEAgLowVL_NoIntv;
+
+
+p_VertTrans_HbEAgHighVL_BD         = PAP_VL_params.pRatio_VertTrans_HbEAgHighVL_BD * p_VertTrans_HbEAgHighVL_NoIntv;
+p_VertTrans_HbEAgHighVL_PAP        = PAP_VL_params.pRatio_VertTrans_HbEAgHighVL_PAP * p_VertTrans_HbEAgHighVL_NoIntv;
+%%p_VertTrans_HbEAgHighVL_Treat      = PAP_VL_params.pRatio_VertTrans_HbEAgHighVL_Treat * p_VertTrans_HbEAgHighVL_NoIntv;
+p_VertTrans_HbEAgHighVL_MAP        = PAP_VL_params.pRatio_VertTrans_HbEAgHighVL_MAP * p_VertTrans_HbEAgHighVL_NoIntv;
+p_VertTrans_HbEAgHighVL_CPAD       = PAP_VL_params.pRatio_VertTrans_HbEAgHighVL_CPAD * p_VertTrans_HbEAgHighVL_NoIntv;
+p_VertTrans_HbEAgHighVL_BD_PAP     = PAP_VL_params.pRatio_VertTrans_HbEAgHighVL_BD_PAP * p_VertTrans_HbEAgHighVL_NoIntv;
+%%p_VertTrans_HbEAgHighVL_BD_Treat   = PAP_VL_params.pRatio_VertTrans_HbEAgHighVL_BD_Treat * p_VertTrans_HbEAgHighVL_NoIntv;
+p_VertTrans_HbEAgHighVL_MAP_PAP    = PAP_VL_params.pRatio_VertTrans_HbEAgHighVL_MAP_PAP * p_VertTrans_HbEAgHighVL_NoIntv;
+%%p_VertTrans_HbEAgHighVL_MAP_Treat  = PAP_VL_params.pRatio_VertTrans_HbEAgHighVL_MAP_Treat * p_VertTrans_HbEAgHighVL_NoIntv;
+p_VertTrans_HbEAgHighVL_CPAD_PAP   = PAP_VL_params.pRatio_VertTrans_HbEAgHighVL_CPAD_PAP * p_VertTrans_HbEAgHighVL_NoIntv;
+%%p_VertTrans_HbEAgHighVL_CPAD_Treat = PAP_VL_params.pRatio_VertTrans_HbEAgHighVL_CPAD_Treat * p_VertTrans_HbEAgHighVL_NoIntv;
+
+%% Treatment:
+%% By default, treatment is only for EAg+ individuals:
+p_VertTrans_HbEAg_Treat      = PAP_VL_params.pRatio_VertTrans_Treat * params.p_VerticalTransmission_HbEAg_NoIntv;
+p_VertTrans_HbEAg_Treat_BD   = PAP_VL_params.pRatio_VertTrans_Treat_BD * params.p_VerticalTransmission_HbEAg_NoIntv;
+p_VertTrans_HbEAg_Treat_MAP  = PAP_VL_params.pRatio_VertTrans_Treat_MAP * params.p_VerticalTransmission_HbEAg_NoIntv;
+p_VertTrans_HbEAg_Treat_CPAD = PAP_VL_params.pRatio_VertTrans_Treat_CPAD * params.p_VerticalTransmission_HbEAg_NoIntv;
+
+%% Allow treatment for EAg- SAg+ individuals if needed (not currently used):
+%%p_VertTrans_HbSAg_Treat      = PAP_VL_params.pRatio_VertTrans_Treat * params.p_VerticalTransmission_HbSAg_NoIntv;
+%%p_VertTrans_HbSAg_Treat_BD   = PAP_VL_params.pRatio_VertTrans_Treat_BD * params.p_VerticalTransmission_HbSAg_NoIntv;
+%%p_VertTrans_HbSAg_Treat_MAP  = PAP_VL_params.pRatio_VertTrans_Treat_MAP * params.p_VerticalTransmission_HbSAg_NoIntv;
+%%p_VertTrans_HbSAg_Treat_CPAD = PAP_VL_params.pRatio_VertTrans_Treat_CPAD * params.p_VerticalTransmission_HbSAg_NoIntv;
+
+
+% Check that all the the PAP VL parameters lie in expected ranges:
+p_ratioSAg_HVL_LVL_noint = p_VertTrans_HbSAgHighVL_NoIntv/p_VertTrans_HbSAgLowVL_NoIntv;
+p_ratioEAg_HVL_LVL_noint = p_VertTrans_HbEAgHighVL_NoIntv/p_VertTrans_HbEAgLowVL_NoIntv;
+assert(p_ratioSAg_HVL_LVL_noint>=1.0)
+assert(p_ratioEAg_HVL_LVL_noint>=1.0)
+Snames_PAP_VL_params = fieldnames(PAP_VL_params);
+% Many of these are probability ratios, but we expect them to be <=1 (because they relate to interventions that reduce transmission):
+%%for i = [1, 2, 5:numel(Snames_PAP_VL_params)]
+for i = 1:numel(Snames_PAP_VL_params)
+    mustBeBetween(PAP_VL_params.(Snames_PAP_VL_params{i}),0,1)
+end
+    
+%   Within each e/vl cat, confirm appropriate ordering
+assert(safe_greater_or_equal_to(p_VertTrans_HbSAgLowVL_NoIntv,  p_VertTrans_HbSAgLowVL_BD))
+assert(safe_greater_or_equal_to(p_VertTrans_HbSAgLowVL_NoIntv,  p_VertTrans_HbSAgLowVL_PAP))
+assert(safe_greater_or_equal_to(p_VertTrans_HbSAgLowVL_BD,      p_VertTrans_HbSAgLowVL_BD_PAP))
+assert(safe_greater_or_equal_to(p_VertTrans_HbSAgHighVL_NoIntv, p_VertTrans_HbSAgHighVL_BD))
+assert(safe_greater_or_equal_to(p_VertTrans_HbSAgHighVL_NoIntv, p_VertTrans_HbSAgHighVL_PAP))
+assert(safe_greater_or_equal_to(p_VertTrans_HbSAgHighVL_BD,     p_VertTrans_HbSAgHighVL_BD_PAP))
+assert(safe_greater_or_equal_to(p_VertTrans_HbEAgLowVL_NoIntv,  p_VertTrans_HbEAgLowVL_BD))
+assert(safe_greater_or_equal_to(p_VertTrans_HbEAgLowVL_NoIntv,  p_VertTrans_HbEAgLowVL_PAP))
+assert(safe_greater_or_equal_to(p_VertTrans_HbEAgLowVL_BD,      p_VertTrans_HbEAgLowVL_BD_PAP))
+assert(safe_greater_or_equal_to(p_VertTrans_HbEAgHighVL_NoIntv, p_VertTrans_HbEAgHighVL_BD))
+assert(safe_greater_or_equal_to(p_VertTrans_HbEAgHighVL_NoIntv, p_VertTrans_HbEAgHighVL_PAP))
+assert(safe_greater_or_equal_to(p_VertTrans_HbEAgHighVL_BD,     p_VertTrans_HbEAgHighVL_BD_PAP))
+    
+%   That the high VL cat is always more transmissive than the low VL cat
+assert(safe_greater_or_equal_to(p_VertTrans_HbSAgHighVL_NoIntv, p_VertTrans_HbSAgLowVL_NoIntv))
+assert(safe_greater_or_equal_to(p_VertTrans_HbEAgHighVL_NoIntv, p_VertTrans_HbEAgLowVL_NoIntv))
+assert(safe_greater_or_equal_to(p_VertTrans_HbSAgHighVL_BD,     p_VertTrans_HbSAgLowVL_BD))
+assert(safe_greater_or_equal_to(p_VertTrans_HbEAgHighVL_BD,     p_VertTrans_HbEAgLowVL_BD))
+assert(safe_greater_or_equal_to(p_VertTrans_HbSAgHighVL_BD_PAP, p_VertTrans_HbSAgLowVL_BD_PAP))
+assert(safe_greater_or_equal_to(p_VertTrans_HbEAgHighVL_BD_PAP, p_VertTrans_HbEAgLowVL_BD_PAP))
+assert(safe_greater_or_equal_to(p_VertTrans_HbSAgHighVL_PAP,    p_VertTrans_HbSAgLowVL_PAP))
+assert(safe_greater_or_equal_to(p_VertTrans_HbEAgHighVL_PAP,    p_VertTrans_HbEAgLowVL_PAP))
+
+%   That the 'e cat' is always the same or more transmissive the the s cat
+assert(safe_greater_or_equal_to(p_VertTrans_HbEAgHighVL_NoIntv, p_VertTrans_HbSAgHighVL_NoIntv))
+assert(safe_greater_or_equal_to(p_VertTrans_HbEAgLowVL_NoIntv,  p_VertTrans_HbSAgLowVL_NoIntv))
+assert(safe_greater_or_equal_to(p_VertTrans_HbEAgHighVL_BD,     p_VertTrans_HbSAgHighVL_BD))
+assert(safe_greater_or_equal_to(p_VertTrans_HbEAgLowVL_BD,      p_VertTrans_HbSAgLowVL_BD))
+assert(safe_greater_or_equal_to(p_VertTrans_HbEAgHighVL_BD_PAP, p_VertTrans_HbSAgHighVL_BD_PAP))
+assert(safe_greater_or_equal_to(p_VertTrans_HbEAgLowVL_BD_PAP,  p_VertTrans_HbSAgLowVL_BD_PAP)  )  
+assert(safe_greater_or_equal_to(p_VertTrans_HbEAgHighVL_PAP,    p_VertTrans_HbSAgHighVL_PAP))
+assert(safe_greater_or_equal_to(p_VertTrans_HbEAgLowVL_PAP,     p_VertTrans_HbSAgLowVL_PAP))
+%% End of checks.
+% ------------------------------------------------------------------------
+
+
+
+    %% MP: PAP coverage is now done on a scenario-by-scenario basis in country_level_analyses.m
+    % %% If no PAP, then set these to zero:
+    %% TAM delete me.
+    %% Now replaced with e.g. PAP_cov_params.scenario_PAPcoverage_BDandPAP_EAgHighVL
+    % % Coverage of PAP among those with BD
+    % [cov_BirthDoseAndTDF_EAgHighVL_itt, ...
+    %     cov_BirthDoseAndTDF_EAgLowVL_itt, ...
+    %     cov_BirthDoseAndTDF_SAgHighVL_itt, ...
+    %     cov_BirthDoseAndTDF_SAgLowVL_itt] = ...
+    %     deal(zeros(size(TimeSteps)));
+
+    %% TAM - delete me.
+    % % Coverage of PAP among those not with BD
+    %% Now e.g. PAP_cov_params.scenario_PAPcoverage_PAPonly_EAgHighVL
+    % [cov_TDFOnly_EAgHighVL_itt, ...
+    %     cov_TDFOnly_EAgLowVL_itt, ...
+    %     cov_TDFOnly_SAgHighVL_itt, ...
+    %     cov_TDFOnly_SAgLowVL_itt] = ...
+    %     deal(zeros(size(TimeSteps)));
+
+
+%% MP: This is a little bit spaghetti code.
+%% MP: Note - this deal(0) line is actually necessary. 
+%% This code chunk initialises these variables to be zero.
+%% These are then stored, and then finally updated for the next step.
+%% This isn't ideal - not sure if there is an underlying logic making this order necessary 
+%% but it means we are storing the previous timestep's value at each timestep.
+[births_toHbEAgWomenHighVL, births_toHbEAgWomenLowVL, births_toHbSAgWomenHighVL, ...
+    births_toHbSAgWomenLowVL, births_Total, ...
+    babiesChronic_from_HbEAgWomenHighVL, babiesChronic_from_HbEAgWomenLowVL, ...
+    babiesChronic_from_HbSAgWomenHighVL, babiesChronic_from_HbSAgWomenLowVL,...
+    ratebirthdoses, pregnantWomenNeedToScreen,...
+    num_mothers_PAP_HbEAg_HighVL, num_mothers_PAP_HbEAg_LowVL, num_mothers_PAP_HbSAg_HighVL, num_mothers_PAP_HbSAg_LowVL,...
+    RateOfPAPInitiation, HBVPositivePregnantWomenAtANC] = deal(0);
+
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% TAM: End of PAP chunk 1
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
 
@@ -224,14 +468,24 @@ assert(isequal(size(Prog),size(zeros(num_disease_states, num_disease_states))));
 % prepare storage containers, for outputs once per year
 % breakdowns by age/sex
 
+%% TAM: mini-chunk
+[NumSAg_5yr, PrevEAg_of_SAg_5yr] = deal(-99 * ones(2, max(agegroups_5yr), num_years_simul)); 
+
+Incid_chronic_all_5yr_approx = zeros(2, max(agegroups_5yr), num_years_simul);
+%% end of mini-chunk
 
 [...
-    Tot_Pop_1yr, Prev_Immune_Reactive_1yr, Prev_Chronic_Hep_B_1yr, Prev_Comp_Cirr_1yr, Prev_Decomp_Cirr_1yr, Prev_TDF_treat_1yr, NumSAg_1yr, NumSAg_chronic_1yr, yld_1yr, Prev_Deaths_1yr...
+    Tot_Pop_1yr, Prev_Immune_Reactive_1yr, Prev_Chronic_Hep_B_1yr, Prev_Comp_Cirr_1yr, Prev_Decomp_Cirr_1yr, ...
+    Prev_Liver_Cancer_1yr, Prev_TDF_treat_1yr, NumSAg_1yr, NumSAg_chronic_1yr, yld_1yr, Prev_Deaths_1yr...
     ] = deal(DUMMY_VALUE * ones(num_sexes, max(agegroups_1yr), num_years_simul + 1));
 [...
     Incid_chronic_all_1yr_approx,...
     Incid_Deaths_1yr_approx...
     ] = deal(DUMMY_VALUE * ones(num_sexes, max(agegroups_1yr), num_years_simul + 1));
+
+[Prev_HCC_1yr,  NumEAg_chronic_1yr, NumEAg_chronic_acute_1yr] ...
+    = deal(DUMMY_VALUE * ones(num_sexes, max(agegroups_1yr), num_years_simul + 1));
+
 
 %% MP: used as a store 
 if(store_results_as_text==1)
@@ -239,14 +493,33 @@ if(store_results_as_text==1)
     X_to_print = DUMMY_VALUE * ones(max(agegroups_5yr)*ncol_X_to_print, num_years_simul + 1);
 end
 
+%% Mini TAM: 
+%% Get HepB3:
+%% Infection stage susceptible (so x1), Age gp - age 6m (so x1), by sex (so x2) and by whether treatment accessible (so x2):
+transfer_to_vacc = zeros(1, 1, 2, 2);
+
+
 %% MP: Magic number 1 is because arrays NewChronicCarriage, moving_btw_states should have same number of dimensions as X()
 %% but the first index is single (because not indexing over natural history states).
 [...
     NewChronicCarriage, moving_btw_states, ...
     ] = deal(zeros(1, num_age_steps, num_sexes, num_treat_blocks));
 
+
+
 % single output per year
-[Time, num_births_1yr] = deal(DUMMY_VALUE * ones(1, num_years_simul + 1));
+%% TAM: extra PAP-model-specific outputs included here:
+[Time, RateInfantVacc, RateBirthDoseVacc, RatePeripartumTreatment, ...
+    num_births_1yr, NumDecompCirr, NumLiverCancer, ...
+    PregnantWomenNeedToScreen, HBVPregnantWomenNeedToEvaluate] = deal(DUMMY_VALUE * ones(1, num_years_simul + 1));
+ 
+[num_births_toHbEAgWomenHVL_1yr_approx, num_births_toHbEAgWomenLVL_1yr_approx, num_births_toHbSAgWomenHVL_1yr_approx, num_births_toHbSAgWomenLVL_1yr_approx, ... 
+    num_births_1yr_approx, ...
+    num_births_chronic_HbEAgWomenHVL_1yr_approx, num_births_chronic_HbEAgWomenLVL_1yr_approx, num_births_chronic_HbSAgWomenHVL_1yr_approx, num_births_chronic_HbSAgWomenLVL_1yr_approx, ... 
+    Incid_babies_chronic_1yr_approx, ...
+    PeripartumTreatment_HbEAg_HighVL_approx, PeripartumTreatment_HbEAg_LowVL_approx, PeripartumTreatment_HbSAg_HighVL_approx, PeripartumTreatment_HbSAg_LowVL_approx...
+    ] = deal(-99 * ones(1, num_years_simul));
+
 
 % ----- Simulation -----
 
@@ -255,6 +528,11 @@ OutputEventNum = 1; % OutputEventNum increase every year; goes from 1 to 212
 moving_to_treatment = zeros(size(X));
 initiated_treatment = false;
 num_babies = 0;
+
+%% MP: This is a little bit spaghetti code.
+%% Note that female_multiplier and male_multiplier are both updated later on. They depend on 
+%% sex_ratio which is defined below. It would make more sense to initialise them straight after
+%% sex_ratio is initialised.
 babies_ChronicCarriage = 0;
 female_multiplier = 0;
 male_multiplier = 0;
@@ -326,10 +604,145 @@ for time = TimeSteps
             % MontaguPopExpand is sizes of the current year's population over 0.1 year age steps; a 1000 x 2 matrix of ages versus gender
             % add an extra dimension and duplicate it for each disease state and treatment method
             X = X .* pop_scaler;
+            if(time==2020 ||time==2025)
+            %disp([min(ScalerMat),max(ScalerMat)])
+                disp(ScalerMat)
+            end
             % scale all parts of X, including dead people i.e. State i_HBVdeath=11
         end
 
 
+        
+
+
+        for k = 1:num_sexes % genders
+
+            for ag = 1:max(agegroups_1yr) % 1:100
+ 
+                if OutputEventNum > 1
+                
+                    %% MP: Magic numbers: sum over second (age) and 4th (treatment states):
+                    state_prev_vec = squeeze(sum(sum(X(:, agegroups_1yr == ag, k, :), 2), 4)); % k is gender
+                    assert(isequal(size(state_prev_vec),[num_disease_states 1]))
+
+                    Tot_Pop_1yr(k, ag, OutputEventNum-1) = sum(state_prev_vec(i_alive));
+                
+                    Prev_Immune_Reactive_1yr(k, ag, OutputEventNum-1) = state_prev_vec(i_ImmReact);
+                
+                    Prev_Chronic_Hep_B_1yr(k, ag, OutputEventNum-1) = state_prev_vec(i_Chronic);
+
+                    Prev_Comp_Cirr_1yr(k, ag, OutputEventNum-1) = state_prev_vec(i_CompCirr);
+
+                    Prev_Decomp_Cirr_1yr(k, ag, OutputEventNum-1) = state_prev_vec(i_DecompCirr);
+
+                    Prev_Liver_Cancer_1yr(k, ag, OutputEventNum-1) = state_prev_vec(i_HCC);
+                
+                    Prev_TDF_treat_1yr(k, ag, OutputEventNum-1) = state_prev_vec(i_TDFtreat);
+
+                    %% MP TODO: Maybe remove this as the HBV deaths compartment has the same "edge of cliff" thing
+                    %% where people aged 99 drop off the model once they turn 100 (so anyone who died age 99 is no longer counted).
+                    %% Also HBV deaths is rescaled by ScalerMat, which is a bit funky in the older age groups.
+                    %% It might be possible to patch it a bit (say truncate at age 95 to reduce the ScalerMat issue, then cumulatively count deaths
+                    %% adding the new 95 yo dead people to an existing cumulative counter of people who are dead who would be 95+ now).
+                    Prev_Deaths_1yr(k, ag, OutputEventNum-1) = state_prev_vec(i_HBVdeath);
+
+                    NumSAg_1yr(k, ag, OutputEventNum-1) = sum(state_prev_vec([i_sAgpos]));
+                
+                    NumSAg_chronic_1yr(k, ag, OutputEventNum-1) = sum(state_prev_vec([i_sAgpos_chronic]));
+
+                    yld_1yr(k, ag, OutputEventNum-1) = sum( state_prev_vec .* params.dwvec' );
+
+                    %% MP: Magic numbers: sum over second (age) and 4th (treatment states):
+                    Incid_chronic_all_1yr_approx(k,ag,OutputEventNum-1) = sum(sum(NewChronicCarriage(1, agegroups_1yr == ag, k, :), 2), 4);
+
+                    Incid_Deaths_1yr_approx(k, ag, OutputEventNum-1) = sum(state_prev_vec .* Prog(:, i_HBVdeath));
+
+
+                    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                    %% TAM: PAP mini-chunk 1
+                    Prev_HCC_1yr(k, ag, OutputEventNum-1) = state_prev_vec(i_HCC);
+                    NumEAg_chronic_1yr(k, ag, OutputEventNum-1) = sum(state_prev_vec(i_eAgpos_chronic));
+                    NumEAg_chronic_acute_1yr(k, ag, OutputEventNum-1) = sum(state_prev_vec(i_eAgpos));
+                    %% TAM: End of PAP mini-chunk 1
+                    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                end
+                
+            end % end agegroups_1yr for loop
+				
+            if (OutputEventNum > 1)
+
+                %% MP: Magic number: the second index "1" represents the age group (0-year-olds)
+                assert(Incid_chronic_all_1yr_approx(k, 1, OutputEventNum-1)==0) % 0-year-olds cannot get horizontal chronic infection (see FOI)							
+                Incid_chronic_all_1yr_approx(i_female, 1, OutputEventNum-1) = female_multiplier * babies_ChronicCarriage;
+                Incid_chronic_all_1yr_approx(i_male, 1, OutputEventNum-1) = male_multiplier * babies_ChronicCarriage;
+
+            end
+            
+
+            for ag = 1:max(agegroups_5yr) % 1:20
+														
+                if OutputEventNum > 1
+                    % model results assigned to a particular year at the beginning of that year, after which they are zeroed
+                    NumSAg_5yr(k, ag, OutputEventNum-1) = sum(sum(sum(X([i_sAgpos], agegroups_5yr == ag, k, :))));
+                
+                    if NumSAg_5yr(k, ag, OutputEventNum-1)>0
+                        PrevEAg_of_SAg_5yr(k,ag,OutputEventNum-1) = sum(sum(sum(X(2:3, agegroups_5yr == ag, k, :)))) / NumSAg_5yr(k, ag, OutputEventNum-1);
+                        % Note that this is prevalence of e+ among s+
+                    else
+                        assert(NumSAg_5yr(k, ag, OutputEventNum-1)==0)
+                        assert(sum(sum(sum(X(i_eAgpos_chronic, agegroups_5yr == ag, k, :))))==0)
+                        PrevEAg_of_SAg_5yr(k,ag,OutputEventNum-1) = 0;
+                    end
+
+                    Incid_chronic_all_5yr_approx(k, ag, OutputEventNum-1) = sum(sum(NewChronicCarriage(1, agegroups_5yr == ag, k, :), 2), 4);
+
+                end
+            end
+
+            if OutputEventNum > 1
+                %% The second index in Incid_chronic_all_5yr_approx() is the age group (age 0-4).
+                %% BUG: need to include incidence through child-child transmission:
+                %% ORIGINAL CODE:
+                %%Incid_chronic_all_5yr_approx(i_female, 1, OutputEventNum-1) = female_multiplier * babies_ChronicCarriage;
+                %%Incid_chronic_all_5yr_approx(i_male, 1, OutputEventNum-1) = male_multiplier * babies_ChronicCarriage;
+                %% FIXED CODE:
+                Incid_chronic_all_5yr_approx(i_female, 1, OutputEventNum-1) = Incid_chronic_all_5yr_approx(i_female, 1, OutputEventNum-1) + female_multiplier * babies_ChronicCarriage;
+                Incid_chronic_all_5yr_approx(i_male, 1, OutputEventNum-1) = Incid_chronic_all_5yr_approx(i_male, 1, OutputEventNum-1) + male_multiplier * babies_ChronicCarriage;
+            end
+             
+        end % end genders for loop
+
+
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %% TAM: PAP mini-chunk 2
+        if OutputEventNum > 1
+            %% Sum over all dimensions (2,3,4) except natural history:
+            state_prev_vec = squeeze(sum(sum(sum(X,2),3),4)); % 15 x 1
+
+            NumDecompCirr(OutputEventNum-1) = state_prev_vec(i_DecompCirr);
+            NumLiverCancer(OutputEventNum-1) = state_prev_vec(i_HCC);
+            num_births_toHbEAgWomenHVL_1yr_approx(OutputEventNum-1) = births_toHbEAgWomenHighVL;
+            num_births_toHbEAgWomenLVL_1yr_approx(OutputEventNum-1) = births_toHbEAgWomenLowVL;
+            num_births_toHbSAgWomenHVL_1yr_approx(OutputEventNum-1) = births_toHbSAgWomenHighVL;
+            num_births_toHbSAgWomenLVL_1yr_approx(OutputEventNum-1) = births_toHbSAgWomenLowVL;
+            num_births_1yr_approx(OutputEventNum-1) = births_Total;
+            num_births_chronic_HbEAgWomenHVL_1yr_approx(OutputEventNum-1) = babiesChronic_from_HbEAgWomenHighVL;
+            num_births_chronic_HbEAgWomenLVL_1yr_approx(OutputEventNum-1) = babiesChronic_from_HbEAgWomenLowVL;
+            num_births_chronic_HbSAgWomenHVL_1yr_approx(OutputEventNum-1) = babiesChronic_from_HbSAgWomenHighVL;
+            num_births_chronic_HbSAgWomenLVL_1yr_approx(OutputEventNum-1) = babiesChronic_from_HbSAgWomenLowVL;
+            Incid_babies_chronic_1yr_approx(OutputEventNum-1) = babies_ChronicCarriage;
+            RateBirthDoseVacc(OutputEventNum-1) = ratebirthdoses;
+            RateInfantVacc(OutputEventNum-1) = squeeze(sum(sum(transfer_to_vacc,3),4)) * num_year_divisions;
+            PregnantWomenNeedToScreen(OutputEventNum-1) = pregnantWomenNeedToScreen;
+            PeripartumTreatment_HbEAg_HighVL_approx(OutputEventNum-1) = num_mothers_PAP_HbEAg_HighVL;
+            PeripartumTreatment_HbEAg_LowVL_approx(OutputEventNum-1) = num_mothers_PAP_HbEAg_LowVL;
+            PeripartumTreatment_HbSAg_HighVL_approx(OutputEventNum-1) = num_mothers_PAP_HbSAg_HighVL;
+            PeripartumTreatment_HbSAg_LowVL_approx(OutputEventNum-1) = num_mothers_PAP_HbSAg_LowVL;
+            RatePeripartumTreatment(OutputEventNum-1) = RateOfPAPInitiation;
+            HBVPregnantWomenNeedToEvaluate(OutputEventNum-1) = HBVPositivePregnantWomenAtANC;
+        end
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        
         % MP: Use this to create a text file of all states (but summed into
         % 5 yr age groups to make it tractable).
         % Create a 4D array of size num_disease_states *  20 (5yr age gps
@@ -350,61 +763,6 @@ for time = TimeSteps
             end
 
         end
-        
-
-
-        for k = 1:num_sexes % genders
-
-            
-            for ag = 1:max(agegroups_1yr) % 1:100
- 
-                if OutputEventNum > 1
-                
-                    %% MP: Magic numbers: sum over second (age) and 4th (treatment states):
-                    state_prev_vec = squeeze(sum(sum(X(:, agegroups_1yr == ag, k, :), 2), 4)); % k is gender
-                    assert(isequal(size(state_prev_vec),[num_disease_states 1]))
-
-                    Tot_Pop_1yr(k, ag, OutputEventNum-1) = sum(state_prev_vec(i_alive));
-                
-                    Prev_Immune_Reactive_1yr(k, ag, OutputEventNum-1) = state_prev_vec(i_ImmReact);
-                
-                    Prev_Chronic_Hep_B_1yr(k, ag, OutputEventNum-1) = state_prev_vec(i_Chronic);
-
-                    Prev_Comp_Cirr_1yr(k, ag, OutputEventNum-1) = state_prev_vec(i_CompCirr);
-
-                    Prev_Decomp_Cirr_1yr(k, ag, OutputEventNum-1) = state_prev_vec(i_DecompCirr);
-                
-                    Prev_TDF_treat_1yr(k, ag, OutputEventNum-1) = state_prev_vec(i_TDFtreat);
-
-                    Prev_Deaths_1yr(k, ag, OutputEventNum-1) = state_prev_vec(i_HBVdeath);
-
-                    NumSAg_1yr(k, ag, OutputEventNum-1) = sum(state_prev_vec([2:8 10 12:15]));
-                
-                    NumSAg_chronic_1yr(k, ag, OutputEventNum-1) = sum(state_prev_vec([2:8 10 12:13]));
-
-                    yld_1yr(k, ag, OutputEventNum-1) = sum( state_prev_vec .* params.dwvec' );
-
-                    %% MP: Magic numbers: sum over second (age) and 4th (treatment states):
-                    Incid_chronic_all_1yr_approx(k,ag,OutputEventNum-1) = sum(sum(NewChronicCarriage(1, agegroups_1yr == ag, k, :), 2), 4);
-                
-                    Incid_Deaths_1yr_approx(k, ag, OutputEventNum-1) = sum(state_prev_vec .* Prog(:, i_HBVdeath));
-
-                    
-                end
-                
-            end % end agegroups_1yr for loop
-				
-            if (OutputEventNum > 1)
-
-                %% MP: Magic number: the second index "1" represents the age group (0-year-olds)
-                assert(Incid_chronic_all_1yr_approx(k, 1, OutputEventNum-1)==0) % 0-year-olds cannot get horizontal chronic infection (see FOI)							
-                Incid_chronic_all_1yr_approx(i_female, 1, OutputEventNum-1) = female_multiplier * babies_ChronicCarriage;
-                Incid_chronic_all_1yr_approx(i_male, 1, OutputEventNum-1) = male_multiplier * babies_ChronicCarriage;
-
-            end
-                
-             
-        end % end genders for loop
 
         %if((OutputEventNum>115 && OutputEventNum<120) || OutputEventNum==160) 
             %%fprintf("AYear %5d Time %5d X%10.8f D2 %10.8f age2 %10.8f age3 %10.8f M%10.8f Treat%10.8f Pop %12.6f\n",1889+OutputEventNum, time, sum(X(1, agegroups_5yr == 1, 1, 1)), sum(X(2, agegroups_5yr == 1, 1, 1)), sum(X(1, agegroups_5yr == 2, 1, 1)), sum(X(1, agegroups_5yr == 3, 1, 1)), sum(X(1, agegroups_5yr == 1, 2, 1)), sum(X(1, agegroups_5yr == 1, 1, 2)), sum(sum(sum(sum(X(i_alive, :, :, :), 2), 4),1),3));
@@ -414,6 +772,7 @@ for time = TimeSteps
             %disp([1889+OutputEventNum, sum(sum(sum(sum(X(i_alive, :, :, :), 2), 4),1),3)])
         %end
 
+        %%disp([1889+OutputEventNum, sum(sum(sum(sum(X(i_HBVdeath, :, :, :), 2), 4),1),3)])
 
         if OutputEventNum > 1
             
@@ -440,17 +799,17 @@ for time = TimeSteps
     n_pop_5y_andabove = sum(sum(sum(sum(X(i_alive, i5y:end, :, :)))));
     % i: Transmission Between 1y-5y olds
     FOI(1, i1y:(i5y - 1), :, :) = ...
-        beta_U5_SAg(i_dt) * sum(sum(sum(sum(X(i_sAgpos, i1y:(i5y - 1), :, :))))) / n_child_1y_5y ...
+        beta_U5_SAg(i_dt) * sum(sum(sum(sum(X(i_sAgpos_notEagpos, i1y:(i5y - 1), :, :))))) / n_child_1y_5y ...
         + beta_U5_EAg(i_dt) * sum(sum(sum(sum(X(i_eAgpos, i1y:(i5y - 1), :, :))))) / n_child_1y_5y;
     
     % ii: Transmission between 1-15 year olds
     FOI(1, i1y:(i15y - 1), :, :) = FOI(1, i1y:(i15y - 1), :, :) + ...
-        beta_1to15_SAg(i_dt) * sum(sum(sum(sum(X(i_sAgpos, i1y:(i15y - 1), :, :))))) / n_child_1y_15y ...
+        beta_1to15_SAg(i_dt) * sum(sum(sum(sum(X(i_sAgpos_notEagpos, i1y:(i15y - 1), :, :))))) / n_child_1y_15y ...
         + beta_1to15_EAg(i_dt) * sum(sum(sum(sum(X(i_eAgpos, i1y:(i15y - 1), :, :))))) / n_child_1y_15y;
     
     % iii: Transmission Between 5+ and Adults (Assuming equal risks for all persons 5y-100y)
     FOI(1, i5y:end, :, :) = FOI(1, i5y:end, :, :) + ...
-        beta_5plus_SAg(i_dt) * sum(sum(sum(sum(X(i_sAgpos, i5y:end, :, :))))) / n_pop_5y_andabove ...
+        beta_5plus_SAg(i_dt) * sum(sum(sum(sum(X(i_sAgpos_notEagpos, i5y:end, :, :))))) / n_pop_5y_andabove ...
         + beta_5plus_EAg(i_dt) * sum(sum(sum(sum(X(i_eAgpos, i5y:end, :, :))))) / n_pop_5y_andabove;
     
     
@@ -469,7 +828,7 @@ for time = TimeSteps
     %% SERNIK
     %%if (time >= birth_cohort_testing_start && time <= birth_cohort_testing_end)
         
-       
+
     % (Time-dependent) Baseline Transition to TDF-Treatment
     assert(squeeze(sum(sum(sum(sum(X([i_3TCtreat i_3TCfailed], :, :, 1),1),2),3),4))==0)
     % (Time-dependent) Baseline Transition to TDF-Treatment
@@ -493,7 +852,7 @@ for time = TimeSteps
         if ~initiated_treatment
             num_in_treatment = sum(sum(sum(sum(X(i_TDFtreat, :, :, :),1),2),3),4);
             assert(num_in_treatment==0) % no one is in treatment
-            prev_pop = sum(sum(sum(sum(X([2:8 10 12:15], :, :, :),1),2),3),4); 
+            prev_pop = sum(sum(sum(sum(X([i_sAgpos], :, :, :),1),2),3),4); 
 
             total_num_to_move_to_treat = treat_coverage_in_2016 * prev_pop;
             eligible_pop = sum(sum(sum(sum(X(i_treateligible, :, :, :),1),2),3),4); 
@@ -571,39 +930,219 @@ for time = TimeSteps
     X(:, 1, :, :) = 0; % set number of new babies (the age index "1") to 0 (babies will be born next)
     
     
+
+    %% KAWA/TAM 2:
     % fill-out with new births in this time-step:
     %% MP: Magic numbers 1 and 4 mean sum over the listed natural history states and treatment states
     births_toNonInfectiousWomen = sum( fert' .* sum(sum(X([i_Susc i_Immune], :, i_female, :), 1), 4) ); % Susecptible, Immune
-    births_toHbEAgWomen = sum(fert' .* sum(sum(X(i_eAgpos, :, i_female, :), 1), 4)); % Immune Tolerant, Immune Reactive
-    births_toHbSAgWomen = sum(fert' .* sum(sum(X(i_sAgpos, :, i_female, :), 1), 4)); % All other stages (other infected women)
+    %%births_toHbEAgWomen = sum(fert' .* sum(sum(X(i_eAgpos, :, i_female, :), 1), 4)); % Immune Tolerant, Immune Reactive
+    %%births_toHbSAgWomen = sum(fert' .* sum(sum(X(i_sAgpos_notEagpos, :, i_female, :), 1), 4)); % All other stages (other infected women)
+    
+    %% In the PAP model these are incorporated in births_toNonInfectiousWomen. 
+    %% As treatment will reduce VL we don't bother stratifying by high/low VL here:
     births_toTrWomen = sum(fert' .* sum(sum(X([i_TDFtreat i_3TCtreat], :, i_female, :), 1), 4)); % Women on Treatment
     
-    
-    births_Total = births_toNonInfectiousWomen + births_toHbEAgWomen + births_toHbSAgWomen + births_toTrWomen;
+    births_toHbEAgWomenHighVL = PAP_VL_params.FracEPosHighVL    * sum(fert' .* sum(sum(X(i_eAgpos, :, i_female, :), 1), 4)); %Immune Tolerant, Immune Reactive, Acute
+    births_toHbEAgWomenLowVL = (1-PAP_VL_params.FracEPosHighVL) * sum(fert' .* sum(sum(X(i_eAgpos, :, i_female, :), 1), 4)); %Immune Tolerant, Immune Reactive, Acute
+    births_toHbSAgWomenHighVL = PAP_VL_params.FracSPosHighVL    * sum(fert' .* sum(sum(X(i_sAgpos_notEagpos, :, i_female, :), 1), 4)); %All other stages (other infected women not on treatment)
+    births_toHbSAgWomenLowVL = (1-PAP_VL_params.FracSPosHighVL) * sum(fert' .* sum(sum(X(i_sAgpos_notEagpos, :, i_female, :), 1), 4)); %All other stages (other infected women not on treatment)
+    births_Total = births_toNonInfectiousWomen + births_toTrWomen + births_toHbEAgWomenHighVL + ...
+        births_toHbEAgWomenLowVL + births_toHbSAgWomenHighVL + births_toHbSAgWomenLowVL;
     assert(isscalar(births_Total))
+    
+    %%births_Total = births_toNonInfectiousWomen + births_toHbEAgWomen + births_toHbSAgWomen + births_toTrWomen;
+    
     num_babies = num_babies + dt * births_Total;
     
 
 
 
-    babies_ChronicCarriage = p_ChronicCarriage(1, 1, 1, 1) * ( ... % a 1 x 1 double
-        ...
-        births_toHbSAgWomen * (1 - scenario_BDcoverage(i_dt) - scenario_BDcoverage_fromMAP_CPAD(i_dt)) * p_VerticalTransmission_HbSAg_NoBD ...
-        + births_toHbSAgWomen * scenario_BDcoverage(i_dt) * p_VerticalTransmission_HbSAg_BirthDoseVacc ...
-        + births_toHbSAgWomen * scenario_BDcoverage_fromMAP_CPAD(i_dt) * p_VerticalTransmission_HbSAg_BirthDose_MAP_CPAD ...
-        ...
-        + births_toHbEAgWomen * (1 - scenario_BDcoverage(i_dt)) * p_VerticalTransmission_HbEAg_NoBD ...
-        + births_toHbEAgWomen * scenario_BDcoverage(i_dt) * p_VerticalTransmission_HbEAg_BirthDoseVacc ...
-        + births_toHbEAgWomen * scenario_BDcoverage_fromMAP_CPAD(i_dt) * p_VerticalTransmission_HbEAg_BirthDose_MAP_CPAD ...
-        ...
-        + births_toTrWomen * (1 - scenario_BDcoverage(i_dt)) * p_VerticalTransmission_Tr_NoBD ...
-        + births_toTrWomen * scenario_BDcoverage(i_dt) * p_VerticalTransmission_Tr_BirthDoseVacc ...
-        + births_toTrWomen * scenario_BDcoverage_fromMAP_CPAD(i_dt) * p_VerticalTransmission_Tr_BirthDose_MAP_CPAD ...
-        );
+    % babies_ChronicCarriage = p_ChronicCarriage(1, 1, 1, 1) * ( ... % a 1 x 1 double
+    %     ...
+    %     births_toHbSAgWomen * (1 - scenario_BDcoverage(i_dt) - scenario_BDcoverage_fromMAP_CPAD(i_dt))...
+    %     * p_VerticalTransmission_HbSAg_NoBD ...
+    %     + births_toHbSAgWomen * scenario_BDcoverage(i_dt) * p_VerticalTransmission_HbSAg_BirthDoseVacc ...
+    %     + births_toHbSAgWomen * scenario_BDcoverage_fromMAP_CPAD(i_dt) * p_VerticalTransmission_HbSAg_BirthDose_MAP_CPAD ...
+    %     ...
+    %     + births_toHbEAgWomen * (1 - scenario_BDcoverage(i_dt)) * p_VerticalTransmission_HbEAg_NoBD ...
+    %     + births_toHbEAgWomen * scenario_BDcoverage(i_dt) * p_VerticalTransmission_HbEAg_BirthDoseVacc ...
+    %     + births_toHbEAgWomen * scenario_BDcoverage_fromMAP_CPAD(i_dt) * p_VerticalTransmission_HbEAg_BirthDose_MAP_CPAD ...
+    %     ...
+    %     + births_toTrWomen * (1 - scenario_BDcoverage(i_dt)) * p_VerticalTransmission_Tr_NoBD ...
+    %     + births_toTrWomen * scenario_BDcoverage(i_dt) * p_VerticalTransmission_Tr_BirthDoseVacc ...
+    %     + births_toTrWomen * scenario_BDcoverage_fromMAP_CPAD(i_dt) * p_VerticalTransmission_Tr_BirthDose_MAP_CPAD ...
+    %     );
+
+
+    %% KAWA:
+    %% Interventions:
+    %% BD (standard BD, MAP or CPAD)
+    %% PAP or treatment (treatment is a separate compartment so dealt with separately).
     
+    prop_no_BD_this_timestep = (1 - scenario_BDcoverage(i_dt) - scenario_BDcoverage_fromMAP(i_dt) - scenario_BDcoverage_fromCPAD(i_dt));
+    
+    %% Number of babies born with chronic Hep B from women EAg+ with high VL (and not on treatment):
+    babiesChronic_from_HbEAgWomenHighVL = p_ChronicCarriage(1, 1, 1, 1) * births_toHbEAgWomenHighVL * ...
+        ( ...
+            prop_no_BD_this_timestep * (1-PAP_cov_params.scenario_PAPcoverage_PAPonly_EAgHighVL(i_dt)) * p_VertTrans_HbEAgHighVL_NoIntv ...
+            + prop_no_BD_this_timestep * PAP_cov_params.scenario_PAPcoverage_PAPonly_EAgHighVL(i_dt) * p_VertTrans_HbEAgHighVL_PAP  ...
+            + scenario_BDcoverage(i_dt) * (1-PAP_cov_params.scenario_PAPcoverage_BDandPAP_EAgHighVL(i_dt)) * p_VertTrans_HbEAgHighVL_BD  ...
+            + scenario_BDcoverage(i_dt) * PAP_cov_params.scenario_PAPcoverage_BDandPAP_EAgHighVL(i_dt) * p_VertTrans_HbEAgHighVL_BD_PAP  ...
+            + scenario_BDcoverage_fromMAP(i_dt) * (1-PAP_cov_params.scenario_PAPcoverage_BDandPAP_EAgHighVL(i_dt)) * p_VertTrans_HbEAgHighVL_MAP  ...
+            + scenario_BDcoverage_fromMAP(i_dt) * PAP_cov_params.scenario_PAPcoverage_BDandPAP_EAgHighVL(i_dt) * p_VertTrans_HbEAgHighVL_MAP_PAP  ...
+            + scenario_BDcoverage_fromCPAD(i_dt) * (1-PAP_cov_params.scenario_PAPcoverage_BDandPAP_EAgHighVL(i_dt)) * p_VertTrans_HbEAgHighVL_CPAD  ...
+            + scenario_BDcoverage_fromCPAD(i_dt) * PAP_cov_params.scenario_PAPcoverage_BDandPAP_EAgHighVL(i_dt) * p_VertTrans_HbEAgHighVL_CPAD_PAP  ...
+        );
+    % HVL HbEAg+ pregnant women who get PAP = (HVL HbEAg+ pregnant women who get PAP and whose babies do not receive BD) + (HVL HbEAg+ pregnant women who get PAP and whose babies receive BD),
+    % where number of births is used to approximate number of mothers (a woman can have twins, which makes number of births not equal to number of mothers)
+    num_mothers_PAP_HbEAg_HighVL = births_toHbEAgWomenHighVL * (prop_no_BD_this_timestep*PAP_cov_params.scenario_PAPcoverage_PAPonly_EAgHighVL(i_dt) ...
+        + (1-prop_no_BD_this_timestep) * PAP_cov_params.scenario_PAPcoverage_BDandPAP_EAgHighVL(i_dt) );
+
+
+    %% Number of babies born with chronic Hep B from women EAg+ with low VL (and not on treatment):
+    babiesChronic_from_HbEAgWomenLowVL = p_ChronicCarriage(1, 1, 1, 1) * births_toHbEAgWomenLowVL * ...
+        ( ...
+            prop_no_BD_this_timestep * (1-PAP_cov_params.scenario_PAPcoverage_PAPonly_EAgLowVL(i_dt)) * p_VertTrans_HbEAgLowVL_NoIntv ...
+            + prop_no_BD_this_timestep * PAP_cov_params.scenario_PAPcoverage_PAPonly_EAgLowVL(i_dt) * p_VertTrans_HbEAgLowVL_PAP  ...
+            + scenario_BDcoverage(i_dt) * (1-PAP_cov_params.scenario_PAPcoverage_BDandPAP_EAgLowVL(i_dt)) * p_VertTrans_HbEAgLowVL_BD  ...
+            + scenario_BDcoverage(i_dt) * PAP_cov_params.scenario_PAPcoverage_BDandPAP_EAgLowVL(i_dt) * p_VertTrans_HbEAgLowVL_BD_PAP  ...
+            + scenario_BDcoverage_fromMAP(i_dt) * (1-PAP_cov_params.scenario_PAPcoverage_BDandPAP_EAgLowVL(i_dt)) * p_VertTrans_HbEAgLowVL_MAP  ...
+            + scenario_BDcoverage_fromMAP(i_dt) * PAP_cov_params.scenario_PAPcoverage_BDandPAP_EAgLowVL(i_dt) * p_VertTrans_HbEAgLowVL_MAP_PAP  ...
+            + scenario_BDcoverage_fromCPAD(i_dt) * (1-PAP_cov_params.scenario_PAPcoverage_BDandPAP_EAgLowVL(i_dt)) * p_VertTrans_HbEAgLowVL_CPAD  ...
+            + scenario_BDcoverage_fromCPAD(i_dt) * PAP_cov_params.scenario_PAPcoverage_BDandPAP_EAgLowVL(i_dt) * p_VertTrans_HbEAgLowVL_CPAD_PAP  ...
+        );
+    % LVL HbEAg+ pregnant women who get PAP = (LVL HbEAg+ pregnant women who get PAP and whose babies do not receive BD) + (LVL HbEAg+ pregnant women who get PAP and whose babies receive BD),
+    % where number of births is used to approximate number of mothers (a woman can have twins, which makes number of births not equal to number of mothers)
+    num_mothers_PAP_HbEAg_LowVL = births_toHbEAgWomenLowVL * (prop_no_BD_this_timestep*PAP_cov_params.scenario_PAPcoverage_PAPonly_EAgLowVL(i_dt) ...
+        + (1-prop_no_BD_this_timestep) * PAP_cov_params.scenario_PAPcoverage_BDandPAP_EAgLowVL(i_dt) );
+
+
+    %%%% CIASTECKO 2
+    %% Number of babies born with chronic Hep B from women SAg+ (EAg-) with high VL (and not on treatment):
+    babiesChronic_from_HbSAgWomenHighVL = p_ChronicCarriage(1, 1, 1, 1) * births_toHbSAgWomenHighVL * ...
+        ( ...
+            prop_no_BD_this_timestep * (1-PAP_cov_params.scenario_PAPcoverage_PAPonly_SAgHighVL(i_dt)) * p_VertTrans_HbSAgHighVL_NoIntv ...
+            + prop_no_BD_this_timestep * PAP_cov_params.scenario_PAPcoverage_PAPonly_SAgHighVL(i_dt) * p_VertTrans_HbSAgHighVL_PAP  ...
+            + scenario_BDcoverage(i_dt) * (1-PAP_cov_params.scenario_PAPcoverage_BDandPAP_SAgHighVL(i_dt)) * p_VertTrans_HbSAgHighVL_BD  ...
+            + scenario_BDcoverage(i_dt) * PAP_cov_params.scenario_PAPcoverage_BDandPAP_SAgHighVL(i_dt) * p_VertTrans_HbSAgHighVL_BD_PAP  ...
+            + scenario_BDcoverage_fromMAP(i_dt) * (1-PAP_cov_params.scenario_PAPcoverage_BDandPAP_SAgHighVL(i_dt)) * p_VertTrans_HbSAgHighVL_MAP  ...
+            + scenario_BDcoverage_fromMAP(i_dt) * PAP_cov_params.scenario_PAPcoverage_BDandPAP_SAgHighVL(i_dt) * p_VertTrans_HbSAgHighVL_MAP_PAP  ...
+            + scenario_BDcoverage_fromCPAD(i_dt) * (1-PAP_cov_params.scenario_PAPcoverage_BDandPAP_SAgHighVL(i_dt)) * p_VertTrans_HbSAgHighVL_CPAD  ...
+            + scenario_BDcoverage_fromCPAD(i_dt) * PAP_cov_params.scenario_PAPcoverage_BDandPAP_SAgHighVL(i_dt) * p_VertTrans_HbSAgHighVL_CPAD_PAP  ...
+        );
+
+    % HVL HbSAg+ pregnant women who get PAP = (HVL HbSAg+ pregnant women who get PAP and whose babies do not receive BD) + (HVL HbSAg+ pregnant women who get PAP and whose babies receive BD),
+    % where number of births is used to approximate number of mothers (a woman can have twins, which makes number of births not equal to number of mothers)
+    num_mothers_PAP_HbSAg_HighVL = births_toHbSAgWomenHighVL * (prop_no_BD_this_timestep*PAP_cov_params.scenario_PAPcoverage_PAPonly_SAgHighVL(i_dt) ...
+        + (1-prop_no_BD_this_timestep) * PAP_cov_params.scenario_PAPcoverage_BDandPAP_SAgHighVL(i_dt) );
+
+    %%%% CIASTECKO 3
+    %% Number of babies born with chronic Hep B from women SAg+ (EAg-) with low VL (and not on treatment):
+    babiesChronic_from_HbSAgWomenLowVL = p_ChronicCarriage(1, 1, 1, 1) * births_toHbSAgWomenLowVL * ...
+        ( ...
+            prop_no_BD_this_timestep * (1-PAP_cov_params.scenario_PAPcoverage_PAPonly_SAgLowVL(i_dt)) * p_VertTrans_HbSAgLowVL_NoIntv ...
+            + prop_no_BD_this_timestep * PAP_cov_params.scenario_PAPcoverage_PAPonly_SAgLowVL(i_dt) * p_VertTrans_HbSAgLowVL_PAP  ...
+            + scenario_BDcoverage(i_dt) * (1-PAP_cov_params.scenario_PAPcoverage_BDandPAP_SAgLowVL(i_dt)) * p_VertTrans_HbSAgLowVL_BD  ...
+            + scenario_BDcoverage(i_dt) * PAP_cov_params.scenario_PAPcoverage_BDandPAP_SAgLowVL(i_dt) * p_VertTrans_HbSAgLowVL_BD_PAP  ...
+            + scenario_BDcoverage_fromMAP(i_dt) * (1-PAP_cov_params.scenario_PAPcoverage_BDandPAP_SAgLowVL(i_dt)) * p_VertTrans_HbSAgLowVL_MAP  ...
+            + scenario_BDcoverage_fromMAP(i_dt) * PAP_cov_params.scenario_PAPcoverage_BDandPAP_SAgLowVL(i_dt) * p_VertTrans_HbSAgLowVL_MAP_PAP  ...
+            + scenario_BDcoverage_fromCPAD(i_dt) * (1-PAP_cov_params.scenario_PAPcoverage_BDandPAP_SAgLowVL(i_dt)) * p_VertTrans_HbSAgLowVL_CPAD  ...
+            + scenario_BDcoverage_fromCPAD(i_dt) * PAP_cov_params.scenario_PAPcoverage_BDandPAP_SAgLowVL(i_dt) * p_VertTrans_HbSAgLowVL_CPAD_PAP  ...
+        );
+
+    % LVL HbSAg+ pregnant women who get PAP = (LVL HbSAg+ pregnant women who get PAP and whose babies do not receive BD) + (LVL HbSAg+ pregnant women who get PAP and whose babies receive BD),
+    % where number of births is used to approximate number of mothers (a woman can have twins, which makes number of births not equal to number of mothers)
+    num_mothers_PAP_HbSAg_LowVL = births_toHbSAgWomenLowVL * (prop_no_BD_this_timestep*PAP_cov_params.scenario_PAPcoverage_PAPonly_SAgLowVL(i_dt) ...
+        + (1-prop_no_BD_this_timestep) * PAP_cov_params.scenario_PAPcoverage_BDandPAP_SAgLowVL(i_dt) );
+
+    % Number of pregnant women who get PAP in this timestep:
+    RateOfPAPInitiation = num_mothers_PAP_HbEAg_HighVL + num_mothers_PAP_HbEAg_LowVL + num_mothers_PAP_HbSAg_HighVL + num_mothers_PAP_HbSAg_LowVL;
+    
+
+    
+
+    %%p_VertTrans_HbEAgHighVL_Treat      = PAP_VL_params.pRatio_VertTrans_HbEAgHighVL_Treat * p_VertTrans_HbEAgHighVL_NoIntv;
+    %%p_VertTrans_HbEAgHighVL_BD_Treat   = PAP_VL_params.pRatio_VertTrans_HbEAgHighVL_BD_Treat * p_VertTrans_HbEAgHighVL_NoIntv;
+    %%p_VertTrans_HbEAgHighVL_MAP_Treat  = PAP_VL_params.pRatio_VertTrans_HbEAgHighVL_MAP_Treat * p_VertTrans_HbEAgHighVL_NoIntv;
+    %%p_VertTrans_HbEAgHighVL_CPAD_Treat = PAP_VL_params.pRatio_VertTrans_HbEAgHighVL_CPAD_Treat * p_VertTrans_HbEAgHighVL_NoIntv;
+
+
+    %% Now women on treatment:
+    babiesChronic_from_HbEAgTrWomen = p_ChronicCarriage(1, 1, 1, 1) * births_toTrWomen * ...
+        (...
+            prop_no_BD_this_timestep * p_VertTrans_HbEAg_Treat ...
+            + scenario_BDcoverage(i_dt) * p_VertTrans_HbEAg_Treat_BD ...
+             + scenario_BDcoverage_fromMAP(i_dt) * p_VertTrans_HbEAg_Treat_MAP ...
+             + scenario_BDcoverage_fromCPAD(i_dt) * p_VertTrans_HbEAg_Treat_CPAD ...
+             );
+
+        % (1 - scenario_BDcoverage(i_dt) - scenario_BDcoverage_fromMAP_CPAD(i_dt)) * p_VerticalTransmission_HbSAg_NoBD ...
+        % + births_toHbSAgWomen * scenario_BDcoverage(i_dt) * p_VerticalTransmission_HbSAg_BD ...
+        % + births_toHbSAgWomen * scenario_BDcoverage_fromMAP_CPAD(i_dt) * p_VerticalTransmission_HbSAg_BirthDose_MAP_CPAD ...
+
+    ratebirthdoses = births_Total * scenario_BDcoverage(i_dt);
+
+    babies_ChronicCarriage = babiesChronic_from_HbEAgWomenHighVL + babiesChronic_from_HbEAgWomenLowVL + ...
+        babiesChronic_from_HbSAgWomenHighVL + babiesChronic_from_HbSAgWomenLowVL + babiesChronic_from_HbEAgTrWomen;
+
     babies_NotChronicCarriage = births_Total - babies_ChronicCarriage;
+
+
     assert(isscalar(babies_ChronicCarriage))
     assert(isscalar(babies_NotChronicCarriage))
+
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %% TAM: PAP chunk 2 - should replace above.
+
+
+    % number of chronic babies born to HVL HBeAg+ pregnant women =
+    %     (probability of infection becoming chronic in babies) * (number of births to HVL HBeAg+ pregnant women) *
+    %     (
+    %       probability of a baby that does not receive BD born to a HVL HBeAg+ pregnant woman who does not receive PAP being infected
+    %     + probability of a baby that does not receive BD born to a HVL HBeAg+ pregnant woman who receives PAP being infected
+    %     + probability of a baby that receives BD born to a HVL HBeAg+ pregnant woman who does not receive PAP being infected
+    %     + probability of a baby that receives BD born to a HVL HBeAg+ pregnant woman who receives PAP being infected
+    %     )
+
+                                                                     
+    
+
+
+
+    %% In the PAP model, but dead code.
+    % tmp_MTCTRate_SPosPregWomen = (babiesChronic_from_HbSAgWomenHighVL + babiesChronic_from_HbSAgWomenLowVL) / (births_toHbSAgWomenLowVL + births_toHbSAgWomenHighVL);
+    % 
+    % tmp_MTCTRate_EPosPregWomen = (babiesChronic_from_HbEAgWomenHighVL + babiesChronic_from_HbEAgWomenLowVL) / (births_toHbEAgWomenLowVL + births_toHbEAgWomenHighVL);
+    % 
+    % tmp_MTCTRate_AllPosPregWomen = ...
+    %                 (babiesChronic_from_HbEAgWomenHighVL + babiesChronic_from_HbEAgWomenLowVL + babiesChronic_from_HbSAgWomenHighVL + babiesChronic_from_HbSAgWomenLowVL) / ...
+    %                 (births_toHbSAgWomenLowVL + births_toHbSAgWomenHighVL + births_toHbEAgWomenLowVL + births_toHbEAgWomenHighVL);
+
+    pregnantWomenNeedToScreen = births_Total * max([PAP_cov_params.scenario_PAPcoverage_BDandPAP_EAgHighVL(i_dt),...
+                                                    PAP_cov_params.scenario_PAPcoverage_BDandPAP_EAgLowVL(i_dt),...
+                                                    PAP_cov_params.scenario_PAPcoverage_BDandPAP_SAgHighVL(i_dt),...
+                                                    PAP_cov_params.scenario_PAPcoverage_BDandPAP_SAgLowVL(i_dt), ...
+                                                    PAP_cov_params.scenario_PAPcoverage_PAPonly_EAgHighVL(i_dt),...
+                                                    PAP_cov_params.scenario_PAPcoverage_PAPonly_EAgLowVL(i_dt),...
+                                                    PAP_cov_params.scenario_PAPcoverage_PAPonly_SAgHighVL(i_dt),...
+                                                    PAP_cov_params.scenario_PAPcoverage_PAPonly_SAgLowVL(i_dt)]);
+
+
+    %% TO CHECK - this excludes women on treatment right now.
+    HBVPositivePregnantWomenAtANC = (births_toHbSAgWomenHighVL + births_toHbSAgWomenLowVL + births_toHbEAgWomenHighVL + births_toHbEAgWomenLowVL) ...        %added 13/8/19
+                                    * max([PAP_cov_params.scenario_PAPcoverage_BDandPAP_EAgHighVL(i_dt),...
+                                           PAP_cov_params.scenario_PAPcoverage_BDandPAP_EAgLowVL(i_dt),...
+                                           PAP_cov_params.scenario_PAPcoverage_BDandPAP_SAgHighVL(i_dt),...
+                                           PAP_cov_params.scenario_PAPcoverage_BDandPAP_SAgLowVL(i_dt),...
+                                           PAP_cov_params.scenario_PAPcoverage_PAPonly_EAgHighVL(i_dt),...
+                                           PAP_cov_params.scenario_PAPcoverage_PAPonly_EAgLowVL(i_dt),...
+                                           PAP_cov_params.scenario_PAPcoverage_PAPonly_SAgHighVL(i_dt),...
+                                           PAP_cov_params.scenario_PAPcoverage_PAPonly_SAgLowVL(i_dt)]);
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% TAM: End of PAP Chunk 2
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 
     
     female_multiplier = 1 / (1 + sex_ratio);
@@ -620,7 +1159,28 @@ for time = TimeSteps
     
     X(i_Susc, 1, i_male, i_notreat) = male_multiplier * dt * babies_NotChronicCarriage;  % Suscpetible babies
     X(i_ImmTol, 1, i_male, i_notreat) = male_multiplier * dt * babies_ChronicCarriage;     % Babies with chronic carriage
-      
+
+
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %% TAM: PAP Chunk 3:
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+    %% In the PAP model, but dead code.
+    % Prevalence HBsAg among pregnant women
+    % tmp_PrevalenceAmongPregnantWomen = ...
+    %     (births_toHbSAgWomenLowVL + births_toHbSAgWomenHighVL + births_toHbEAgWomenLowVL + births_toHbEAgWomenHighVL) / births_Total ; 
+    % 
+    % tmp_EPrevalenceAmongPregnantWomen = ...
+    %     (births_toHbEAgWomenLowVL + births_toHbEAgWomenHighVL) / (births_toHbSAgWomenLowVL + births_toHbSAgWomenHighVL + births_toHbEAgWomenLowVL + births_toHbEAgWomenHighVL) ;     
+    % 
+    % % Mean year of birth of pregnant women
+    % tmp_MeanYearOfBirthOfPregnantWomen = time - ... 
+    %     (sum(ages .* fert' .* squeeze(sum(sum(X([1:10 12 13:15],:,1,:),1),4))) / ...
+    %         sum(fert' .* squeeze(sum(sum(X([1:10 12 13:15],:,1,:),1),4))));
+
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %% TAM: End of Chunk 3
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % increment the timestep index
     i_dt = i_dt + 1;
     % increases every 0.1 years
@@ -646,6 +1206,257 @@ output.NumSAg_chronic_1yr = NumSAg_chronic_1yr; % 2 x 100 x (num_years_simul + 1
 output.yld_1yr = yld_1yr; % 2 x 100 x (num_years_simul + 1)
 output.Incid_Deaths_1yr_approx = Incid_Deaths_1yr_approx; % 2 x 100 x (num_years_simul + 1)
 output.Prev_Deaths_1yr = Prev_Deaths_1yr; % 2 x 100 x (num_years_simul + 1)
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% TAM: PAP Chunk 4:
+i1980 = find(Time >= 1980, 1);
+i2100 = find(Time >= 2100, 1);
+
+output.PrevEAg = PrevEAg_of_SAg_5yr(:,:,i1980:i2100); % 2 x 20 x num_years_output
+output.NewChronicInfectionRate = Incid_chronic_all_5yr_approx(:,:,i1980:i2100); % 2 x 20 x num_years_output
+%%output.Tot_Pop_1yr = Tot_Pop_1yr(:,:,i1980:i2100); % 2 x 100 x num_years_output
+output.NewChronicInfectionRate_NeonatesOnly = Incid_babies_chronic_1yr_approx(i1980:i2100); % 1 x num_years_output
+output.NumDecompCirr = NumDecompCirr(i1980:i2100); % 1 x num_years_output
+assert(max(abs(...
+    squeeze(sum(sum(Prev_Decomp_Cirr_1yr(:,:,i1980:i2100),1),2)) - ...
+    NumDecompCirr(i1980:i2100)'...
+    )) < 1e-9); % squeeze(sum(sum(Prev_Decomp_Cirr_1yr,1),2)) is a num_years_output x 1 matrix
+output.NumLiverCancer = NumLiverCancer(i1980:i2100); % 1 x num_years_output
+assert(max(abs(...
+    squeeze(sum(sum(Prev_Liver_Cancer_1yr(:,:,i1980:i2100),1),2)) - ...
+    NumLiverCancer(i1980:i2100)'...
+    )) < 1e-8); % squeeze(sum(sum(Prev_Liver_Cancer_1yr,1),2)) is a num_years_output x 1 matrix
+%%output.NumSAg_1yr = NumSAg_1yr(:,:,i1980:i2100); % 2 x 100 x num_years_output
+output.NumEAg_chronic_1yr = NumEAg_chronic_1yr(:,:,i1980:i2100); % 2 x 100 x num_years_output
+output.NumEAg_chronic_acute_1yr = NumEAg_chronic_acute_1yr(:,:,i1980:i2100); % 2 x 100 x num_years_output
+%%output.yld_1yr = yld_1yr(:,:,i1980:i2100); % 2 x 100 x num_years_output
+%%output.Incid_Deaths_1yr_approx = Incid_Deaths_1yr_approx(:,:,i1980:i2100); % 2 x 100 x num_years_output
+%%output.Prev_Deaths_1yr = Prev_Deaths_1yr(:,:,i1980:i2100); % 2 x 100 x num_years_output
+output.num_births_toHbEAgWomenHVL_1yr_approx = num_births_toHbEAgWomenHVL_1yr_approx(i1980:i2100); % 1 x num_years_output
+output.num_births_toHbEAgWomenLVL_1yr_approx = num_births_toHbEAgWomenLVL_1yr_approx(i1980:i2100); % 1 x num_years_output
+output.num_births_toHbSAgWomenHVL_1yr_approx = num_births_toHbSAgWomenHVL_1yr_approx(i1980:i2100); % 1 x num_years_output
+output.num_births_toHbSAgWomenLVL_1yr_approx = num_births_toHbSAgWomenLVL_1yr_approx(i1980:i2100); % 1 x num_years_output
+output.num_births_1yr_approx = num_births_1yr_approx(i1980:i2100); % 1 x num_years_output
+output.num_births_chronic_HbEAgWomenHVL_1yr_approx = num_births_chronic_HbEAgWomenHVL_1yr_approx(i1980:i2100); % 1 x num_years_output
+output.num_births_chronic_HbEAgWomenLVL_1yr_approx = num_births_chronic_HbEAgWomenLVL_1yr_approx(i1980:i2100); % 1 x num_years_output
+output.num_births_chronic_HbSAgWomenHVL_1yr_approx = num_births_chronic_HbSAgWomenHVL_1yr_approx(i1980:i2100); % 1 x num_years_output
+output.num_births_chronic_HbSAgWomenLVL_1yr_approx = num_births_chronic_HbSAgWomenLVL_1yr_approx(i1980:i2100); % 1 x num_years_output
+output.RateBirthDoseVacc = RateBirthDoseVacc(i1980:i2100); % 1 x num_years_output
+output.RateInfantVacc = RateInfantVacc(i1980:i2100); % 1 x num_years_output
+output.PeripartumTreatment_HbEAg_HighVL_approx = PeripartumTreatment_HbEAg_HighVL_approx(i1980:i2100); % 1 x num_years_output
+output.PeripartumTreatment_HbEAg_LowVL_approx = PeripartumTreatment_HbEAg_LowVL_approx(i1980:i2100); % 1 x num_years_output
+output.PeripartumTreatment_HbSAg_HighVL_approx = PeripartumTreatment_HbSAg_HighVL_approx(i1980:i2100); % 1 x num_years_output
+output.PeripartumTreatment_HbSAg_LowVL_approx = PeripartumTreatment_HbSAg_LowVL_approx(i1980:i2100); % 1 x num_years_output
+output.RatePeripartumTreatment = RatePeripartumTreatment(i1980:i2100); % 1 x num_years_output
+output.PregnantWomenNeedToScreen = PregnantWomenNeedToScreen(i1980:i2100); % 1 x num_years_output; added 13.9.15
+output.HBVPregnantWomenNeedToEvaluate = HBVPregnantWomenNeedToEvaluate(i1980:i2100); % 1 x num_years_output
+
+output.beta_U5 = beta_U5;
+output.p_HbSAg_av = p_HbSAg_av;
+
+output.p_VerticalTransmission_HbSAg_NoIntv_Ratio_HighVL_to_LowVL = p_VertTrans_HbSAgHighVL_NoIntv / p_VertTrans_HbSAgLowVL_NoIntv;
+output.p_VerticalTransmission_HbEAg_NoIntv_Ratio_HighVL_to_LowVL = p_VertTrans_HbEAgHighVL_NoIntv / p_VertTrans_HbEAgLowVL_NoIntv;
+
+output.p_VerticalTransmission_HbSAgLowVL_NoIntv = p_VertTrans_HbSAgLowVL_NoIntv;
+output.p_VerticalTransmission_HbSAgLowVL_BirthDoseVacc = p_VertTrans_HbSAgLowVL_BD;
+output.p_VerticalTransmission_HbSAgLowVL_BirthDoseVacc_PAP = p_VertTrans_HbSAgLowVL_BD_PAP;
+output.p_VerticalTransmission_HbSAgLowVL_PAP = p_VertTrans_HbSAgLowVL_PAP;
+output.p_VerticalTransmission_HbSAgHighVL_NoIntv = p_VertTrans_HbSAgHighVL_NoIntv;
+output.p_VerticalTransmission_HbSAgHighVL_BirthDoseVacc = p_VertTrans_HbSAgHighVL_BD;
+output.p_VerticalTransmission_HbSAgHighVL_BirthDoseVacc_PAP = p_VertTrans_HbSAgHighVL_BD_PAP;
+output.p_VerticalTransmission_HbSAgHighVL_PAP = p_VertTrans_HbSAgHighVL_PAP;
+
+output.p_VerticalTransmission_HbEAgLowVL_NoIntv = p_VertTrans_HbEAgLowVL_NoIntv;
+output.p_VerticalTransmission_HbEAgLowVL_BirthDoseVacc = p_VertTrans_HbEAgLowVL_BD;
+output.p_VerticalTransmission_HbEAgLowVL_BirthDoseVacc_PAP = p_VertTrans_HbEAgLowVL_BD_PAP;
+output.p_VerticalTransmission_HbEAgLowVL_PAP = p_VertTrans_HbEAgLowVL_PAP;
+output.p_VerticalTransmission_HbEAgHighVL_NoIntv = p_VertTrans_HbEAgHighVL_NoIntv;
+output.p_VerticalTransmission_HbEAgHighVL_BirthDoseVacc = p_VertTrans_HbEAgHighVL_BD;
+output.p_VerticalTransmission_HbEAgHighVL_BirthDoseVacc_PAP = p_VertTrans_HbEAgHighVL_BD_PAP;
+output.p_VerticalTransmission_HbEAgHighVL_PAP = p_VertTrans_HbEAgHighVL_PAP;
+
+
+outputs_nums_cell_array = {...
+    'beta_U5',...
+    'p_HbSAg_av',...
+    'p_VerticalTransmission_HbSAg_NoIntv_Ratio_HighVL_to_LowVL',...
+    'p_VerticalTransmission_HbEAg_NoIntv_Ratio_HighVL_to_LowVL',...
+    'p_VerticalTransmission_HbSAgLowVL_NoIntv',...
+    'p_VerticalTransmission_HbSAgLowVL_BirthDoseVacc',...
+    'p_VerticalTransmission_HbSAgLowVL_BirthDoseVacc_PAP',...
+    'p_VerticalTransmission_HbSAgLowVL_PAP',...
+    'p_VerticalTransmission_HbSAgHighVL_NoIntv',...
+    'p_VerticalTransmission_HbSAgHighVL_BirthDoseVacc',...
+    'p_VerticalTransmission_HbSAgHighVL_BirthDoseVacc_PAP',...
+    'p_VerticalTransmission_HbSAgHighVL_PAP',...
+    'p_VerticalTransmission_HbEAgLowVL_NoIntv',...
+    'p_VerticalTransmission_HbEAgLowVL_BirthDoseVacc',...
+    'p_VerticalTransmission_HbEAgLowVL_BirthDoseVacc_PAP',...
+    'p_VerticalTransmission_HbEAgLowVL_PAP',...
+    'p_VerticalTransmission_HbEAgHighVL_NoIntv',...
+    'p_VerticalTransmission_HbEAgHighVL_BirthDoseVacc',...
+    'p_VerticalTransmission_HbEAgHighVL_BirthDoseVacc_PAP',...
+    'p_VerticalTransmission_HbEAgHighVL_PAP'...
+    };
+num_outputs_nums = length(outputs_nums_cell_array);
+outputs_vectors_cell_array = {...
+    'Time',...
+    'NewChronicInfectionRate_NeonatesOnly',...
+    'NumDecompCirr',...
+    'NumLiverCancer',...
+    'num_births_toHbEAgWomenHVL_1yr_approx',...
+    'num_births_toHbEAgWomenLVL_1yr_approx',...
+    'num_births_toHbSAgWomenHVL_1yr_approx',...
+    'num_births_toHbSAgWomenLVL_1yr_approx',...
+    'num_births_1yr_approx',...
+    'num_births_chronic_HbEAgWomenHVL_1yr_approx',...
+    'num_births_chronic_HbEAgWomenLVL_1yr_approx',...
+    'num_births_chronic_HbSAgWomenHVL_1yr_approx',...
+    'num_births_chronic_HbSAgWomenLVL_1yr_approx',...
+    'RateBirthDoseVacc',...
+    'RateInfantVacc',...
+    'PeripartumTreatment_HbEAg_HighVL_approx',...
+    'PeripartumTreatment_HbEAg_LowVL_approx',...
+    'PeripartumTreatment_HbSAg_HighVL_approx',...
+    'PeripartumTreatment_HbSAg_LowVL_approx',...
+    'RatePeripartumTreatment',...
+    'PregnantWomenNeedToScreen',...
+    'HBVPregnantWomenNeedToEvaluate'...
+    };
+num_outputs_vectors = length(outputs_vectors_cell_array);
+outputs_3D_cell_array = {...
+    'PrevEAg',...
+    'NewChronicInfectionRate',...
+    'Tot_Pop_1yr',...
+    'NumSAg_1yr',...
+    'NumEAg_chronic_1yr',...
+    'NumEAg_chronic_acute_1yr',...
+    'yld_1yr',...
+    'Incid_Deaths_1yr_approx',...
+    'Prev_Deaths_1yr'...
+    };
+num_outputs_3D = length(outputs_3D_cell_array);
+ismember(fields(output),[outputs_nums_cell_array,outputs_vectors_cell_array,outputs_3D_cell_array])
+assert(all(ismember(fields(output),[outputs_nums_cell_array,outputs_vectors_cell_array,outputs_3D_cell_array])))
+assert(all(ismember([outputs_nums_cell_array,outputs_vectors_cell_array,outputs_3D_cell_array],fields(output)))) % cell arrays contain the same elements
+assert(isequal(sort(fields(output)),sort([outputs_nums_cell_array,outputs_vectors_cell_array,outputs_3D_cell_array]')))
+
+for ii=1:num_outputs_nums
+    fieldname = outputs_nums_cell_array{ii};
+    field_output = output.(fieldname);
+    assert(isscalar(field_output))
+end
+
+for ii=1:num_outputs_vectors
+    fieldname = outputs_vectors_cell_array{ii};
+    field_output = output.(fieldname);
+    assert(length(field_output)==num_years_output)
+end
+
+for ii=1:num_outputs_3D
+    fieldname = outputs_3D_cell_array{ii};
+    field_output = output.(fieldname);
+    assert(size(field_output,3)==num_years_output)
+end
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% MP: comment this out for now as I don't know what it's doing.
+% Diagnositic work-up required for this simulation:
+% output.Dx_At_ANC_HBsAG = 0;
+% output.Dx_At_ANC_HBeAG = 0;
+% output.Dx_At_ANC_VL = 0; 
+% 
+% % Consider PAP for those who get BD:
+% if  (0==cov_BirthDoseAndTDF_EAgHighVL) && (0==cov_BirthDoseAndTDF_SAgHighVL) && ...
+%     (0==cov_BirthDoseAndTDF_EAgLowVL) && (0==cov_BirthDoseAndTDF_SAgLowVL) 
+% 
+%         % Zero coverage of all types of PAP 
+%         output.Dx_At_ANC_HBsAG = 0;
+%         output.Dx_At_ANC_HBeAG = 0;
+%         output.Dx_At_ANC_VL = 0; 
+% 
+% elseif (   (cov_BirthDoseAndTDF_EAgHighVL==cov_BirthDoseAndTDF_SAgHighVL) && (cov_BirthDoseAndTDF_SAgHighVL==cov_BirthDoseAndTDF_EAgLowVL) ...
+%                 && (cov_BirthDoseAndTDF_EAgLowVL==cov_BirthDoseAndTDF_SAgLowVL) && (cov_BirthDoseAndTDF_SAgLowVL==cov_BirthDoseAndTDF_SAgHighVL)  )
+%         % PAP not differentiated by E or VL, so just use HBSAG
+%         output.Dx_At_ANC_HBsAG = 1;
+%         output.Dx_At_ANC_HBeAG = 0;
+%         output.Dx_At_ANC_VL = 0; 
+% 
+% elseif (   (cov_BirthDoseAndTDF_EAgHighVL==cov_BirthDoseAndTDF_EAgLowVL) && (cov_BirthDoseAndTDF_SAgHighVL==cov_BirthDoseAndTDF_SAgLowVL) ...
+%                 && (cov_BirthDoseAndTDF_SAgLowVL~=cov_BirthDoseAndTDF_EAgLowVL) && (cov_BirthDoseAndTDF_SAgHighVL~=cov_BirthDoseAndTDF_EAgHighVL)    )    
+%         % PAP is differentiated only by E/S
+%         output.Dx_At_ANC_HBsAG = 1;
+%         output.Dx_At_ANC_HBeAG = 1;
+%         output.Dx_At_ANC_VL = 0;  
+% 
+% 
+% elseif (   (cov_BirthDoseAndTDF_SAgHighVL==cov_BirthDoseAndTDF_EAgHighVL) && (cov_BirthDoseAndTDF_SAgLowVL==cov_BirthDoseAndTDF_EAgLowVL) ...
+%                 && (cov_BirthDoseAndTDF_SAgLowVL~=cov_BirthDoseAndTDF_SAgHighVL) && (cov_BirthDoseAndTDF_EAgLowVL~=cov_BirthDoseAndTDF_EAgHighVL) )
+%          % PAP is differentiated only by VL   
+%         output.Dx_At_ANC_HBsAG = 1;
+%         output.Dx_At_ANC_HBeAG = 0;
+%         output.Dx_At_ANC_VL = 1;         
+% 
+% elseif (   (cov_BirthDoseAndTDF_EAgHighVL~=cov_BirthDoseAndTDF_SAgHighVL) && (cov_BirthDoseAndTDF_SAgHighVL~=cov_BirthDoseAndTDF_EAgLowVL) ...
+%                 && (cov_BirthDoseAndTDF_EAgLowVL~=cov_BirthDoseAndTDF_SAgLowVL) && (cov_BirthDoseAndTDF_SAgLowVL~=cov_BirthDoseAndTDF_SAgHighVL)  )
+%         % PAP is differentiated by both E and VL
+%         output.Dx_At_ANC_HBsAG = 1;
+%         output.Dx_At_ANC_HBeAG = 1;
+%         output.Dx_At_ANC_VL = 1;    
+% 
+% else
+%         % Fail
+%         assert(false)
+% 
+% end
+% 
+% 
+% % Consider those who do not get BD
+% if (0==cov_TDFOnly_EAgHighVL) && (0==cov_TDFOnly_SAgHighVL) && (0==cov_TDFOnly_EAgLowVL) && (0==cov_TDFOnly_SAgLowVL) 
+%         % Zero coverage so do nothing
+% 
+% elseif (   (cov_TDFOnly_EAgHighVL==cov_TDFOnly_SAgHighVL) && (cov_TDFOnly_SAgHighVL==cov_TDFOnly_EAgLowVL) ...
+%                 && (cov_TDFOnly_EAgLowVL==cov_TDFOnly_SAgLowVL) && (cov_TDFOnly_SAgLowVL==cov_TDFOnly_EAgHighVL) )
+%         % PAP not differentiated by E or VL, so just use HBSAG
+%         output.Dx_At_ANC_HBsAG = min(1,output.Dx_At_ANC_HBsAG+1);
+% 
+% elseif (   (cov_TDFOnly_EAgHighVL==cov_TDFOnly_EAgLowVL) && (cov_TDFOnly_SAgHighVL==cov_TDFOnly_SAgLowVL) ...
+%                 && (cov_TDFOnly_SAgLowVL~=cov_TDFOnly_EAgLowVL) && (cov_TDFOnly_SAgHighVL~=cov_TDFOnly_EAgHighVL)     )
+%         % PAP is differentiated only by E/S
+%         output.Dx_At_ANC_HBsAG = min(1,output.Dx_At_ANC_HBsAG+1);
+%         output.Dx_At_ANC_HBeAG = min(1,output.Dx_At_ANC_HBeAG+1);
+% 
+% elseif (   (cov_TDFOnly_SAgHighVL==cov_TDFOnly_SAgHighVL) && (cov_TDFOnly_SAgLowVL==cov_TDFOnly_SAgLowVL) ...
+%                 && (cov_TDFOnly_SAgLowVL~=cov_TDFOnly_SAgHighVL) && (cov_TDFOnly_EAgLowVL~=cov_TDFOnly_EAgHighVL)  )
+%         % PAP is differentiated only by VL   
+%         output.Dx_At_ANC_HBsAG = min(1,output.Dx_At_ANC_HBsAG+1);
+%         output.Dx_At_ANC_VL = min(1,output.Dx_At_ANC_VL+1);        
+% 
+% elseif (   (cov_TDFOnly_EAgHighVL==cov_TDFOnly_SAgHighVL) && (cov_TDFOnly_SAgHighVL==cov_TDFOnly_EAgLowVL) ...
+%                 && (cov_TDFOnly_EAgLowVL==cov_TDFOnly_SAgLowVL) && (cov_TDFOnly_SAgLowVL==cov_TDFOnly_SAgHighVL) )
+%         % PAP is differentiated by both E and VL
+%         output.Dx_At_ANC_HBsAG = min(1,output.Dx_At_ANC_HBsAG+1);
+%         output.Dx_At_ANC_HBeAG = min(1,output.Dx_At_ANC_HBeAG+1);
+%         output.Dx_At_ANC_VL = min(1,output.Dx_At_ANC_VL+1);    
+% 
+% end
+% 
+% assert(isscalar(output.Dx_At_ANC_HBsAG))
+% assert(isscalar(output.Dx_At_ANC_HBeAG))
+% assert(isscalar(output.Dx_At_ANC_VL))
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% TAM: End of PAP Chunk 4
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
 
 if(store_results_as_text==1)
     if(stochas_run_str=="1")

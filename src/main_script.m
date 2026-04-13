@@ -3,6 +3,10 @@
 %% - analyse time for BD scale-up (looks like 1-2 years mostly rather than 5 yrs)
 
 %% Version of icl-hbv model modified for Cor-HepB projects by MP, December 2025.
+%% Original code base (and current parameters from calibration) for the paper 
+%% "The impact of the timely birth dose vaccine on the global elimination of hepatitis B"
+%% de Villers et al, Nature Communications 2021.  
+%% Incorporating vertical transmission (by VL) code from Nayagam et al, Lancet Gastroenterol Hepatol. 2023.
 
 clear
 
@@ -43,7 +47,7 @@ basedir = fileparts(currentFolder); % path for folder one level up from script.
 % MP: There are 200 runs from calibration so this is default. Use less for testing.
 %TUTAJ:
 %num_stochas_runs = 200;
-num_stochas_runs = 3;
+num_stochas_runs = 5;
 
 
 
@@ -60,7 +64,9 @@ num_countries = length(ListOfISOs);
 %i_end_country = 93;
 if RUN_ON_CLUSTER==0
     %% 30: Ethiopia; 36: Gambia; 92: Thailand.
-    countries_to_run = [92, 93];
+    %%countries_to_run = [92, 93];
+    %%countries_to_run = [30, 36];
+    countries_to_run = 30;
 else
     fileID = fopen('countries_to_run.txt','r');
     formatSpec = '%i';
@@ -143,9 +149,9 @@ load(fullfile(basedir,'resources','params_map.mat')) % contains params_map and d
 %                     CancerDeathRate: 0.5000
 %          ClearanceRateWomenCoFactor: 1
 %        Efficacy_BirthDoseVacc_HbSAg: 0.9500
-%        Efficacy_BirthDoseVacc_HbEAg: 0.8300
-%                 Efficacy_InfantVacc: 0.9500
-% p_VerticalTransmission_HbSAg_NoIntv: 0.0762
+%        Efficacy_BirthDoseVacc_HbEAg: 0.8300 ***WARNING*** This is overwritten in country_level_analyses.m by stochas_params_mat(stochas_run_num,end-1)
+%                 Efficacy_InfantVacc: 0.9500 ***WARNING*** This is overwritten in country_level_analyses.m by stochas_params_mat(stochas_run_num,end)
+% p_VerticalTransmission_HbSAg_NoIntv: 0.0762 ***WARNING*** This is overwritten in country_level_analyses.m by stochas_params_mat(stochas_run_num,country_start_col+2)
 % p_VerticalTransmission_HbEAg_NoIntv: 0.9000
 %                          beta_1to15: 1.0000e-03
 %                          beta_5plus: 1.0000e-03
@@ -263,9 +269,12 @@ ECofactor = 15; % Multiple for rate of transmission for horizontal transmission 
 
 
 %% MP added these although they are added to params below:
-SpeedUpELoss_F = 9.5;   %% Along with SpeedUpELoss_Beta (which is in params from calibration), this 
-CancerRate_WomenCoFactor = 1;
-CirrhosisRate_WomenCoFactor = 1;    
+SpeedUpELoss_F = 9.5;   %% Along with SpeedUpELoss_Beta (which is in params from calibration), this modifies the 
+                        %% transition rate immune tolerant -> immune reactive -> asymptomatic (2,3) and (3,4) to be age-specific.
+
+%% Note that CancerRate_WomenCoFactor and CirrhosisRate_WomenCoFactor have equivalents for men that are in stochas_params_mat()
+CancerRate_WomenCoFactor = 1; %% Alters rate of transition to HCC from any state which can transition to HCC.
+CirrhosisRate_WomenCoFactor = 1;    %% Alters rate of transiton to state 6 (Comp cirr) from states 3 (imm react) or 5 (chronic).
 
 
 % Progression parameters - note that some of these are further modified in country_level_analyses.m as follows:
@@ -331,15 +340,17 @@ Prog(15, 11) = CFR_Acute * rate_6months;
 % Severe acute to Immune (Rec. or vacc.):     {(1 - p_ChronicCarriage) * (1 - CFR_Acute) * rate_6months}
 
 
-
+%% Note that the MTCT intervention effectivenesses (or equivalently modified vert trans probabilites) are now in PAP_VL_params.
 %% Efficacy of the mother being on treatment (interferon or TDF) preventing mother-to-child transmission (MTCT):
 %% Note that this is for births without BD. BD+treatment is dealt with separately in p_VerticalTransmission_Tr_BirthDoseVacc.
-Efficacy_Treatment_MTCT = 0.98; 
+%% Efficacy_Treatment_MTCT = 0.98;  %% Not used 11 Apr 2026 (effectiveness all moved into PAP_VL_params).
 
 %% Probability of MTCT when the mother is on treatment and BD is given:
-p_VerticalTransmission_Tr_BirthDoseVacc = 0.005;
+%% p_VerticalTransmission_Tr_BirthDoseVacc = 0.005;  %% Not used 11 Apr 2026 (effectiveness all moved into PAP_VL_params).
 %% Probability of MTCT when the mother is on treatemnt and BD is given through MAP or CPAD:
-p_VerticalTransmission_Tr_BirthDose_MAP_CPAD = 0.005; %% Place holder 
+%% p_VerticalTransmission_Tr_BirthDose_MAP_CPAD = 0.005;  %% Was a placeholder. Not used 11 Apr 2026 (effectiveness all moved into PAP_VL_params).
+
+
 % Probability that an infant <0.5 becomes a chronic carrier
 p_infant_becomes_chronic_carrier = 0.885;
 
@@ -418,19 +429,21 @@ country_start_cols = 2:8:(1+num_countries*8); % there are 1 + num_countries*8 + 
 %% NOW LOOP-SPECIFIC STUFF:
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-filename_diaries = 'diary_countries.out';
-diary(fullfile(basedir,'outputs',filename_diaries))
+%filename_diaries = 'diary_countries.out';
+%%diary(fullfile(basedir,'outputs',filename_diaries))
 % writes a copy of all subsequent keyboard input and the resulting output (except it does not include graphics) to the named file
 % if the file already exists, output is appended to the end of the file
 
 
 begin_time_run = datetime('now');
-disp(['This analysis started at ' string(begin_time_run)])
+%outstring = sprintf('This analysis started at %s', string(begin_time_run));
+%disp(outstring);
+disp(append('This analysis started at ', string(begin_time_run)));
 
-disp(['Number of sensitivity analyses: ' num2str(num_sensitivity_analyses)])
-%%disp(['Number of scenarios: ' num2str(num_scenarios)])
-disp(['Number of countries: ' num2str(length(countries_to_run))])
-disp(['Number of runs per country: ' num2str(num_stochas_runs)])
+disp(append('Number of sensitivity analyses: ', num2str(num_sensitivity_analyses)));
+%%disp(append('Number of scenarios: ',num2str(num_scenarios)));
+disp(append('Number of countries: ', num2str(length(countries_to_run))));
+disp(append('Number of runs per country: ', num2str(num_stochas_runs)));
 
 sensitivity_analysis_hours_vec = repmat(duration(0,0,0),1,num_sensitivity_analyses);
 
@@ -439,11 +452,11 @@ for sensitivity_analysis_num=1:num_sensitivity_analyses
 
 
     sensitivity_analysis = sensitivity_analysis_list{sensitivity_analysis_num};
-    %%disp(['Sensitivity analysis: ' sensitivity_analysis])
+    %%disp(append('Sensitivity analysis: ',sensitivity_analysis));
 
 
     begin_time_sensitivity_analysis = datetime('now');
-    disp(['The "' sensitivity_analysis '" sensitivity analysis started at ' string(begin_time_sensitivity_analysis)])
+    disp(append('The "',sensitivity_analysis,'" sensitivity analysis started at ', string(begin_time_sensitivity_analysis)));
 
 
     for stochas_run=1:num_stochas_runs
@@ -456,16 +469,16 @@ for sensitivity_analysis_num=1:num_sensitivity_analyses
             country_s_e_HCCdeaths_map,...
             params_map,stochas_params_mat,country_start_cols,...
             WUENIC2024BDdata, WUENIC2024HepB3data, ...
-            basedir,filename_diaries,...
+            basedir,...
             num_states,num_year_divisions,dt,ages,num_age_steps,start_year,num_years_simul,end_year,...
             theta,CFR_Acute,rate_6months,ECofactor,p_ChronicCarriage,life_expectancy,...
-            Efficacy_Treatment_MTCT, p_VerticalTransmission_Tr_BirthDoseVacc, ...
-            p_VerticalTransmission_Tr_BirthDose_MAP_CPAD, Prog)
+            Prog)
+            %% Arguments moved into PAP_VL_params (with modifications by VL) Efficacy_Treatment_MTCT, p_VerticalTransmission_Tr_BirthDoseVacc, p_VerticalTransmission_Tr_BirthDose_MAP_CPAD,
 
     end
 
     time_taken_for_sensitivity_analysis = datetime('now') - begin_time_sensitivity_analysis;
-    disp(['The duration of this sensitivity analysis (' sensitivity_analysis ') was ' char(time_taken_for_sensitivity_analysis) ' hh:mm:ss.\n\n'])
+    disp(append('The duration of this sensitivity analysis (',sensitivity_analysis,') was ',char(time_taken_for_sensitivity_analysis),' hh:mm:ss.\n\n'));
     sensitivity_analysis_hours_vec(sensitivity_analysis_num) = time_taken_for_sensitivity_analysis;
     assert(all(sensitivity_analysis_hours_vec(1:sensitivity_analysis_num)>0))
     average_time_per_sensitivity_analysis = mean(sensitivity_analysis_hours_vec(1:sensitivity_analysis_num));
@@ -476,7 +489,7 @@ for sensitivity_analysis_num=1:num_sensitivity_analyses
     %%max_time_left = num_sensitivity_analyses_left * max_time_per_sensitivity_analysis;
     %%max_time_per_sensitivity_analysis = max(sensitivity_analysis_hours_vec(1:sensitivity_analysis_num));
     if num_sensitivity_analyses_left>0
-        disp(['There are ' num2str(num_sensitivity_analyses_left) ' sensitivity analyses left, which will take about ' char(mean_time_left) ' hh:m:ss.'])
+        disp(append('There are ',num2str(num_sensitivity_analyses_left),' sensitivity analyses left, which will take about ',char(mean_time_left),' hh:m:ss.'));
     end
     
 end
@@ -484,9 +497,9 @@ end
 end_time_run = datetime('now');
 %disp(end_time_run)
 time_taken_for_run = end_time_run - begin_time_run;
-disp(['Run ended at ' char(end_time_run) '. The duration of this analysis was ' char(time_taken_for_run) ' hh:mm:ss.\n\n'])
+disp(append('Run ended at ',char(end_time_run),'. The duration of this analysis was ',char(time_taken_for_run),' hh:mm:ss.\n'));
 
 
-diary off
+%%diary off
 
 
