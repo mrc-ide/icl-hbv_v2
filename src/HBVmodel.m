@@ -469,15 +469,15 @@ assert(isequal(size(Prog),size(zeros(num_disease_states, num_disease_states))));
 % breakdowns by age/sex
 
 %% TAM: mini-chunk
-[NumSAg_5yr, PrevEAg_of_SAg_5yr] = deal(-99 * ones(2, max(agegroups_5yr), num_years_simul)); 
+[NumSAg_5yr, PrevEAg_of_SAg_5yr] = deal(-99 * ones(2, max(agegroups_5yr), (num_years_simul+1))); 
 
-Incid_chronic_all_5yr_approx = zeros(2, max(agegroups_5yr), num_years_simul);
+Incid_chronic_all_5yr_approx = zeros(2, max(agegroups_5yr), num_years_simul+1);
 %% end of mini-chunk
 
 [...
     Tot_Pop_1yr, Prev_Immune_Reactive_1yr, Prev_Chronic_Hep_B_1yr, Prev_Comp_Cirr_1yr, Prev_Decomp_Cirr_1yr, ...
     Prev_Liver_Cancer_1yr, Prev_TDF_treat_1yr, NumSAg_1yr, NumSAg_chronic_1yr, yld_1yr, Prev_Deaths_1yr...
-    ] = deal(DUMMY_VALUE * ones(num_sexes, max(agegroups_1yr), num_years_simul + 1));
+    ] = deal(DUMMY_VALUE * ones(num_sexes, max(agegroups_1yr), num_years_simul+1));
 [...
     Incid_chronic_all_1yr_approx,...
     Incid_Deaths_1yr_approx...
@@ -511,14 +511,14 @@ transfer_to_vacc = zeros(1, 1, 2, 2);
 %% TAM: extra PAP-model-specific outputs included here:
 [Time, RateInfantVacc, RateBirthDoseVacc, RatePeripartumTreatment, ...
     num_births_1yr, NumDecompCirr, NumLiverCancer, ...
-    PregnantWomenNeedToScreen, HBVPregnantWomenNeedToEvaluate] = deal(DUMMY_VALUE * ones(1, num_years_simul + 1));
+    PregnantWomenNeedToScreen, HBVPregnantWomenNeedToEvaluate] = deal(DUMMY_VALUE * ones(1, num_years_simul+1));
  
 [num_births_toHbEAgWomenHVL_1yr_approx, num_births_toHbEAgWomenLVL_1yr_approx, num_births_toHbSAgWomenHVL_1yr_approx, num_births_toHbSAgWomenLVL_1yr_approx, ... 
     num_births_1yr_approx, ...
     num_births_chronic_HbEAgWomenHVL_1yr_approx, num_births_chronic_HbEAgWomenLVL_1yr_approx, num_births_chronic_HbSAgWomenHVL_1yr_approx, num_births_chronic_HbSAgWomenLVL_1yr_approx, ... 
     Incid_babies_chronic_1yr_approx, ...
     PeripartumTreatment_HbEAg_HighVL_approx, PeripartumTreatment_HbEAg_LowVL_approx, PeripartumTreatment_HbSAg_HighVL_approx, PeripartumTreatment_HbSAg_LowVL_approx...
-    ] = deal(-99 * ones(1, num_years_simul));
+    ] = deal(-99 * ones(1, num_years_simul+1));
 
 
 % ----- Simulation -----
@@ -606,7 +606,9 @@ for time = TimeSteps
             X = X .* pop_scaler;
             if(time==2020 ||time==2025)
             %disp([min(ScalerMat),max(ScalerMat)])
-                disp(ScalerMat)
+                disp("Uncomment the line below to show scalarmat")
+                %%disp("Scalarmat here:")
+                %%disp(ScalerMat)
             end
             % scale all parts of X, including dead people i.e. State i_HBVdeath=11
         end
@@ -1211,47 +1213,54 @@ output.Prev_Deaths_1yr = Prev_Deaths_1yr; % 2 x 100 x (num_years_simul + 1)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% TAM: PAP Chunk 4:
-i1980 = find(Time >= 1980, 1);
-i2100 = find(Time >= 2100, 1);
+t_PAPoutputs_start = start_year;
+t_PAPoutputs_end = end_year;
 
-output.PrevEAg = PrevEAg_of_SAg_5yr(:,:,i1980:i2100); % 2 x 20 x num_years_output
-output.NewChronicInfectionRate = Incid_chronic_all_5yr_approx(:,:,i1980:i2100); % 2 x 20 x num_years_output
-%%output.Tot_Pop_1yr = Tot_Pop_1yr(:,:,i1980:i2100); % 2 x 100 x num_years_output
-output.NewChronicInfectionRate_NeonatesOnly = Incid_babies_chronic_1yr_approx(i1980:i2100); % 1 x num_years_output
-output.NumDecompCirr = NumDecompCirr(i1980:i2100); % 1 x num_years_output
+i_PAPoutputs_start = find(Time >= t_PAPoutputs_start, 1);
+i_PAPoutputs_end   = find(Time >= t_PAPoutputs_end, 1);
+
+
+output.PrevEAg = PrevEAg_of_SAg_5yr(:,:,i_PAPoutputs_start:i_PAPoutputs_end); % 2 x 20 x num_years_output
+output.NewChronicInfectionRate = Incid_chronic_all_5yr_approx(:,:,i_PAPoutputs_start:i_PAPoutputs_end); % 2 x 20 x num_years_output
+%%output.Tot_Pop_1yr = Tot_Pop_1yr(:,:,i_PAPoutputs_start:i_PAPoutputs_end); % 2 x 100 x num_years_output
+output.NewChronicInfectionRate_NeonatesOnly = Incid_babies_chronic_1yr_approx(i_PAPoutputs_start:i_PAPoutputs_end); % 1 x num_years_output
+output.NumDecompCirr = NumDecompCirr(i_PAPoutputs_start:i_PAPoutputs_end); % 1 x num_years_output
+
+%% HACK - USING (i_PAPoutputs_end-1) INSTEAD OF i_PAPoutputs_end
+i_PAPoutputs_validation_end = i_PAPoutputs_end-1;
 assert(max(abs(...
-    squeeze(sum(sum(Prev_Decomp_Cirr_1yr(:,:,i1980:i2100),1),2)) - ...
-    NumDecompCirr(i1980:i2100)'...
+    squeeze(sum(sum(Prev_Decomp_Cirr_1yr(:,:,i_PAPoutputs_start:i_PAPoutputs_validation_end),1),2)) - ...
+    NumDecompCirr(i_PAPoutputs_start:i_PAPoutputs_validation_end)'...
     )) < 1e-9); % squeeze(sum(sum(Prev_Decomp_Cirr_1yr,1),2)) is a num_years_output x 1 matrix
-output.NumLiverCancer = NumLiverCancer(i1980:i2100); % 1 x num_years_output
+output.NumLiverCancer = NumLiverCancer(i_PAPoutputs_start:i_PAPoutputs_end); % 1 x num_years_output
 assert(max(abs(...
-    squeeze(sum(sum(Prev_Liver_Cancer_1yr(:,:,i1980:i2100),1),2)) - ...
-    NumLiverCancer(i1980:i2100)'...
+    squeeze(sum(sum(Prev_Liver_Cancer_1yr(:,:,i_PAPoutputs_start:i_PAPoutputs_validation_end),1),2)) - ...
+    NumLiverCancer(i_PAPoutputs_start:i_PAPoutputs_validation_end)'...
     )) < 1e-8); % squeeze(sum(sum(Prev_Liver_Cancer_1yr,1),2)) is a num_years_output x 1 matrix
-%%output.NumSAg_1yr = NumSAg_1yr(:,:,i1980:i2100); % 2 x 100 x num_years_output
-output.NumEAg_chronic_1yr = NumEAg_chronic_1yr(:,:,i1980:i2100); % 2 x 100 x num_years_output
-output.NumEAg_chronic_acute_1yr = NumEAg_chronic_acute_1yr(:,:,i1980:i2100); % 2 x 100 x num_years_output
-%%output.yld_1yr = yld_1yr(:,:,i1980:i2100); % 2 x 100 x num_years_output
-%%output.Incid_Deaths_1yr_approx = Incid_Deaths_1yr_approx(:,:,i1980:i2100); % 2 x 100 x num_years_output
-%%output.Prev_Deaths_1yr = Prev_Deaths_1yr(:,:,i1980:i2100); % 2 x 100 x num_years_output
-output.num_births_toHbEAgWomenHVL_1yr_approx = num_births_toHbEAgWomenHVL_1yr_approx(i1980:i2100); % 1 x num_years_output
-output.num_births_toHbEAgWomenLVL_1yr_approx = num_births_toHbEAgWomenLVL_1yr_approx(i1980:i2100); % 1 x num_years_output
-output.num_births_toHbSAgWomenHVL_1yr_approx = num_births_toHbSAgWomenHVL_1yr_approx(i1980:i2100); % 1 x num_years_output
-output.num_births_toHbSAgWomenLVL_1yr_approx = num_births_toHbSAgWomenLVL_1yr_approx(i1980:i2100); % 1 x num_years_output
-output.num_births_1yr_approx = num_births_1yr_approx(i1980:i2100); % 1 x num_years_output
-output.num_births_chronic_HbEAgWomenHVL_1yr_approx = num_births_chronic_HbEAgWomenHVL_1yr_approx(i1980:i2100); % 1 x num_years_output
-output.num_births_chronic_HbEAgWomenLVL_1yr_approx = num_births_chronic_HbEAgWomenLVL_1yr_approx(i1980:i2100); % 1 x num_years_output
-output.num_births_chronic_HbSAgWomenHVL_1yr_approx = num_births_chronic_HbSAgWomenHVL_1yr_approx(i1980:i2100); % 1 x num_years_output
-output.num_births_chronic_HbSAgWomenLVL_1yr_approx = num_births_chronic_HbSAgWomenLVL_1yr_approx(i1980:i2100); % 1 x num_years_output
-output.RateBirthDoseVacc = RateBirthDoseVacc(i1980:i2100); % 1 x num_years_output
-output.RateInfantVacc = RateInfantVacc(i1980:i2100); % 1 x num_years_output
-output.PeripartumTreatment_HbEAg_HighVL_approx = PeripartumTreatment_HbEAg_HighVL_approx(i1980:i2100); % 1 x num_years_output
-output.PeripartumTreatment_HbEAg_LowVL_approx = PeripartumTreatment_HbEAg_LowVL_approx(i1980:i2100); % 1 x num_years_output
-output.PeripartumTreatment_HbSAg_HighVL_approx = PeripartumTreatment_HbSAg_HighVL_approx(i1980:i2100); % 1 x num_years_output
-output.PeripartumTreatment_HbSAg_LowVL_approx = PeripartumTreatment_HbSAg_LowVL_approx(i1980:i2100); % 1 x num_years_output
-output.RatePeripartumTreatment = RatePeripartumTreatment(i1980:i2100); % 1 x num_years_output
-output.PregnantWomenNeedToScreen = PregnantWomenNeedToScreen(i1980:i2100); % 1 x num_years_output; added 13.9.15
-output.HBVPregnantWomenNeedToEvaluate = HBVPregnantWomenNeedToEvaluate(i1980:i2100); % 1 x num_years_output
+%%output.NumSAg_1yr = NumSAg_1yr(:,:,i_PAPoutputs_start:i_PAPoutputs_end); % 2 x 100 x num_years_output
+output.NumEAg_chronic_1yr = NumEAg_chronic_1yr(:,:,i_PAPoutputs_start:i_PAPoutputs_end); % 2 x 100 x num_years_output
+output.NumEAg_chronic_acute_1yr = NumEAg_chronic_acute_1yr(:,:,i_PAPoutputs_start:i_PAPoutputs_end); % 2 x 100 x num_years_output
+%%output.yld_1yr = yld_1yr(:,:,i_PAPoutputs_start:i_PAPoutputs_end); % 2 x 100 x num_years_output
+%%output.Incid_Deaths_1yr_approx = Incid_Deaths_1yr_approx(:,:,i_PAPoutputs_start:i_PAPoutputs_end); % 2 x 100 x num_years_output
+%%output.Prev_Deaths_1yr = Prev_Deaths_1yr(:,:,i_PAPoutputs_start:i_PAPoutputs_end); % 2 x 100 x num_years_output
+output.num_births_toHbEAgWomenHVL_1yr_approx = num_births_toHbEAgWomenHVL_1yr_approx(i_PAPoutputs_start:i_PAPoutputs_end); % 1 x num_years_output
+output.num_births_toHbEAgWomenLVL_1yr_approx = num_births_toHbEAgWomenLVL_1yr_approx(i_PAPoutputs_start:i_PAPoutputs_end); % 1 x num_years_output
+output.num_births_toHbSAgWomenHVL_1yr_approx = num_births_toHbSAgWomenHVL_1yr_approx(i_PAPoutputs_start:i_PAPoutputs_end); % 1 x num_years_output
+output.num_births_toHbSAgWomenLVL_1yr_approx = num_births_toHbSAgWomenLVL_1yr_approx(i_PAPoutputs_start:i_PAPoutputs_end); % 1 x num_years_output
+output.num_births_1yr_approx = num_births_1yr_approx(i_PAPoutputs_start:i_PAPoutputs_end); % 1 x num_years_output
+output.num_births_chronic_HbEAgWomenHVL_1yr_approx = num_births_chronic_HbEAgWomenHVL_1yr_approx(i_PAPoutputs_start:i_PAPoutputs_end); % 1 x num_years_output
+output.num_births_chronic_HbEAgWomenLVL_1yr_approx = num_births_chronic_HbEAgWomenLVL_1yr_approx(i_PAPoutputs_start:i_PAPoutputs_end); % 1 x num_years_output
+output.num_births_chronic_HbSAgWomenHVL_1yr_approx = num_births_chronic_HbSAgWomenHVL_1yr_approx(i_PAPoutputs_start:i_PAPoutputs_end); % 1 x num_years_output
+output.num_births_chronic_HbSAgWomenLVL_1yr_approx = num_births_chronic_HbSAgWomenLVL_1yr_approx(i_PAPoutputs_start:i_PAPoutputs_end); % 1 x num_years_output
+output.RateBirthDoseVacc = RateBirthDoseVacc(i_PAPoutputs_start:i_PAPoutputs_end); % 1 x num_years_output
+output.RateInfantVacc = RateInfantVacc(i_PAPoutputs_start:i_PAPoutputs_end); % 1 x num_years_output
+output.PeripartumTreatment_HbEAg_HighVL_approx = PeripartumTreatment_HbEAg_HighVL_approx(i_PAPoutputs_start:i_PAPoutputs_end); % 1 x num_years_output
+output.PeripartumTreatment_HbEAg_LowVL_approx = PeripartumTreatment_HbEAg_LowVL_approx(i_PAPoutputs_start:i_PAPoutputs_end); % 1 x num_years_output
+output.PeripartumTreatment_HbSAg_HighVL_approx = PeripartumTreatment_HbSAg_HighVL_approx(i_PAPoutputs_start:i_PAPoutputs_end); % 1 x num_years_output
+output.PeripartumTreatment_HbSAg_LowVL_approx = PeripartumTreatment_HbSAg_LowVL_approx(i_PAPoutputs_start:i_PAPoutputs_end); % 1 x num_years_output
+output.RatePeripartumTreatment = RatePeripartumTreatment(i_PAPoutputs_start:i_PAPoutputs_end); % 1 x num_years_output
+output.PregnantWomenNeedToScreen = PregnantWomenNeedToScreen(i_PAPoutputs_start:i_PAPoutputs_end); % 1 x num_years_output; added 13.9.15
+output.HBVPregnantWomenNeedToEvaluate = HBVPregnantWomenNeedToEvaluate(i_PAPoutputs_start:i_PAPoutputs_end); % 1 x num_years_output
 
 output.beta_U5 = beta_U5;
 output.p_HbSAg_av = p_HbSAg_av;
@@ -1311,6 +1320,7 @@ outputs_vectors_cell_array = {...
     'num_births_toHbSAgWomenHVL_1yr_approx',...
     'num_births_toHbSAgWomenLVL_1yr_approx',...
     'num_births_1yr_approx',...
+    'num_births_1yr',...
     'num_births_chronic_HbEAgWomenHVL_1yr_approx',...
     'num_births_chronic_HbEAgWomenLVL_1yr_approx',...
     'num_births_chronic_HbSAgWomenHVL_1yr_approx',...
@@ -1331,14 +1341,21 @@ outputs_3D_cell_array = {...
     'NewChronicInfectionRate',...
     'Tot_Pop_1yr',...
     'NumSAg_1yr',...
+    'NumSAg_chronic_1yr',...
     'NumEAg_chronic_1yr',...
     'NumEAg_chronic_acute_1yr',...
     'yld_1yr',...
     'Incid_Deaths_1yr_approx',...
-    'Prev_Deaths_1yr'...
+    'Incid_chronic_all_1yr_approx',...
+    'Prev_Deaths_1yr',...
+    'Prev_Immune_Reactive_1yr',...
+    'Prev_Chronic_Hep_B_1yr',...
+    'Prev_Comp_Cirr_1yr',...
+    'Prev_Decomp_Cirr_1yr',...
+    'Prev_TDF_treat_1yr',...
     };
 num_outputs_3D = length(outputs_3D_cell_array);
-ismember(fields(output),[outputs_nums_cell_array,outputs_vectors_cell_array,outputs_3D_cell_array])
+
 assert(all(ismember(fields(output),[outputs_nums_cell_array,outputs_vectors_cell_array,outputs_3D_cell_array])))
 assert(all(ismember([outputs_nums_cell_array,outputs_vectors_cell_array,outputs_3D_cell_array],fields(output)))) % cell arrays contain the same elements
 assert(isequal(sort(fields(output)),sort([outputs_nums_cell_array,outputs_vectors_cell_array,outputs_3D_cell_array]')))
@@ -1349,16 +1366,19 @@ for ii=1:num_outputs_nums
     assert(isscalar(field_output))
 end
 
+
+n_years_PAPoutputs = t_PAPoutputs_end - t_PAPoutputs_start + 1;
+
 for ii=1:num_outputs_vectors
     fieldname = outputs_vectors_cell_array{ii};
     field_output = output.(fieldname);
-    assert(length(field_output)==num_years_output)
+    assert(length(field_output)==n_years_PAPoutputs)
 end
 
 for ii=1:num_outputs_3D
     fieldname = outputs_3D_cell_array{ii};
     field_output = output.(fieldname);
-    assert(size(field_output,3)==num_years_output)
+    assert(size(field_output,3)==n_years_PAPoutputs)
 end
 
 
