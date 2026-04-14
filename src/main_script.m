@@ -65,8 +65,8 @@ num_countries = length(ListOfISOs);
 if RUN_ON_CLUSTER==0
     %% 30: Ethiopia; 36: Gambia; 92: Thailand.
     %%countries_to_run = [92, 93];
-    %%countries_to_run = [30, 36];
-    countries_to_run = 30;
+    countries_to_run = [30, 36];
+    %%countries_to_run = 30;
 else
     fileID = fopen('countries_to_run.txt','r');
     formatSpec = '%i';

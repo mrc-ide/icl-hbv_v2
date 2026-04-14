@@ -313,9 +313,13 @@ assert(safe_greater_or_equal_to(p_VertTrans_HbEAgLowVL_PAP,     p_VertTrans_HbSA
     births_toHbSAgWomenLowVL, births_Total, ...
     babiesChronic_from_HbEAgWomenHighVL, babiesChronic_from_HbEAgWomenLowVL, ...
     babiesChronic_from_HbSAgWomenHighVL, babiesChronic_from_HbSAgWomenLowVL,...
-    ratebirthdoses, pregnantWomenNeedToScreen,...
+    ratebirthdoses, ratebirthdoses_MAP, ratebirthdoses_CPAD,...
+    pregnantWomenNeedToScreen,...
     num_mothers_PAP_HbEAg_HighVL, num_mothers_PAP_HbEAg_LowVL, num_mothers_PAP_HbSAg_HighVL, num_mothers_PAP_HbSAg_LowVL,...
     RateOfPAPInitiation, HBVPositivePregnantWomenAtANC] = deal(0);
+
+  %% For now let's just count the number of people starting treatment (unstratified by age/sex):
+  number_starting_treatment_to_print = 0;
 
 
 
@@ -471,7 +475,8 @@ assert(isequal(size(Prog),size(zeros(num_disease_states, num_disease_states))));
 %% TAM: mini-chunk
 [NumSAg_5yr, PrevEAg_of_SAg_5yr] = deal(-99 * ones(2, max(agegroups_5yr), (num_years_simul+1))); 
 
-Incid_chronic_all_5yr_approx = zeros(2, max(agegroups_5yr), num_years_simul+1);
+%% Note that this excludes Vertical transmission
+Incid_chronic_all_5yr_approx_no_VertTrans = zeros(2, max(agegroups_5yr), num_years_simul+1);
 %% end of mini-chunk
 
 [...
@@ -489,8 +494,15 @@ Incid_chronic_all_5yr_approx = zeros(2, max(agegroups_5yr), num_years_simul+1);
 
 %% MP: used as a store 
 if(store_results_as_text==1)
-    ncol_X_to_print = num_disease_states*  num_sexes* num_treat_blocks;
-    X_to_print = DUMMY_VALUE * ones(max(agegroups_5yr)*ncol_X_to_print, num_years_simul + 1);
+    %% Store the following:
+    %% - state variables each year (max(agegroups_5yr) * num_disease_states * num_sexes* num_treat_blocks)
+    %% - new cases of chronic carriage/yr (neonates, plus 5 yr age gps) = 21
+    %% - deaths per year - 5 yr age groups = 20
+    ncol_X_to_print_byage = num_disease_states*  num_sexes* num_treat_blocks;
+    ncol_results_to_print = max(agegroups_5yr) * ncol_X_to_print_byage + 21 + 20 + 10;
+    results_to_print = DUMMY_VALUE * ones(ncol_results_to_print, num_years_simul + 1);
+    
+    %%X_to_print = DUMMY_VALUE * ones(max(agegroups_5yr)*ncol_X_to_print, num_years_simul + 1);
 end
 
 %% Mini TAM: 
@@ -696,21 +708,22 @@ for time = TimeSteps
                         PrevEAg_of_SAg_5yr(k,ag,OutputEventNum-1) = 0;
                     end
 
-                    Incid_chronic_all_5yr_approx(k, ag, OutputEventNum-1) = sum(sum(NewChronicCarriage(1, agegroups_5yr == ag, k, :), 2), 4);
+                    Incid_chronic_all_5yr_approx_no_VertTrans(k, ag, OutputEventNum-1) = sum(sum(NewChronicCarriage(1, agegroups_5yr == ag, k, :), 2), 4);
 
                 end
             end
 
-            if OutputEventNum > 1
+            %%if OutputEventNum > 1
                 %% The second index in Incid_chronic_all_5yr_approx() is the age group (age 0-4).
                 %% BUG: need to include incidence through child-child transmission:
                 %% ORIGINAL CODE:
                 %%Incid_chronic_all_5yr_approx(i_female, 1, OutputEventNum-1) = female_multiplier * babies_ChronicCarriage;
                 %%Incid_chronic_all_5yr_approx(i_male, 1, OutputEventNum-1) = male_multiplier * babies_ChronicCarriage;
+                
                 %% FIXED CODE:
-                Incid_chronic_all_5yr_approx(i_female, 1, OutputEventNum-1) = Incid_chronic_all_5yr_approx(i_female, 1, OutputEventNum-1) + female_multiplier * babies_ChronicCarriage;
-                Incid_chronic_all_5yr_approx(i_male, 1, OutputEventNum-1) = Incid_chronic_all_5yr_approx(i_male, 1, OutputEventNum-1) + male_multiplier * babies_ChronicCarriage;
-            end
+                %%Incid_chronic_all_5yr_approx(i_female, 1, OutputEventNum-1) = Incid_chronic_all_5yr_approx(i_female, 1, OutputEventNum-1) + female_multiplier * babies_ChronicCarriage;
+                %%Incid_chronic_all_5yr_approx(i_male, 1, OutputEventNum-1) = Incid_chronic_all_5yr_approx(i_male, 1, OutputEventNum-1) + male_multiplier * babies_ChronicCarriage;
+            %end
              
         end % end genders for loop
 
@@ -753,15 +766,43 @@ for time = TimeSteps
             if OutputEventNum > 1
                 % This is the (consolidated into 5 yr age gp) state variable at time t as
                 % a 2D array. We want to store this as a row in 
-                X_to_print_unshaped = DUMMY_VALUE * ones(max(agegroups_5yr), ncol_X_to_print);
+                X_to_print_unshaped = DUMMY_VALUE * ones(max(agegroups_5yr), ncol_X_to_print_byage);
+                deaths_to_print = DUMMY_VALUE * ones(1, max(agegroups_5yr));
+
                 for ag = 1:max(agegroups_5yr) % 1:20
                     
-                    temp_store = reshape(squeeze(sum(X(:, agegroups_5yr == ag, :, :),2)), [1,ncol_X_to_print]); % k is gender
+                    temp_store = reshape(squeeze(sum(X(:, agegroups_5yr == ag, :, :),2)), [1,ncol_X_to_print_byage]); % k is gender
                     assert(isequal(size(temp_store),[1 60]))
                     X_to_print_unshaped(ag,:) = temp_store;
+
+                    %% Now store incident deaths:
                     
+                    death_age_group_indices = (5*(ag-1)+1):(5*(ag-1)+4);
+                    temp_store_deaths = squeeze(sum(sum(Incid_Deaths_1yr_approx(:, death_age_group_indices, OutputEventNum-1),2),1));
+                    
+                    assert(isscalar(temp_store_deaths))
+                    deaths_to_print(ag) = temp_store_deaths;
                 end
-            X_to_print(:,OutputEventNum-1) = reshape(X_to_print_unshaped,[1, max(agegroups_5yr)*ncol_X_to_print]);
+                %% This is the state matrix (grouped into 5 yr age groups, and reshaped into a row vector):
+                X_to_print = reshape(X_to_print_unshaped,[1, max(agegroups_5yr)*ncol_X_to_print_byage]);
+                
+                %% This gives the incidence in neonates (ie via vertical transmission), then in 5 yr age groups (summing over M+F)
+                incidence_horizontal_transmission = squeeze(sum(Incid_chronic_all_5yr_approx_no_VertTrans(:, :, OutputEventNum-1),1));
+                incidence_to_print = [babies_ChronicCarriage, incidence_horizontal_transmission];
+                
+                %% BD (standard/MAP/CPAD), infant vacc;
+                %% PAP (by EAg+/- and VL), pregnantWomenNeedToScreen=number of women needed to screen to put women on PAP
+                %% Treatment is done by state variable
+                %% To do: testing to get people on treatment (both standard + birth cohort)
+                resources_to_print = [ratebirthdoses, ratebirthdoses_MAP, ratebirthdoses_CPAD, RateInfantVacc(OutputEventNum-1),...
+                    num_mothers_PAP_HbEAg_HighVL, num_mothers_PAP_HbEAg_LowVL, num_mothers_PAP_HbSAg_HighVL, num_mothers_PAP_HbSAg_LowVL, pregnantWomenNeedToScreen,...
+                    number_starting_treatment_to_print];
+
+
+
+                results_to_print(:,OutputEventNum-1) = [X_to_print, incidence_to_print, deaths_to_print, resources_to_print]';
+                
+
             end
 
         end
@@ -861,6 +902,8 @@ for time = TimeSteps
             assert(total_num_to_move_to_treat<eligible_pop)
             scaling_num = total_num_to_move_to_treat / eligible_pop;
             next_X(i_treateligible,:,:,:)=next_X(i_treateligible,:,:,:) - X(i_treateligible,:,:,:) * scaling_num;
+
+            
             % Every compartment in the eligible-for-treatment states in next_X must have a number subtracted from it 
             % such that the total number subtracted from the eligible-for-treatment states is in_treatment_2016
             % i.e. in_treatment_2016 = sum(sum(sum(sum(X(i_treateligible, :, :, :),1),2),3),4) * scaling_num = sum(sum(sum(sum(X(i_treateligible, :, :, :) * scaling_num,1),2),3),4)
@@ -868,6 +911,10 @@ for time = TimeSteps
             next_X(i_TDFtreat,:,:,:) = next_X(i_TDFtreat,:,:,:) + sum(X(i_treateligible,:,:,:) * scaling_num,1);
 
             num_in_treatment = sum(sum(sum(sum(next_X(i_TDFtreat, :, :, :),1),2),3),4);
+
+            %% Since we just checked that the number in natural history state i_TDFtreat was zero before treatemnt started in the smulation, this represents the number of people starting treatment at this timestep.
+            number_starting_treatment_to_print = num_in_treatment;
+
             eligible_pop = sum(sum(sum(sum(X([3 5:7 10], :, :, :),1),2),3),4); 
             assert(num_in_treatment/eligible_pop >= treat_coverage_in_2016)
             % treatment coverage amongst treatment-eligible people will be greater than treatment coverage amongst HBsAg+ people, except if treatment coverage is 0
@@ -882,6 +929,10 @@ for time = TimeSteps
             next_X(i_treateligible, :, :, :) = next_X(i_treateligible, :, :, :) + dt * ( -moving_to_treatment(i_treateligible, :, :, :) );
             next_X(i_TDFtreat, :, :, :) = next_X(i_TDFtreat, :, :, :) + dt * ( +sum(moving_to_treatment, 1) );
             assert(max(moving_to_treatment(:))>=0)
+
+            number_starting_treatment_to_print = squeeze(sum(sum(sum(sum(moving_to_treatment, 1), 2), 3), 4));
+            assert(isscalar(number_starting_treatment_to_print))
+
         end
     end % end treatment if statement
     
@@ -1083,6 +1134,9 @@ for time = TimeSteps
         % + births_toHbSAgWomen * scenario_BDcoverage_fromMAP_CPAD(i_dt) * p_VerticalTransmission_HbSAg_BirthDose_MAP_CPAD ...
 
     ratebirthdoses = births_Total * scenario_BDcoverage(i_dt);
+    ratebirthdoses_MAP = births_Total * scenario_BDcoverage_fromMAP(i_dt);
+    ratebirthdoses_CPAD = births_Total * scenario_BDcoverage_fromCPAD(i_dt);
+    
 
     babies_ChronicCarriage = babiesChronic_from_HbEAgWomenHighVL + babiesChronic_from_HbEAgWomenLowVL + ...
         babiesChronic_from_HbSAgWomenHighVL + babiesChronic_from_HbSAgWomenLowVL + babiesChronic_from_HbEAgTrWomen;
@@ -1221,7 +1275,8 @@ i_PAPoutputs_end   = find(Time >= t_PAPoutputs_end, 1);
 
 
 output.PrevEAg = PrevEAg_of_SAg_5yr(:,:,i_PAPoutputs_start:i_PAPoutputs_end); % 2 x 20 x num_years_output
-output.NewChronicInfectionRate = Incid_chronic_all_5yr_approx(:,:,i_PAPoutputs_start:i_PAPoutputs_end); % 2 x 20 x num_years_output
+%% Note that this excludes Vertical transmission
+output.NewChronicInfectionRate = Incid_chronic_all_5yr_approx_no_VertTrans(:,:,i_PAPoutputs_start:i_PAPoutputs_end); % 2 x 20 x num_years_output
 %%output.Tot_Pop_1yr = Tot_Pop_1yr(:,:,i_PAPoutputs_start:i_PAPoutputs_end); % 2 x 100 x num_years_output
 output.NewChronicInfectionRate_NeonatesOnly = Incid_babies_chronic_1yr_approx(i_PAPoutputs_start:i_PAPoutputs_end); % 1 x num_years_output
 output.NumDecompCirr = NumDecompCirr(i_PAPoutputs_start:i_PAPoutputs_end); % 1 x num_years_output
@@ -1487,7 +1542,9 @@ if(store_results_as_text==1)
     i_1950 = find(Time >= 1950, 1);
     filename_results_csv = strcat('results_',ISO,'_scenario',string(scenario_num),'_',sensitivity_analysis,'_run_', stochas_run_str, '.csv');
     disp(fullfile(basedir,'outputs',filename_results_csv))
-    writematrix([Time(i_1950:end);X_to_print(:,i_1950:end)]',fullfile(basedir,'outputs',filename_results_csv));
+    size(results_to_print(:,i_1950:end))
+    size(Time(i_1950:end))
+    writematrix([Time(i_1950:end);results_to_print(:,i_1950:end)]',fullfile(basedir,'outputs',filename_results_csv));
 end
 
 
@@ -1512,7 +1569,7 @@ function output_labels=construct_header(agegroups, num_disease_states, num_sexes
     treat_labels = ["NoTreat","Treat"];
 
     %%output_labels = strings(num_disease_states,n_age_groups,num_sexes,num_treat_blocks);
-    output_labels = "";
+    output_labels = "Year,";
     for t=1:num_treat_blocks
         for k=1:num_sexes
             for d=1:num_disease_states
@@ -1525,5 +1582,23 @@ function output_labels=construct_header(agegroups, num_disease_states, num_sexes
         end
     end
     %%output_labels = reshape(output_labels, [1,num_disease_states*n_age_groups*num_sexes*num_treat_blocks]);
-        
+
+    %% Incidence outputs:
+    output_labels = output_labels + "Incidence_neonatal,";
+    for a=1:n_age_groups
+        temp_label = "Incid"+age_labels(a) +","; 
+        output_labels = output_labels+temp_label;
+    end
+
+    %% Death outputs:
+    for a=1:n_age_groups
+        temp_label = "Death"+age_labels(a) +","; 
+        output_labels = output_labels+temp_label;
+    end
+
+    %% Resources (for costing):
+    output_labels = output_labels + "NBirthDose,NBD_MAP,NBD_CPAD,N_InfantVacc,N_PAP_EAgHVL,N_PAP_EAgLVL,N_PAP_SAgHVL,N_PAP_SAgLVL,N_screen_PAP,N_starting_treatment";
+
+               
+
 end % End function output_labels
