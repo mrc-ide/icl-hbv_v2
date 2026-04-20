@@ -13,9 +13,12 @@ function country_level_analyses(sensitivity_analysis,...
     if nargin < 1
        error('No input')
     end
+    
+    T_INTERVENTION_START = 2026.0;
+    T_INTERVENTION_END = 2029.0;
 
     % TUTAJ:
-    num_scenarios = 8;
+    num_scenarios = 10;
     %num_scenarios = 1;
 
     assert(ismember(sensitivity_analysis,{'default','infant_100','treat_medium','treat_high'}))
@@ -29,14 +32,16 @@ function country_level_analyses(sensitivity_analysis,...
     %disp(append('Run number ',stochas_run_str,' (of ',num2str(num_stochas_runs),') started at ',string(begin_time_run_num)));
 
     outMap = containers.Map; 
-    % for this particle (stochas_run_num), outMap contains the 12 scenarios, each of which contains countryMap, which contains the model results (lastrun) for 110 countries
+    % for this particle (stochas_run_num), outMap contains the num_scenario scenarios, each of which contains countryMap, which contains the model results (lastrun) for 110 countries
     label_array = cell(1,num_scenarios);
     scenario_hours_vec = repmat(duration(0,0,0),1,num_scenarios);
 
     
 
     for scenario_num = 1:num_scenarios
-
+    %%for scenario_num = 10:10
+        disp("Rnning scenario")
+        disp(scenario_num)
         % Make a copy of "Prog" for the given scenario - we can change
         % Prog_scenario in this loop if needed.
         Prog_scenario = Prog;
@@ -57,16 +62,19 @@ function country_level_analyses(sensitivity_analysis,...
             treatment_boundaries_vec = treatment_rates_map(ISO);
             assert(isequal(size(treatment_boundaries_vec),[1 6])) 
             % treatment_boundaries_vec contains the following (NOTE - this is *not* a complete list, but only treatment_boundaries_vec([1 2 3 5]) are used in the code:
-	    % (1) treatment year, 
+	        % (1) treatment year, 
             % (2) rate to keep number of people in treatment constant,
-	    % (3) rate to have 40% of eligible people in treatment by 2030, whether the constant rate is less than the 40% rate
-            % (5) rate to have 80% of eligible people in treatment by 2030, whether the 40% rate is less than the 80% rate
-            treat_start_year = treatment_boundaries_vec(1);
-            assert(treat_start_year==2016)
+	        % (3) rate to have 40% of eligible people in treatment by 2030 (if the constant rate is less than the 40% rate)
+            % (5) rate to have 80% of eligible people in treatment by 2030 (if the constant rate is less than the 80% rate)
+            treatment_start_year = treatment_boundaries_vec(1);
+            assert(treatment_start_year==2016)
             in_treatment_2016_CDA = num_in_treatment_2016_map(ISO);
             assert(in_treatment_2016_CDA>=0)
             if in_treatment_2016_CDA>0
                 pop_size_HBsAg_treatment_2016_vec = pop_size_HBsAg_treatment_map(ISO);
+                %% This is the proportion of people who are on treatment in 2016 
+                %% (it is different to the *rate* of treatment initiation 
+                %% treatment_rate_params.Treatmentrate_2016 = stochas_params_mat(stochas_run_num,country_start_col+7))
                 HBsAg_treat_cov_all_ages = pop_size_HBsAg_treatment_2016_vec(4);
                 assert(HBsAg_treat_cov_all_ages>0 && HBsAg_treat_cov_all_ages<1, "HBsAg_treat_cov_all_ages must be between 0 and 1")
                 assert(in_treatment_2016_CDA==pop_size_HBsAg_treatment_2016_vec(5))
@@ -366,25 +374,32 @@ function country_level_analyses(sensitivity_analysis,...
             iscenario_BASE2020 = 1; %% The 'default' scenario - WUENIC 2019 BD+HepB3, 2016 treatment, no new interventions.
             iscenario_BASE2025 = 2;     %% WUENIC 2025 BD+HepB3, 2016 treatment, no new interventions. Addresses - how have changes in BD+Hep B3 coverage impacted result?
             iscenario_INFACILITYBD = 3;  %% WUENIC 2025 HepB3, 2016 treatment, BD introduced in countries where it is not already present - coverage capped at in-facility birth coverage.
-            iscenario_MAP = 4; %% WUENIC 2025 BD+HepB3, 2016 treatment, Microarray patch introduced in 2026 (increase BD coverage, but lower efficacy).
-            iscenario_CPAD = 5; %% WUENIC 2025 BD+HepB3, 2016 treatment, CPAD patch introduced (increase BD but lower eff and different cost to MAP).
-            iscenario_BD2025_LA_TDF = 6; %% WUENIC 2025 BD+HepB3, 2016 treatment, long-acting treatment introduced (increases coverage of TDF treatment).
-            iscenario_BD2025_PoC_ALT_HBcrAg = 7;    %% WUENIC 2025 BD+HepB3, 2016 treatment, PoC ALT and HBcrAg introduced - higher treatment coverage, also some people on treatment who don't need it.
-            iscenario_BD2025_birthcohorttest = 8;   %% WUENIC 2025 BD+HepB3, 2016 treatment, Thai-B-type testing of pre-BD birth cohort on top of existing testing (cap so cannot test >100% of any age stratum).
-            iscenario_BD2025_cure = 9; %% WUENIC 2025 BD+HepB3, 2016 treatment, (hypothetical) cure replaces treatment at current test rates.
+            iscenario_BDWHOtarget = 4;   %% BD reaches 90% coverage by T_INTERVENTION_END
+            iscenario_HepB3WHOtarget = 5; %% HepB3 reach 90% coverage by T_INTERVENTION_END
+            iscenario_Treat40percent = 6; %% Treatment reach 40% coverage. Treatment rate scales up over period T_INTERVENTION_START to T_INTERVENTION_END
+            iscenario_TreatWHOtarget = 7; %% Treatment reach 80% coverage. Treatment rate scales up over period T_INTERVENTION_START to T_INTERVENTION_END
+            iscenario_WHOtarget = 8;     %% BD+HepB3 reach 90% coverage by T_INTERVENTION_END, treatment reaches 80% by T_INTERVENTION_END
+            iscenario_MAP = 9; %% WUENIC 2025 BD+HepB3, 2016 treatment, Microarray patch introduced in T_INTERVENTION_START (increase BD coverage, but lower efficacy).
+            iscenario_CPAD = 10; %% WUENIC 2025 BD+HepB3, 2016 treatment, CPAD patch introduced (increase BD but lower eff and different cost to MAP).
+            iscenario_BD2025_birthcohorttest = 11;   %% WUENIC 2025 BD+HepB3, 2016 treatment, Thai-B-type testing of pre-BD birth cohort on top of existing testing (cap so cannot test >100% of any age stratum).
             
-        
+            %%iscenario_BD2025_LA_TDF = 6; %% WUENIC 2025 BD+HepB3, 2016 treatment, long-acting treatment introduced (increases coverage of TDF treatment).
+            %%iscenario_BD2025_PoC_ALT_HBcrAg = 7;    %% WUENIC 2025 BD+HepB3, 2016 treatment, PoC ALT and HBcrAg introduced - higher treatment coverage, also some people on treatment who don't need it.
+            %%iscenario_BD2025_cure = 9; %% WUENIC 2025 BD+HepB3, 2016 treatment, (hypothetical) cure replaces treatment at current test rates.
+            
         
             %% Index values for scenario_BD: Governs BD coverage time trends, introduction of different BD devices (MAP, CPAD).
             I_BD_WUENIC2020 = 1;  %% Follow WUENIC2020 (existing scenario) and after 2019 coverage remains at last (2019) value
             I_BD_WUENIC2025 = 2;  %% Follow WUENIC2025 and after 2024 coverage remains at last (2024) value
-            I_BD_INFACILITY_INTRODUCTION = 3;  %% Follow WUENIC2025. For countries without BD, introduce BD in 2026 and scale up to be some % of the in-facility births. For countries with BD already this will be identical to I_BD_WUENIC2025.
+            I_BD_INFACILITY_INTRODUCTION = 3;  %% Follow WUENIC2025. For countries without BD, introduce BD in T_INTERVENTION_START and scale up to be some % of the in-facility births. For countries with BD already this will be identical to I_BD_WUENIC2025.
             I_BD_MAP = 4;  %% Follow WUENIC2025, then an extra (different efficacy) product increases overall BD coverage up to a level capped by out-of-facility deliveries.
             I_BD_CPAD = 5; %% Follow WUENIC2025, then an extra (different efficacy) product increases overall BD coverage up to a level capped by out-of-facility deliveries.
-            
+            I_BD_WHOtarget = 6; %% 90% BD coverage by T_INTERVENTION_END.
+
             %% Index values for scenario_HepB3: Hep B3 scenarios. Currently just use 2020 or 2025 WUENIC data.
             I_HEPB3_WUENIC2020 = 1;
             I_HEPB3_WUENIC2025 = 2;
+            I_HEPB3_WHOtarget = 3; %% 90% coverage.
             
             %% Index values for scenario_PAP: peripartum antiviral prophylaxis (PAP) treatment for HBsAg+ mothers (treat all, treat high VL etc).
             %%I_PAP_SQ = 0;      %% No PAP unless already present.
@@ -397,10 +412,13 @@ function country_level_analyses(sensitivity_analysis,...
             %% scenario_Treatment: governs how treatment happens:
             % Modified by treat-all, introduction of PoC HBcrAg, PoC ALT tests, 
             I_TREAT_INIT_SQ = 1;         %% Use current rates of treatment uptake and failure.
-            I_TREAT_INIT_POC_cr_ALT = 2; %% Introduce PoC tests for HBcrAg and ALT - increase rate of treatment initiation in eligible groups.
-            I_TREAT_INIT_LA = 3;         % Introduce long-acting treatment. SQ treatment failure rate is very low (0.001), so we take the "TDF treatment" group to be "On treatment, adherent and not going to drop out". LA treatment then just increases the proportion of people in this compartment (either by improving adherence, preventing dropout, or offering a more convenient/preffered option).
-            I_CURE = 4;                  % Cure replaces treatment - in this case 
-        
+            I_TREAT_WHOtarget = 2;       %% rate to get 80% of eligibles on treatment (TDF).
+            I_TREAT_40percent = 3;       %% rate to get 40% of eligibles on treatment (TDF).
+            %%I_TREAT_INIT_POC_cr_ALT = 4; %% Introduce PoC tests for HBcrAg and ALT - increase rate of treatment initiation in eligible groups.
+            %%I_TREAT_INIT_LA = 5;         % Introduce long-acting treatment. SQ treatment failure rate is very low (0.001), so we take the "TDF treatment" group to be "On treatment, adherent and not going to drop out". LA treatment then just increases the proportion of people in this compartment (either by improving adherence, preventing dropout, or offering a more convenient/preffered option).
+            %%I_CURE = 6;                  % Cure replaces treatment - in this case 
+
+
             % %% scenario_TreatmentRetention: governs introduction of long-acting treatment (TDF).
             % I_TREAT_RET_SQ = 1;
             % I_TREAT_RET_LA_TREAT = 2;
@@ -430,7 +448,42 @@ function country_level_analyses(sensitivity_analysis,...
                     scenario_PAP = I_PAP_NOTREAT;
                     scenario_Treatment = I_TREAT_INIT_SQ;
                     scenario_CohortTesting = I_NO_COHORT_TEST;
-                case iscenario_MAP %% WUENIC 2025 BD+HepB3, 2016 treatment, Microarray patch introduced in 2026 (increase BD coverage, but lower efficacy).
+                case iscenario_BDWHOtarget    %% BD reaches 90% coverage target
+                    disp("BD target scenario")
+                    scenario_BD = I_BD_WHOtarget;
+                    scenario_HepB3 = I_HEPB3_WUENIC2025;
+                    scenario_PAP = I_PAP_NOTREAT;
+                    scenario_Treatment = I_TREAT_INIT_SQ;
+                    scenario_CohortTesting = I_NO_COHORT_TEST;
+                case iscenario_HepB3WHOtarget  %% HepB3 reaches 90% coverage target
+                    disp("HepB3 target scenario")
+                    scenario_BD = I_BD_WUENIC2025;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_NOTREAT;
+                    scenario_Treatment = I_TREAT_INIT_SQ;
+                    scenario_CohortTesting = I_NO_COHORT_TEST;
+                case iscenario_Treat40percent  %% Treatment reaches 40% (half of WHO target)
+                    disp("Treatment target scenario")
+                    scenario_BD = I_BD_WUENIC2025;
+                    scenario_HepB3 = I_HEPB3_WUENIC2025;
+                    scenario_PAP = I_PAP_NOTREAT;
+                    scenario_Treatment = I_TREAT_40percent;
+                    scenario_CohortTesting = I_NO_COHORT_TEST;
+                case iscenario_TreatWHOtarget  %% Treatment reaches 80% target
+                    disp("Treatment target scenario")
+                    scenario_BD = I_BD_WUENIC2025;
+                    scenario_HepB3 = I_HEPB3_WUENIC2025;
+                    scenario_PAP = I_PAP_NOTREAT;
+                    scenario_Treatment = I_TREAT_WHOtarget;
+                    scenario_CohortTesting = I_NO_COHORT_TEST;
+                case iscenario_WHOtarget       %% BD, HepB3 and treatment reach targets
+                    disp("WHO target scenario")
+                    scenario_BD = I_BD_WHOtarget;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_NOTREAT;
+                    scenario_Treatment = I_TREAT_WHOtarget;
+                    scenario_CohortTesting = I_NO_COHORT_TEST;
+                case iscenario_MAP %% WUENIC 2025 BD+HepB3, 2016 treatment, Microarray patch introduced in T_INTERVENTION_START (increase BD coverage, but lower efficacy).
                     scenario_BD = I_BD_MAP;
                     scenario_HepB3 = I_HEPB3_WUENIC2025;
                     scenario_PAP = I_PAP_NOTREAT;
@@ -441,31 +494,31 @@ function country_level_analyses(sensitivity_analysis,...
                     scenario_HepB3 = I_HEPB3_WUENIC2025;
                     scenario_PAP = I_PAP_NOTREAT;
                     scenario_Treatment = I_TREAT_INIT_SQ;
-                    scenario_CohortTesting = I_NO_COHORT_TEST;
-                case iscenario_BD2025_LA_TDF %% WUENIC 2025 BD+HepB3, 2016 treatment, long-acting treatment introduced (increases coverage of TDF treatment).
-                    scenario_BD = I_BD_WUENIC2025;
-                    scenario_HepB3 = I_HEPB3_WUENIC2025;
-                    scenario_PAP = I_PAP_NOTREAT;
-                    scenario_Treatment = I_TREAT_INIT_LA;
-                    scenario_CohortTesting = I_NO_COHORT_TEST;
-                case iscenario_BD2025_PoC_ALT_HBcrAg   %% WUENIC 2025 BD+HepB3, 2016 treatment, PoC ALT and HBcrAg introduced - higher treatment coverage, also some people on treatment who don't need it.
-                    scenario_BD = I_BD_WUENIC2025;
-                    scenario_HepB3 = I_HEPB3_WUENIC2025;
-                    scenario_PAP = I_PAP_NOTREAT;
-                    scenario_Treatment = I_TREAT_INIT_POC_cr_ALT;
-                    scenario_CohortTesting = I_NO_COHORT_TEST;
                 case iscenario_BD2025_birthcohorttest   %% WUENIC 2025 BD+HepB3, 2016 treatment, Thai-B-type testing of pre-BD birth cohort on top of existing testing (cap so cannot test >100% of any age stratum).
                     scenario_BD = I_BD_WUENIC2025;
                     scenario_HepB3 = I_HEPB3_WUENIC2025;
                     scenario_PAP = I_PAP_NOTREAT;
                     scenario_Treatment = I_TREAT_INIT_SQ;
-                    scenario_CohortTesting = I_COHORT_TEST;
-                case iscenario_BD2025_cure
-                    scenario_BD = I_BD_WUENIC2025;
-                    scenario_HepB3 = I_HEPB3_WUENIC2025;
-                    scenario_PAP = I_PAP_NOTREAT;
-                    scenario_Treatment = I_CURE;
-                    scenario_CohortTesting = I_NO_COHORT_TEST;
+                    scenario_CohortTesting = I_COHORT_TEST;                    
+                %     scenario_CohortTesting = I_NO_COHORT_TEST;
+                % case iscenario_BD2025_LA_TDF %% WUENIC 2025 BD+HepB3, 2016 treatment, long-acting treatment introduced (increases coverage of TDF treatment).
+                %     scenario_BD = I_BD_WUENIC2025;
+                %     scenario_HepB3 = I_HEPB3_WUENIC2025;
+                %     scenario_PAP = I_PAP_NOTREAT;
+                %     scenario_Treatment = I_TREAT_INIT_LA;
+                %     scenario_CohortTesting = I_NO_COHORT_TEST;
+                % case iscenario_BD2025_PoC_ALT_HBcrAg   %% WUENIC 2025 BD+HepB3, 2016 treatment, PoC ALT and HBcrAg introduced - higher treatment coverage, also some people on treatment who don't need it.
+                %     scenario_BD = I_BD_WUENIC2025;
+                %     scenario_HepB3 = I_HEPB3_WUENIC2025;
+                %     scenario_PAP = I_PAP_NOTREAT;
+                %     scenario_Treatment = I_TREAT_INIT_POC_cr_ALT;
+                %     scenario_CohortTesting = I_NO_COHORT_TEST;
+                % case iscenario_BD2025_cure
+                %     scenario_BD = I_BD_WUENIC2025;
+                %     scenario_HepB3 = I_HEPB3_WUENIC2025;
+                %     scenario_PAP = I_PAP_NOTREAT;
+                %     scenario_Treatment = I_CURE;
+                %     scenario_CohortTesting = I_NO_COHORT_TEST;
                 otherwise
                     disp("Error - unknown scenario. Exiting")
                     return  %% Exit the script.
@@ -529,7 +582,7 @@ function country_level_analyses(sensitivity_analysis,...
                     future_xvals_vec = [2024.0, 2025.0, end_year];  
                     future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end), BirthDose_wuenic2025(end)];
                     %% This governs the coverage of the additional MAP injection:
-                    future_xvals_vec_MAP = [2024.0, 2026.0, 2028.0, end_year];
+                    future_xvals_vec_MAP = [2024.0, T_INTERVENTION_START, T_INTERVENTION_END, end_year];
                     %% Increase in BD if introduce MAP (requires BD to currently be available):
                     if(BirthDose_wuenic2025(end)>0)  %% BD already available
                         %% Increase in BD is capped to not exceed the current proportion not getting BD.
@@ -554,7 +607,7 @@ function country_level_analyses(sensitivity_analysis,...
                     future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end), BirthDose_wuenic2025(end)];
                     
                     %% This governs the coverage of the additional CPAD injection:
-                    future_xvals_vec_CPAD = [2024.0, 2026.0, 2028.0, end_year];
+                    future_xvals_vec_CPAD = [2024.0, T_INTERVENTION_START, T_INTERVENTION_END, end_year];
                     %% Increase in BD if introduce CPAD (requires BD to currently be available):
                     if(BirthDose_wuenic2025(end)>0)  %% BD already available
                         %% Increase in BD is capped to not exceed the current proportion not getting BD.
@@ -569,7 +622,16 @@ function country_level_analyses(sensitivity_analysis,...
                     disp("CPAD1")                    
                     scenario_BDcoverage_fromCPAD = make_coverage_vec(start_year, num_year_divisions, dt, end_year, coverageCPAD_to_present, future_xvals_vec_CPAD, future_yvals_vec_CPAD, year_last_BD_data);
                     scenario_BDcoverage_fromMAP = zeros(1,length(years_vec_01yr));
-
+                case I_BD_WHOtarget
+                    disp("I_BD_WHOtarget")
+                    year_last_BD_data = 2024;
+                    %% Update using WUENIC 2025: follow WUENIC2025 and after 2024 coverage remains at last (2024) value
+                    coverage_BD_to_last_datapoint = BirthDose_wuenic2025;
+                    future_xvals_vec = [2024.0, T_INTERVENTION_START, T_INTERVENTION_END, end_year];
+                    future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end), 0.9, 0.9];
+                    %% No MAP or CPAD introduced:
+                    scenario_BDcoverage_fromMAP = zeros(1,length(years_vec_01yr));
+                    scenario_BDcoverage_fromCPAD = zeros(1,length(years_vec_01yr));
                 otherwise 
                     disp("Error - unknown scenario_BD. Exiting")
                     return  %% Exit the script.
@@ -673,7 +735,13 @@ function country_level_analyses(sensitivity_analysis,...
                     year_last_HepB3_data = 2024;
                     coverage_HepB3_to_last_datapoint = HepB3_wuenic2025;
                     future_xvals_vec = [2024.0, 2025.0, end_year];
-                    future_yvals_vec = [HepB3_wuenic2020(end), HepB3_wuenic2020(end), HepB3_wuenic2020(end)];
+                    future_yvals_vec = [HepB3_wuenic2025(end), HepB3_wuenic2025(end), HepB3_wuenic2025(end)];
+                case I_HEPB3_WHOtarget
+                    disp("I_HEPB3_WHOtarget")
+                    year_last_HepB3_data = 2024;
+                    coverage_HepB3_to_last_datapoint = HepB3_wuenic2025;
+                    future_xvals_vec = [2024.0, T_INTERVENTION_START T_INTERVENTION_END, end_year];
+                    future_yvals_vec = [HepB3_wuenic2025(end), HepB3_wuenic2025(end), 0.9 0.9];
                 otherwise
                     disp("Error: Unknown value for scenario_HepB3. Exiting")
                     return
@@ -782,15 +850,25 @@ function country_level_analyses(sensitivity_analysis,...
                     return
             end
 
+            
+            treatment_rate_params = struct('Treatmentrate_2016', stochas_params_mat(stochas_run_num,country_start_col+7),...
+                    'Treatmentrate_final', 0,...
+                    't_treatment_scaleup_start', T_INTERVENTION_START,...
+                    't_treatment_scaleup_end', T_INTERVENTION_END);
             switch scenario_Treatment
                 case I_TREAT_INIT_SQ           %% Use current rates of treatment uptake and failure.
-                    params.PriorTDFTreatRate = stochas_params_mat(stochas_run_num,country_start_col+7);
-                case I_TREAT_INIT_POC_cr_ALT   %% Introduce PoC tests for HBcrAg and ALT - increase rate of treatment initiation in eligible groups.
-                    params.PriorTDFTreatRate = treatment_boundaries_vec(3); % Place holder - was 40% scenario
-                case I_TREAT_INIT_LA           %% Introduce long-acting treatment. SQ treatment failure rate is very low (0.001), so we take the "TDF treatment" group to be "On treatment, adherent and not going to drop out". LA treatment then just increases the proportion of people in this compartment (either by improving adherence, preventing dropout, or offering a more convenient/preffered option).
-                    params.PriorTDFTreatRate = treatment_boundaries_vec(5); % Place holder - was 80% scenario
-                case I_CURE                    %% Cure replaces treatment - in this case 
-                    a=6;
+                    %%params.PriorTDFTreatRate = stochas_params_mat(stochas_run_num,country_start_col+7);
+                    treatment_rate_params.Treatmentrate_final = treatment_rate_params.Treatmentrate_2016;
+                case I_TREAT_WHOtarget
+                    treatment_rate_params.Treatmentrate_final = treatment_boundaries_vec(5); % 80% scenario from MJDV code
+                case I_TREAT_40percent
+                    treatment_rate_params.Treatmentrate_final = treatment_boundaries_vec(3); % 40% scenario from MJDV code
+                % case I_TREAT_INIT_POC_cr_ALT   %% Introduce PoC tests for HBcrAg and ALT - increase rate of treatment initiation in eligible groups.
+                %     treatment_rate_params.Treatmentrate_final = treatment_rate_params.Treatmentrate_2016;
+                % case I_TREAT_INIT_LA           %% Introduce long-acting treatment. SQ treatment failure rate is very low (0.001), so we take the "TDF treatment" group to be "On treatment, adherent and not going to drop out". LA treatment then just increases the proportion of people in this compartment (either by improving adherence, preventing dropout, or offering a more convenient/preffered option).
+                %     treatment_rate_params.Treatmentrate_final = treatment_rate_params.Treatmentrate_2016;
+                %%case I_CURE                    %% Cure replaces treatment - in this case 
+                  
                 %     case 'treat_medium'
                 %         params.PriorTDFTreatRate = treatment_boundaries_vec(3); % 40%
                 %     case 'treat_high'
@@ -874,7 +952,8 @@ function country_level_analyses(sensitivity_analysis,...
             %% Run scenarios:
             lastrun = HBVmodel(source_HBsAg,...
                 num_states,num_year_divisions,dt,ages,num_age_steps,start_year,num_years_simul,...
-                theta,ECofactor,treat_start_year-dt,HBsAg_treat_cov_all_ages, ...
+                theta,ECofactor,treatment_rate_params, treatment_start_year-dt, ...
+                HBsAg_treat_cov_all_ages, ...
                 params, PAP_VL_params, PAP_cov_params, ...
                 p_ChronicCarriage,Prog_scenario,Transactions,......
                 scenario_BDcoverage, scenario_BDcoverage_fromMAP,...
@@ -996,22 +1075,22 @@ function country_level_analyses(sensitivity_analysis,...
 
         time_taken_for_scenario = datetime('now') - begin_time_scenario;
         scenario_hours_vec(scenario_num) = time_taken_for_scenario;
-        assert(all(scenario_hours_vec(1:scenario_num)>0))
-        average_time_per_scenario = mean(scenario_hours_vec(1:scenario_num));
+        %%assert(all(scenario_hours_vec(1:scenario_num)>0))
+        %%average_time_per_scenario = mean(scenario_hours_vec(1:scenario_num));
         %% min_time_per_scenario = min(scenario_hours_vec(1:scenario_num)); %% MP: not used.
         %% max_time_per_scenario = max(scenario_hours_vec(1:scenario_num)); %% MP: not used.
-        num_scenarios_left = num_scenarios - scenario_num;
-        mean_time_left = num_scenarios_left * average_time_per_scenario;
+        %%num_scenarios_left = num_scenarios - scenario_num;
+        %%mean_time_left = num_scenarios_left * average_time_per_scenario;
         %% min_time_left = num_scenarios_left * min_time_per_scenario; %% MP: not used.
         %% max_time_left = num_scenarios_left * max_time_per_scenario; %% MP: not used.
-        if num_scenarios_left>0
-            disp(append('There are ',num2str(num_scenarios_left),' scenarios left for run number ',stochas_run_str,' (',sensitivity_analysis,'), which will take about ',char(mean_time_left),' hh:mm:ss.'));
-        end
-
+        %%if num_scenarios_left>0
+        %%    disp(append('There are ',num2str(num_scenarios_left),' scenarios left for run number ',stochas_run_str,' (',sensitivity_analysis,'), which will take about ',char(mean_time_left),' hh:mm:ss.'));
+        %%end
+    
 
     end % end for scenario_num loop
-
-    assert(length(scenario_hours_vec)==num_scenarios)
+    disp("BBB")
+    %%assert(length(scenario_hours_vec)==num_scenarios)
     %%end_time_run_num = datetime('now');
     %%disp(end_time_run_num)
     %%time_taken_for_run = end_time_run_num - begin_time_run_num;

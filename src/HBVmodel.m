@@ -1,12 +1,14 @@
 function output = HBVmodel(source_HBsAg,...
     num_disease_states,num_year_divisions,dt,ages,num_age_steps,start_year,num_years_simul,...
-    theta,ECofactor,treat_start_year,treat_coverage_in_2016, ...
+    theta,ECofactor, ...
+    treatment_rate_params, treat_start_year,treat_coverage_in_2016, ...
     params, PAP_VL_params, PAP_cov_params, ...
     p_ChronicCarriage,Prog,Transactions, ...
     scenario_BDcoverage, scenario_BDcoverage_fromMAP, ...
     scenario_BDcoverage_fromCPAD, scenario_HepB3coverage, ...
     ISO, scenario_num, scenario_CohortTesting, ...
     stochas_run_str, sensitivity_analysis, basedir, store_results_as_text)
+
 
 % X-stocks are (infection_state, age, sex(1=women, 2=men), accessible*)   {*accessible
 % specifies whether this person can be reached by treatment progs, 1=no, 2=yes}
@@ -41,9 +43,9 @@ i_SevereAcute = 15; % 'Severe acute' ...  % 15
 i_alive = [1:10 12:15];
 i_eAgpos_chronic = 2:3;  %% Immune Tolerant, Immune Reactive, Non-severe + severe acute.
 i_eAgpos = [2:3 14:15];  %% Immune Tolerant, Immune Reactive, Non-severe + severe acute.
-i_sAgpos_notEagpos = [4:8 13];     %% Asymptomatic carrier, Chronic, Comp+Decom Cirr, HCC, failed 3TC.
+i_sAgpos_notEagpos_notreat = [4:8 13];     %% Asymptomatic carrier, Chronic, Comp+Decom Cirr, HCC, failed 3TC.
 i_treateligible = [3 5 6 7]; %% Immune Reactive, Chronic, Comp+Decomp Cirr
-i_sAgpos = [2:8 10 12:15];
+i_sAgpos = [2:8 10 12:15];   %% Includes 10 (TDFtreat) and 12 (3TCtreat) states
 i_sAgpos_chronic = [2:8 10 12:13]; 
 
 DUMMY_VALUE = -99;  % Used in initialising arrays to a dummy value (-99 should be easy to spot).
@@ -384,6 +386,7 @@ StartPop = params.Pop_byAgeGroups_1950(agegroups_1yr, :) * dt;
 
 X = zeros(num_disease_states, num_age_steps, num_sexes, num_treat_blocks);
 % dimensions: disease states, age, gender, accessible to treatment
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Initialise prevalence using HBsAg data:
@@ -832,6 +835,7 @@ for time = TimeSteps
     end % end "rem(time, 1) == 0" if statement
     
     
+    
     % Horizontal Transmission (infection and Chronic Carriage)
     
     FOI = zeros(1, num_age_steps, num_sexes, num_treat_blocks);
@@ -842,17 +846,17 @@ for time = TimeSteps
     n_pop_5y_andabove = sum(sum(sum(sum(X(i_alive, i5y:end, :, :)))));
     % i: Transmission Between 1y-5y olds
     FOI(1, i1y:(i5y - 1), :, :) = ...
-        beta_U5_SAg(i_dt) * sum(sum(sum(sum(X(i_sAgpos_notEagpos, i1y:(i5y - 1), :, :))))) / n_child_1y_5y ...
+        beta_U5_SAg(i_dt) * sum(sum(sum(sum(X(i_sAgpos_notEagpos_notreat, i1y:(i5y - 1), :, :))))) / n_child_1y_5y ...
         + beta_U5_EAg(i_dt) * sum(sum(sum(sum(X(i_eAgpos, i1y:(i5y - 1), :, :))))) / n_child_1y_5y;
     
     % ii: Transmission between 1-15 year olds
     FOI(1, i1y:(i15y - 1), :, :) = FOI(1, i1y:(i15y - 1), :, :) + ...
-        beta_1to15_SAg(i_dt) * sum(sum(sum(sum(X(i_sAgpos_notEagpos, i1y:(i15y - 1), :, :))))) / n_child_1y_15y ...
+        beta_1to15_SAg(i_dt) * sum(sum(sum(sum(X(i_sAgpos_notEagpos_notreat, i1y:(i15y - 1), :, :))))) / n_child_1y_15y ...
         + beta_1to15_EAg(i_dt) * sum(sum(sum(sum(X(i_eAgpos, i1y:(i15y - 1), :, :))))) / n_child_1y_15y;
     
     % iii: Transmission Between 5+ and Adults (Assuming equal risks for all persons 5y-100y)
     FOI(1, i5y:end, :, :) = FOI(1, i5y:end, :, :) + ...
-        beta_5plus_SAg(i_dt) * sum(sum(sum(sum(X(i_sAgpos_notEagpos, i5y:end, :, :))))) / n_pop_5y_andabove ...
+        beta_5plus_SAg(i_dt) * sum(sum(sum(sum(X(i_sAgpos_notEagpos_notreat, i5y:end, :, :))))) / n_pop_5y_andabove ...
         + beta_5plus_EAg(i_dt) * sum(sum(sum(sum(X(i_eAgpos, i5y:end, :, :))))) / n_pop_5y_andabove;
     
     
@@ -914,8 +918,9 @@ for time = TimeSteps
 
             %% Since we just checked that the number in natural history state i_TDFtreat was zero before treatemnt started in the smulation, this represents the number of people starting treatment at this timestep.
             number_starting_treatment_to_print = num_in_treatment;
-
-            eligible_pop = sum(sum(sum(sum(X([3 5:7 10], :, :, :),1),2),3),4); 
+            
+            %% eligible_pop includes those on treatment here:
+            eligible_pop = sum(sum(sum(sum(X([i_treateligible, i_TDFtreat], :, :, :),1),2),3),4); 
             assert(num_in_treatment/eligible_pop >= treat_coverage_in_2016)
             % treatment coverage amongst treatment-eligible people will be greater than treatment coverage amongst HBsAg+ people, except if treatment coverage is 0
             treat_coverage_2016 = num_in_treatment / eligible_pop; %% MP: CHECK WITH SHEVANTHI - THIS IS CURRENTLY DEAD CODE.
@@ -923,9 +928,17 @@ for time = TimeSteps
             initiated_treatment = true;
         else
             assert(initiated_treatment) % ensure that, each time this code is encountered, treatment has already been initiated
-
-            assert(params.PriorTDFTreatRate>=0)
-            moving_to_treatment(i_treateligible, :, :, :) = X(i_treateligible, :, :, :) .* params.PriorTDFTreatRate;
+            
+            if (time<=treatment_rate_params.t_treatment_scaleup_start)
+                treatment_rate = treatment_rate_params.Treatmentrate_2016;
+            elseif (time>=treatment_rate_params.t_treatment_scaleup_end)
+                treatment_rate = treatment_rate_params.Treatmentrate_final;
+            else
+                treatment_rate = treatment_rate_params.Treatmentrate_2016 + (treatment_rate_params.Treatmentrate_final - treatment_rate_params.Treatmentrate_2016) * (time-treatment_rate_params.t_treatment_scaleup_start)/(treatment_rate_params.t_treatment_scaleup_end - treatment_rate_params.t_treatment_scaleup_start);
+            end
+            assert(treatment_rate>=0)
+            
+            moving_to_treatment(i_treateligible, :, :, :) = X(i_treateligible, :, :, :) .* treatment_rate;
             next_X(i_treateligible, :, :, :) = next_X(i_treateligible, :, :, :) + dt * ( -moving_to_treatment(i_treateligible, :, :, :) );
             next_X(i_TDFtreat, :, :, :) = next_X(i_TDFtreat, :, :, :) + dt * ( +sum(moving_to_treatment, 1) );
             assert(max(moving_to_treatment(:))>=0)
@@ -989,7 +1002,7 @@ for time = TimeSteps
     %% MP: Magic numbers 1 and 4 mean sum over the listed natural history states and treatment states
     births_toNonInfectiousWomen = sum( fert' .* sum(sum(X([i_Susc i_Immune], :, i_female, :), 1), 4) ); % Susecptible, Immune
     %%births_toHbEAgWomen = sum(fert' .* sum(sum(X(i_eAgpos, :, i_female, :), 1), 4)); % Immune Tolerant, Immune Reactive
-    %%births_toHbSAgWomen = sum(fert' .* sum(sum(X(i_sAgpos_notEagpos, :, i_female, :), 1), 4)); % All other stages (other infected women)
+    %%births_toHbSAgWomen = sum(fert' .* sum(sum(X(i_sAgpos_notEagpos_notreat, :, i_female, :), 1), 4)); % All other stages (other infected women)
     
     %% In the PAP model these are incorporated in births_toNonInfectiousWomen. 
     %% As treatment will reduce VL we don't bother stratifying by high/low VL here:
@@ -997,8 +1010,8 @@ for time = TimeSteps
     
     births_toHbEAgWomenHighVL = PAP_VL_params.FracEPosHighVL    * sum(fert' .* sum(sum(X(i_eAgpos, :, i_female, :), 1), 4)); %Immune Tolerant, Immune Reactive, Acute
     births_toHbEAgWomenLowVL = (1-PAP_VL_params.FracEPosHighVL) * sum(fert' .* sum(sum(X(i_eAgpos, :, i_female, :), 1), 4)); %Immune Tolerant, Immune Reactive, Acute
-    births_toHbSAgWomenHighVL = PAP_VL_params.FracSPosHighVL    * sum(fert' .* sum(sum(X(i_sAgpos_notEagpos, :, i_female, :), 1), 4)); %All other stages (other infected women not on treatment)
-    births_toHbSAgWomenLowVL = (1-PAP_VL_params.FracSPosHighVL) * sum(fert' .* sum(sum(X(i_sAgpos_notEagpos, :, i_female, :), 1), 4)); %All other stages (other infected women not on treatment)
+    births_toHbSAgWomenHighVL = PAP_VL_params.FracSPosHighVL    * sum(fert' .* sum(sum(X(i_sAgpos_notEagpos_notreat, :, i_female, :), 1), 4)); %All other stages (other infected women not on treatment)
+    births_toHbSAgWomenLowVL = (1-PAP_VL_params.FracSPosHighVL) * sum(fert' .* sum(sum(X(i_sAgpos_notEagpos_notreat, :, i_female, :), 1), 4)); %All other stages (other infected women not on treatment)
     births_Total = births_toNonInfectiousWomen + births_toTrWomen + births_toHbEAgWomenHighVL + ...
         births_toHbEAgWomenLowVL + births_toHbSAgWomenHighVL + births_toHbSAgWomenLowVL;
     assert(isscalar(births_Total))
@@ -1439,6 +1452,7 @@ end
 
 
 
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% MP: comment this out for now as I don't know what it's doing.
 % Diagnositic work-up required for this simulation:
@@ -1542,8 +1556,8 @@ if(store_results_as_text==1)
     i_1950 = find(Time >= 1950, 1);
     filename_results_csv = strcat('results_',ISO,'_scenario',string(scenario_num),'_',sensitivity_analysis,'_run_', stochas_run_str, '.csv');
     disp(fullfile(basedir,'outputs',filename_results_csv))
-    size(results_to_print(:,i_1950:end))
-    size(Time(i_1950:end))
+    %%%size(results_to_print(:,i_1950:end))
+    %%%size(Time(i_1950:end))
     writematrix([Time(i_1950:end);results_to_print(:,i_1950:end)]',fullfile(basedir,'outputs',filename_results_csv));
 end
 
