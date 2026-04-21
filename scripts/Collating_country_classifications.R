@@ -75,4 +75,6 @@ setdiff(ListOfISOsModelled, CountryClassifierDF$ISO)
 ## character(0)
 
 
+CountryClassifierDF <- CountryClassifierDF[CountryClassifierDF$ISO %in% ListOfISOsModelled,]
+write.csv(CountryClassifierDF, file="C:/Users/mpickles/Documents/Hepatitis_B/icl-hbv/resources/CountryClassifier.csv", row.names=FALSE)
 

@@ -9,9 +9,6 @@ library(gganimate)
 library(tidyr)
 
 
-a <- read.csv("C:/Users/mpickles/Documents/Hepatitis_B/icl-hbv/src/raw_params/ListOfISOs.txt",sep=" ",header=FALSE)
-ListOfISOsModelled <- a$V2
-rm(a)
 
 setwd("C:/Users/mpickles/Documents/Hepatitis_B/icl-hbv/scripts/")
 current.dir <- "../outputs/"
