@@ -47,7 +47,7 @@ basedir = fileparts(currentFolder); % path for folder one level up from script.
 % MP: There are 200 runs from calibration so this is default. Use less for testing.
 %TUTAJ:
 %num_stochas_runs = 200;
-num_stochas_runs = 5;
+num_stochas_runs = 1;
 
 
 
@@ -65,8 +65,8 @@ num_countries = length(ListOfISOs);
 if RUN_ON_CLUSTER==0
     %% 30: Ethiopia; 36: Gambia; 92: Thailand.
     %%countries_to_run = [92, 93];
-    countries_to_run = [30, 36];
-    %%countries_to_run = 30;
+    %%countries_to_run = [30, 36];
+    countries_to_run = 30;
 else
     fileID = fopen('countries_to_run.txt','r');
     formatSpec = '%i';

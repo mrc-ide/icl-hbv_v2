@@ -647,10 +647,11 @@ function country_level_analyses(sensitivity_analysis,...
             assert(isequal(size(scenario_BDcoverage_fromMAP),size(years_vec_01yr)))
             assert(isequal(size(scenario_BDcoverage_fromCPAD),size(years_vec_01yr)))
             %% Make sure scenario_BDcoverage_fromMAP/CPAD lies in range 0-1:
-            mustBeBetween(scenario_BDcoverage_fromMAP,0,1);
-            mustBeBetween(scenario_BDcoverage_fromCPAD,0,1);
+            assert(all(scenario_BDcoverage_fromMAP>=0) && all(scenario_BDcoverage_fromMAP<=1))
+            assert(all(scenario_BDcoverage_fromCPAD>=0) && all(scenario_BDcoverage_fromCPAD<=1))
             %% Make sure total coverage of BD (normal BD/MAP/CPAD) is in range 0-1:
-            mustBeBetween((scenario_BDcoverage+scenario_BDcoverage_fromMAP+scenario_BDcoverage_fromCPAD),0,1);
+            %%mustBeBetween((scenario_BDcoverage+scenario_BDcoverage_fromMAP+scenario_BDcoverage_fromCPAD),0,1);
+            assert(all((scenario_BDcoverage+scenario_BDcoverage_fromMAP+scenario_BDcoverage_fromCPAD)>=0) && all((scenario_BDcoverage+scenario_BDcoverage_fromMAP+scenario_BDcoverage_fromCPAD)<=1))
 
             %% Make sure that the total (normal BD + MAP/CPAD) BD coverage is 100% or less:
             %%scenario_BDcoverage_fromMAP_CPAD = min(scenario_BDcoverage_fromMAP_CPAD, 1 - scenario_BDcoverage);
@@ -761,7 +762,7 @@ function country_level_analyses(sensitivity_analysis,...
             scenario_HepB3coverage = min(1,scenario_HepB3coverage);
             assert(isequal(size(scenario_HepB3coverage),size(years_vec_01yr)))
             %% Make sure scenario_HepB3coverage lies in range 0-1:
-            mustBeBetween(scenario_HepB3coverage,0,1);
+            assert(all(scenario_HepB3coverage>=0) && all(scenario_HepB3coverage<=1))
             
             %% Dead code:
             %% Now copy infant_vacc_vec into params (from now on we use params.InfantVacc):
@@ -958,7 +959,8 @@ function country_level_analyses(sensitivity_analysis,...
                 p_ChronicCarriage,Prog_scenario,Transactions,......
                 scenario_BDcoverage, scenario_BDcoverage_fromMAP,...
                 scenario_BDcoverage_fromCPAD, scenario_HepB3coverage, ...
-                ISO, scenario_num, scenario_CohortTesting,...
+                ISO, scenario_num, scenario_CohortTesting, ...
+                num_year_1980_2100, life_expectancy, ...
                 stochas_run_str, sensitivity_analysis, basedir, store_results_as_text);
             lastrun.DALYPerYear = make_daly_mat(lastrun,num_years_simul,num_year_1980_2100,life_expectancy);
             assert(isequal(size(lastrun.DALYPerYear),[100 num_years_simul + 1]))
@@ -1105,25 +1107,6 @@ end % end function country_level_analyses
 
 
 
-
-function outmat = make_daly_mat(model_run,num_years_simul,num_year_1980_2100,life_expectancy)
-
-    yll_spread = squeeze(sum(model_run.Prev_Deaths_1yr(:,1:(life_expectancy-1),:),1)); % sum over gender
-    % prevalence of deaths because one wants to count total deaths
-    assert(isequal(size(yll_spread),[(life_expectancy-1) num_years_simul+1]))
-    yll_spread = [yll_spread; zeros(100-(life_expectancy-1),num_years_simul+1)];
-    assert(isequal(size(yll_spread),[100 num_years_simul+1]))
-    
-    yld_spread = squeeze(sum(model_run.yld_1yr,1)); % years living with the disease
-    % Wikipedia: YLD = I x DW x L, where I = number of incident cases in the population, DW = disability weight of specific condition, and L = average duration of the case until remission or death (years)
-    % I x L = P therefore YLD = P x DW, which is done in the model
-    % model_run.yld_1yr is a 2 x 100 x num_year_1980_2100 matrix 
-    % sum over genders to get a 100 x 101 matrix of 100 age groups (0 to 99) versus 101 years (2000 to 2100)
-    assert(isequal(size(yld_spread),[100 num_years_simul+1]))
-
-    outmat = yll_spread + yld_spread;
-    % DALY = YLL + YLD
-end % end function make_daly_mat
 
 
 

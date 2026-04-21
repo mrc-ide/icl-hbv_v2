@@ -7,6 +7,7 @@ function output = HBVmodel(source_HBsAg,...
     scenario_BDcoverage, scenario_BDcoverage_fromMAP, ...
     scenario_BDcoverage_fromCPAD, scenario_HepB3coverage, ...
     ISO, scenario_num, scenario_CohortTesting, ...
+    num_year_1980_2100, life_expectancy, ...
     stochas_run_str, sensitivity_analysis, basedir, store_results_as_text)
 
 
@@ -154,8 +155,10 @@ p_VertTrans_HbSAgHighVL_NoIntv = PAP_VL_params.p_VertTrans_HbSAgHighVL_NoIntv;
 
 % Check close to original p_HbSAg_av value:
 assert(abs(p_HbSAg_av - (p_VertTrans_HbSAgLowVL_NoIntv*(1-PAP_VL_params.FracSPosHighVL) + p_VertTrans_HbSAgHighVL_NoIntv*PAP_VL_params.FracSPosHighVL))<0.001)
-mustBeBetween(p_VertTrans_HbSAgLowVL_NoIntv, 0, 1)
-mustBeBetween(p_VertTrans_HbSAgHighVL_NoIntv, 0, 1)
+%mustBeBetween(p_VertTrans_HbSAgLowVL_NoIntv, 0, 1)
+%mustBeBetween(p_VertTrans_HbSAgHighVL_NoIntv, 0, 1)
+assert(p_VertTrans_HbSAgLowVL_NoIntv>=0 && p_VertTrans_HbSAgLowVL_NoIntv<=1)
+assert(p_VertTrans_HbSAgHighVL_NoIntv>=0 && p_VertTrans_HbSAgHighVL_NoIntv<=1)
 
 
 p_HbEAg_av = params.p_VerticalTransmission_HbEAg_NoIntv; % From assumption in the version of the model used in fitting  (this average rate to be preserved) [NB. if this varied in different region then specifiy that here!)]
@@ -165,8 +168,10 @@ p_VertTrans_HbEAgHighVL_NoIntv = PAP_VL_params.p_VertTrans_HbEAgHighVL_NoIntv;
 
 % Check close to original p_HbEAg_av value:
 assert(abs(p_HbEAg_av - (p_VertTrans_HbEAgLowVL_NoIntv*(1-PAP_VL_params.FracEPosHighVL) + p_VertTrans_HbEAgHighVL_NoIntv*PAP_VL_params.FracEPosHighVL))<0.001)
-mustBeBetween(p_VertTrans_HbEAgLowVL_NoIntv, 0, 1)
-mustBeBetween(p_VertTrans_HbEAgHighVL_NoIntv, 0, 1)
+%mustBeBetween(p_VertTrans_HbEAgLowVL_NoIntv, 0, 1)
+%mustBeBetween(p_VertTrans_HbEAgHighVL_NoIntv, 0, 1)
+assert(p_VertTrans_HbEAgLowVL_NoIntv>=0 && p_VertTrans_HbEAgLowVL_NoIntv<=1)
+assert(p_VertTrans_HbEAgHighVL_NoIntv>=0 && p_VertTrans_HbEAgHighVL_NoIntv<=1)
 
 % Compute the transmission probabilities using probability ratios (i.e.
 % (1-effectiveness)). Note that for now we do not assume independence
@@ -243,7 +248,8 @@ Snames_PAP_VL_params = fieldnames(PAP_VL_params);
 % Many of these are probability ratios, but we expect them to be <=1 (because they relate to interventions that reduce transmission):
 %%for i = [1, 2, 5:numel(Snames_PAP_VL_params)]
 for i = 1:numel(Snames_PAP_VL_params)
-    mustBeBetween(PAP_VL_params.(Snames_PAP_VL_params{i}),0,1)
+    %mustBeBetween(PAP_VL_params.(Snames_PAP_VL_params{i}),0,1)
+    assert(PAP_VL_params.(Snames_PAP_VL_params{i})>=0 && PAP_VL_params.(Snames_PAP_VL_params{i})<=1)
 end
     
 %   Within each e/vl cat, confirm appropriate ordering
@@ -1545,8 +1551,19 @@ end
 %% TAM: End of PAP Chunk 4
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+DALYs = make_daly_mat(output,num_years_simul,num_year_1980_2100,life_expectancy);
 
+size(sum(DALYs,1))
+i_1950 = find(Time >= 1950, 1);
+size(results_to_print(:,i_1950:end))
 
+DALYs_summed = sum(DALYs,1);
+disp("Sizes")
+size(DALYs_summed)
+
+i_1950 = find(Time >= 1950, 1);
+size(results_to_print(:,i_1950:end))
+disp("End")
 if(store_results_as_text==1)
     if(stochas_run_str=="1")
         %disp("Making header.txt file")
@@ -1558,7 +1575,7 @@ if(store_results_as_text==1)
     disp(fullfile(basedir,'outputs',filename_results_csv))
     %%%size(results_to_print(:,i_1950:end))
     %%%size(Time(i_1950:end))
-    writematrix([Time(i_1950:end);results_to_print(:,i_1950:end)]',fullfile(basedir,'outputs',filename_results_csv));
+    writematrix([Time(i_1950:end);results_to_print(:,i_1950:end);DALYs_summed(i_1950:end)]',fullfile(basedir,'outputs',filename_results_csv));
 end
 
 
@@ -1611,7 +1628,7 @@ function output_labels=construct_header(agegroups, num_disease_states, num_sexes
     end
 
     %% Resources (for costing):
-    output_labels = output_labels + "NBirthDose,NBD_MAP,NBD_CPAD,N_InfantVacc,N_PAP_EAgHVL,N_PAP_EAgLVL,N_PAP_SAgHVL,N_PAP_SAgLVL,N_screen_PAP,N_starting_treatment";
+    output_labels = output_labels + "NBirthDose,NBD_MAP,NBD_CPAD,N_InfantVacc,N_PAP_EAgHVL,N_PAP_EAgLVL,N_PAP_SAgHVL,N_PAP_SAgLVL,N_screen_PAP,N_starting_treatment,DALYs";
 
                
 
