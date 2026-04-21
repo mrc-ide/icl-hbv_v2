@@ -1,9 +1,12 @@
 rm(list=ls())
 library(readxl)
 
-a <- read.csv("C:/Users/mpickles/Documents/Hepatitis_B/icl-hbv/src/raw_params/ListOfISOs.txt",sep=" ",header=FALSE)
-ListOfISOsModelled <- a$V2
-rm(a)
+df.ISOsModelled <- read.csv("C:/Users/mpickles/Documents/Hepatitis_B/icl-hbv/src/raw_params/ListOfISOs.txt",sep=" ",header=FALSE)
+names(df.ISOsModelled)[names(df.ISOsModelled) == 'V1'] <- 'MatlabIndex'
+names(df.ISOsModelled)[names(df.ISOsModelled) == 'V2'] <- 'ISO'
+df.ISOsModelled$MatlabIndex <- gsub(":","",df.ISOsModelled$MatlabIndex)
+##ListOfISOsModelled <- a$V2
+
 
 
 setwd("/Users/mpickles/OneDrive - Imperial College London/Dropbox_copy/Hepatits B/")
@@ -68,13 +71,15 @@ CountryClassifierDF <- merge(who.df, wb, by=c("ISO"))
 
 CountryClassifierDF <- merge(CountryClassifierDF, gbd, by=c("Country"))
 
-setdiff(CountryClassifierDF$ISO,ListOfISOsModelled)
+setdiff(CountryClassifierDF$ISO,df.ISOsModelled$ISO)
 ## 82 countries
 
-setdiff(ListOfISOsModelled, CountryClassifierDF$ISO)
+setdiff(df.ISOsModelled$ISO, CountryClassifierDF$ISO)
 ## character(0)
 
+## Merge will only keep elements in both data frames (which is what we want - only want to keep modelled countries)
+CountryClassifierDF <- merge(CountryClassifierDF,df.ISOsModelled, by=c("ISO"))
 
-CountryClassifierDF <- CountryClassifierDF[CountryClassifierDF$ISO %in% ListOfISOsModelled,]
+##CountryClassifierDF <- CountryClassifierDF[CountryClassifierDF$ISO %in% ListOfISOsModelled,]
 write.csv(CountryClassifierDF, file="C:/Users/mpickles/Documents/Hepatitis_B/icl-hbv/resources/CountryClassifier.csv", row.names=FALSE)
 
