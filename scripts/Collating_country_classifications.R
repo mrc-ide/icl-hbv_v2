@@ -65,7 +65,7 @@ who.df <- who.df[,colnames(who.df) %in% c("Country","ISO","WHO_region")]
 
 wb$ISO <- wb$Code
 wb$WB_income_group <- wb$`Income group`
-wb <- wb[,colnames(wb) %in% c("ISO","WB_Region","WB_income_group ")]
+wb <- wb[,colnames(wb) %in% c("ISO","WB_Region","WB_income_group")]
 
 CountryClassifierDF <- merge(who.df, wb, by=c("ISO"))
 

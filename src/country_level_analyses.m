@@ -18,7 +18,8 @@ function country_level_analyses(sensitivity_analysis,...
     T_INTERVENTION_END = 2029.0;
 
     % TUTAJ:
-    num_scenarios = 10;
+    num_scenarios = 13;
+    start_scenario = 12;
     %num_scenarios = 1;
 
     assert(ismember(sensitivity_analysis,{'default','infant_100','treat_medium','treat_high'}))
@@ -38,7 +39,7 @@ function country_level_analyses(sensitivity_analysis,...
 
     
 
-    for scenario_num = 1:num_scenarios
+    for scenario_num = start_scenario:num_scenarios
     %%for scenario_num = 10:10
         disp("Rnning scenario")
         disp(scenario_num)
@@ -382,7 +383,8 @@ function country_level_analyses(sensitivity_analysis,...
             iscenario_MAP = 9; %% WUENIC 2025 BD+HepB3, 2016 treatment, Microarray patch introduced in T_INTERVENTION_START (increase BD coverage, but lower efficacy).
             iscenario_CPAD = 10; %% WUENIC 2025 BD+HepB3, 2016 treatment, CPAD patch introduced (increase BD but lower eff and different cost to MAP).
             iscenario_BD2025_birthcohorttest = 11;   %% WUENIC 2025 BD+HepB3, 2016 treatment, Thai-B-type testing of pre-BD birth cohort on top of existing testing (cap so cannot test >100% of any age stratum).
-            
+            iscenario_BASE2020notreat = 12;
+            iscenario_BASE2025notreat = 13;   %% WUENIC 2025 BD+HepB3, no treatment, no new interventions. Introduced because existing treatment scenarios have treatment coverage increasing to ~70% by 2100.
             %%iscenario_BD2025_LA_TDF = 6; %% WUENIC 2025 BD+HepB3, 2016 treatment, long-acting treatment introduced (increases coverage of TDF treatment).
             %%iscenario_BD2025_PoC_ALT_HBcrAg = 7;    %% WUENIC 2025 BD+HepB3, 2016 treatment, PoC ALT and HBcrAg introduced - higher treatment coverage, also some people on treatment who don't need it.
             %%iscenario_BD2025_cure = 9; %% WUENIC 2025 BD+HepB3, 2016 treatment, (hypothetical) cure replaces treatment at current test rates.
@@ -414,6 +416,7 @@ function country_level_analyses(sensitivity_analysis,...
             I_TREAT_INIT_SQ = 1;         %% Use current rates of treatment uptake and failure.
             I_TREAT_WHOtarget = 2;       %% rate to get 80% of eligibles on treatment (TDF).
             I_TREAT_40percent = 3;       %% rate to get 40% of eligibles on treatment (TDF).
+            I_NOTREAT = 4;       %% no treatment ever.
             %%I_TREAT_INIT_POC_cr_ALT = 4; %% Introduce PoC tests for HBcrAg and ALT - increase rate of treatment initiation in eligible groups.
             %%I_TREAT_INIT_LA = 5;         % Introduce long-acting treatment. SQ treatment failure rate is very low (0.001), so we take the "TDF treatment" group to be "On treatment, adherent and not going to drop out". LA treatment then just increases the proportion of people in this compartment (either by improving adherence, preventing dropout, or offering a more convenient/preffered option).
             %%I_CURE = 6;                  % Cure replaces treatment - in this case 
@@ -499,7 +502,22 @@ function country_level_analyses(sensitivity_analysis,...
                     scenario_HepB3 = I_HEPB3_WUENIC2025;
                     scenario_PAP = I_PAP_NOTREAT;
                     scenario_Treatment = I_TREAT_INIT_SQ;
-                    scenario_CohortTesting = I_COHORT_TEST;                    
+                    scenario_CohortTesting = I_COHORT_TEST;     
+                case iscenario_BASE2020notreat   %%case 'Status quo infant & BD'
+                    scenario_BD = I_BD_WUENIC2020;
+                    scenario_HepB3 = I_HEPB3_WUENIC2020;
+                    scenario_PAP = I_PAP_NOTREAT;
+                    scenario_Treatment = I_NOTREAT;
+                    scenario_CohortTesting = I_NO_COHORT_TEST;
+                case iscenario_BASE2025notreat     %% WUENIC 2025 BD+HepB3, 2016 treatment, no new interventions. Addresses - how have changes in BD+Hep B3 coverage impacted result?
+                    scenario_BD = I_BD_WUENIC2025;
+                    scenario_HepB3 = I_HEPB3_WUENIC2025;
+                    scenario_PAP = I_PAP_NOTREAT;
+                    scenario_Treatment = I_NOTREAT;
+                    scenario_CohortTesting = I_NO_COHORT_TEST;
+
+
+                    
                 %     scenario_CohortTesting = I_NO_COHORT_TEST;
                 % case iscenario_BD2025_LA_TDF %% WUENIC 2025 BD+HepB3, 2016 treatment, long-acting treatment introduced (increases coverage of TDF treatment).
                 %     scenario_BD = I_BD_WUENIC2025;
@@ -540,7 +558,7 @@ function country_level_analyses(sensitivity_analysis,...
             end
 
             % Make model scenario birth dose coverage over time:
-            last_BD_scaleup_year = 2030.0;  %% Assumption that BD plateaus after this time.
+            %%last_BD_scaleup_year = 2030.0;  %% Assumption that BD plateaus after this time.
             
             switch scenario_BD
                 case I_BD_WUENIC2020   
@@ -860,10 +878,16 @@ function country_level_analyses(sensitivity_analysis,...
                 case I_TREAT_INIT_SQ           %% Use current rates of treatment uptake and failure.
                     %%params.PriorTDFTreatRate = stochas_params_mat(stochas_run_num,country_start_col+7);
                     treatment_rate_params.Treatmentrate_final = treatment_rate_params.Treatmentrate_2016;
+                    HAS_TREATMENT = 1; % Treatment introduced in 2016 at rate from MJdV.
                 case I_TREAT_WHOtarget
                     treatment_rate_params.Treatmentrate_final = treatment_boundaries_vec(5); % 80% scenario from MJDV code
+                    HAS_TREATMENT = 1;
                 case I_TREAT_40percent
                     treatment_rate_params.Treatmentrate_final = treatment_boundaries_vec(3); % 40% scenario from MJDV code
+                    HAS_TREATMENT = 1;
+                case I_NOTREAT
+                    treatment_rate_params.Treatmentrate_final = 0; % no treatment
+                    HAS_TREATMENT = 0;  % Treatment never introduced
                 % case I_TREAT_INIT_POC_cr_ALT   %% Introduce PoC tests for HBcrAg and ALT - increase rate of treatment initiation in eligible groups.
                 %     treatment_rate_params.Treatmentrate_final = treatment_rate_params.Treatmentrate_2016;
                 % case I_TREAT_INIT_LA           %% Introduce long-acting treatment. SQ treatment failure rate is very low (0.001), so we take the "TDF treatment" group to be "On treatment, adherent and not going to drop out". LA treatment then just increases the proportion of people in this compartment (either by improving adherence, preventing dropout, or offering a more convenient/preffered option).
@@ -959,6 +983,7 @@ function country_level_analyses(sensitivity_analysis,...
                 p_ChronicCarriage,Prog_scenario,Transactions,......
                 scenario_BDcoverage, scenario_BDcoverage_fromMAP,...
                 scenario_BDcoverage_fromCPAD, scenario_HepB3coverage, ...
+                HAS_TREATMENT,...
                 ISO, scenario_num, scenario_CohortTesting, ...
                 num_year_1980_2100, life_expectancy, ...
                 stochas_run_str, sensitivity_analysis, basedir, store_results_as_text);
