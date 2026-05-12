@@ -6,6 +6,7 @@ function country_level_analyses(sensitivity_analysis,...
     country_s_e_HCCdeaths_map,...
     params_map,stochas_params_mat,country_start_cols,...
     WUENIC2024BDdata, WUENIC2024HepB3data, ...
+    GHO_infacilitybirthproportion_map, ...
     basedir,...
     num_states,num_year_divisions,dt,ages,num_age_steps,start_year,num_years_simul,end_year,...
     theta,CFR_Acute,rate_6months,ECofactor,p_ChronicCarriage,life_expectancy, Prog)
@@ -513,7 +514,6 @@ function country_level_analyses(sensitivity_analysis,...
                     scenario_PAP = I_PAP_TREAThighVL;
                     scenario_Treatment = I_NOTREAT;
                     scenario_CohortTesting = I_NO_COHORT_TEST;
-
                 case iscenario_PAP_TREATeAgpos
                     scenario_BD = I_BD_WUENIC2025;
                     scenario_HepB3 = I_HEPB3_WUENIC2025;
@@ -570,13 +570,15 @@ function country_level_analyses(sensitivity_analysis,...
             prop_accept_CPAD = 0.85; %% Placeholder assumption
 
             %% Out-of-facility births: %% Placeholders
-            if(strcmp(ISO,"GMB"))
-                prop_OOF_births = 0.837;
-            elseif(strcmp(ISO,"ETH"))
-                prop_OOF_births = 0.475;
-            else 
-                prop_OOF_births = 0.95; %% Placeholder - update to something better... 
-            end
+            % if(strcmp(ISO,"GMB"))
+            %     prop_OOF_births = 0.837;
+            % elseif(strcmp(ISO,"ETH"))
+            %     prop_OOF_births = 0.475;
+            % else 
+            %     prop_OOF_births = 0.95; %% Placeholder - update to something better... 
+            % end
+            in_facility_BD_acceptance = 0.9;  %% For now assume up to 90% of in-facility births will give BD.
+            prop_OOF_births = 1-GHO_infacilitybirthproportion_map(ISO);
 
             % Make model scenario birth dose coverage over time:
             %%last_BD_scaleup_year = 2030.0;  %% Assumption that BD plateaus after this time.
@@ -607,8 +609,10 @@ function country_level_analyses(sensitivity_analysis,...
                     year_last_BD_data = 2024;
                     disp("I_BD_INFACILITY_INTRODUCTION")
                     coverage_BD_to_last_datapoint = BirthDose_wuenic2025;
-                    future_xvals_vec = [2024.0, 2025.0, end_year];  
-                    future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end), BirthDose_wuenic2025(end)];
+                    %% Coverage up to 90% of the in-facility births, or current (2025 WUENIC) value - whichever is bigger.
+                    max_in_facility_coverage = max(GHO_infacilitybirthproportion_map(ISO)*in_facility_BD_acceptance,BirthDose_wuenic2025(end));
+                    future_xvals_vec = [2024.0, T_INTERVENTION_START, T_INTERVENTION_END, end_year];
+                    future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end), max_in_facility_coverage, max_in_facility_coverage];
                     %% No MAP or CPAD introduced:
                     scenario_BDcoverage_fromMAP = zeros(1,length(years_vec_01yr));
                     scenario_BDcoverage_fromCPAD = zeros(1,length(years_vec_01yr));
@@ -626,7 +630,7 @@ function country_level_analyses(sensitivity_analysis,...
                     if(BirthDose_wuenic2025(end)>0)  %% BD already available
                         %% Increase in BD is capped to not exceed the current proportion not getting BD.
                         current_prop_not_getting_BD = (1-BirthDose_wuenic2025(end));
-                        BD_increase_from_MAP  = min((1-prop_OOF_births)*prop_accept_MAP, current_prop_not_getting_BD);
+                        BD_increase_from_MAP  = min(prop_OOF_births*prop_accept_MAP, current_prop_not_getting_BD);
                     else                             %% BD not currently available
                         BD_increase_from_MAP = 0;
                     end
@@ -651,7 +655,7 @@ function country_level_analyses(sensitivity_analysis,...
                     if(BirthDose_wuenic2025(end)>0)  %% BD already available
                         %% Increase in BD is capped to not exceed the current proportion not getting BD.
                         current_prop_not_getting_BD = (1-BirthDose_wuenic2025(end));
-                        BD_increase_from_CPAD = min((1-prop_OOF_births)*prop_accept_CPAD, current_prop_not_getting_BD);
+                        BD_increase_from_CPAD = min(prop_OOF_births*prop_accept_CPAD, current_prop_not_getting_BD);
                     else                             %% BD not currently available
                         BD_increase_from_CPAD = 0;
                     end
