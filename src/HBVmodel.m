@@ -561,6 +561,7 @@ male_multiplier = 0;
 
 
 moving_to_treatment_by_birthcohort_testing = zeros(size(X));
+moving_to_treatment_by_birthcohort_testing_this_timestep = zeros(size(X));
 
 
 for time = TimeSteps 
@@ -879,24 +880,52 @@ for time = TimeSteps
     % multiply by dt because quantity is calculated every 0.1 years therefore needs to be divided by 10
 
 
-    %% SERNIK
-    %%if (time >= birth_cohort_testing_start && time <= birth_cohort_testing_end)
         
 
     % (Time-dependent) Baseline Transition to TDF-Treatment
     assert(squeeze(sum(sum(sum(sum(X([i_3TCtreat i_3TCfailed], :, :, 1),1),2),3),4))==0)
     % (Time-dependent) Baseline Transition to TDF-Treatment
     
-    switch scenario_CohortTesting
-    case I_NO_COHORT_TEST
-        a=7;
-    case I_COHORT_TEST
-        a=8;
-    otherwise
-        disp("Error: Unknown value for scenario_CohortTesting. Exiting")
-        return
-    end 
-    
+    %% SERNIK
+    birth_cohort_testing_start = 2026;
+    birth_cohort_testing_end = 2029;
+    if (time >= birth_cohort_testing_start && time <= birth_cohort_testing_end)
+        if(scenario_CohortTesting==I_COHORT_TEST)
+            %%case I_NO_COHORT_TEST
+            disp("Running birth cohort testing and treatment")
+            disp(time)
+            %%case I_COHORT_TEST
+            if(time == birth_cohort_testing_start)
+                i_cohortage_min = round((birth_cohort_testing_start-1992)/dt); % Individuals born before 1992
+                i_cohortage_max = round(60/dt); % Individuals born before 1992
+                % Check I haven't accidentally made the min age>max age:
+                assert(i_cohortage_max>i_cohortage_min)
+
+                birth_cohort_coverage = 0.8;
+                %% Note we should use next_X rather than X here:
+                moving_to_treatment_by_birthcohort_testing_per_timestep(i_treateligible, i_cohortage_min:i_cohortage_max, :, :) = dt * birth_cohort_coverage * next_X(i_treateligible, i_cohortage_min:i_cohortage_max, :, :)/(birth_cohort_testing_end-birth_cohort_testing_start); 
+                disp("Eligible for cohort treatment")
+                disp(sum(sum(sum(sum(moving_to_treatment_by_birthcohort_testing_per_timestep,1),2),3),4))
+            end
+            disp("At time")
+            disp(time)
+            
+            assert(time<=birth_cohort_testing_end);
+            i_birth_cohort_offset = round((time-birth_cohort_testing_start)/0.1);
+            moving_to_treatment_by_birthcohort_testing_this_timestep(i_treateligible, (i_cohortage_min+i_birth_cohort_offset):i_cohortage_max, :, :) ...
+                = moving_to_treatment_by_birthcohort_testing_per_timestep(i_treateligible, i_cohortage_min:(i_cohortage_max-i_birth_cohort_offset), :, :);
+            %% Set the earlier age group elements to zero if needed:
+            if(i_birth_cohort_offset>0)
+                moving_to_treatment_by_birthcohort_testing_this_timestep(i_treateligible, i_cohortage_min:(i_cohortage_min+i_birth_cohort_offset-1), :, :) ...
+                    = zeros(length(i_treateligible), i_birth_cohort_offset, num_sexes, num_treat_blocks);
+            end
+            next_X(i_treateligible, :, :, :) = next_X(i_treateligible, :, :, :) - moving_to_treatment_by_birthcohort_testing_this_timestep(i_treateligible, :, :, :);
+            next_X(i_TDFtreat, :, :, :) = next_X(i_TDFtreat, :, :, :) + sum(moving_to_treatment_by_birthcohort_testing_this_timestep, 1);
+            %%otherwise
+            %%    disp("Error: Unknown value for scenario_CohortTesting. Exiting")
+            %%    return
+        end 
+    end
     %%if (time >= birth_cohort_testing_start && time <= birth_cohort_testing_end)
 
     if (time >= treat_start_year && HAS_TREATMENT~=0)

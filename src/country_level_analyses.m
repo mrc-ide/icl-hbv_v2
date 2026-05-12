@@ -18,9 +18,9 @@ function country_level_analyses(sensitivity_analysis,...
     T_INTERVENTION_END = 2029.0;
 
     % TUTAJ:
-    num_scenarios = 13;
-    start_scenario = 12;
-    %num_scenarios = 1;
+    num_scenarios = 11;
+    %start_scenario = 14;
+    start_scenario = 11;
 
     assert(ismember(sensitivity_analysis,{'default','infant_100','treat_medium','treat_high'}))
 
@@ -372,8 +372,8 @@ function country_level_analyses(sensitivity_analysis,...
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             %% TUTAJ:
             %% Here we define the indices for each scenario we are looking at:
-            iscenario_BASE2020 = 1; %% The 'default' scenario - WUENIC 2019 BD+HepB3, 2016 treatment, no new interventions.
-            iscenario_BASE2025 = 2;     %% WUENIC 2025 BD+HepB3, 2016 treatment, no new interventions. Addresses - how have changes in BD+Hep B3 coverage impacted result?
+            iscenario_BASE2020notreat = 1;
+            iscenario_BASE2025notreat = 2;   %% WUENIC 2025 BD+HepB3, no treatment, no new interventions. Introduced because existing treatment scenarios have treatment coverage increasing to ~70% by 2100.
             iscenario_INFACILITYBD = 3;  %% WUENIC 2025 HepB3, 2016 treatment, BD introduced in countries where it is not already present - coverage capped at in-facility birth coverage.
             iscenario_BDWHOtarget = 4;   %% BD reaches 90% coverage by T_INTERVENTION_END
             iscenario_HepB3WHOtarget = 5; %% HepB3 reach 90% coverage by T_INTERVENTION_END
@@ -383,8 +383,12 @@ function country_level_analyses(sensitivity_analysis,...
             iscenario_MAP = 9; %% WUENIC 2025 BD+HepB3, 2016 treatment, Microarray patch introduced in T_INTERVENTION_START (increase BD coverage, but lower efficacy).
             iscenario_CPAD = 10; %% WUENIC 2025 BD+HepB3, 2016 treatment, CPAD patch introduced (increase BD but lower eff and different cost to MAP).
             iscenario_BD2025_birthcohorttest = 11;   %% WUENIC 2025 BD+HepB3, 2016 treatment, Thai-B-type testing of pre-BD birth cohort on top of existing testing (cap so cannot test >100% of any age stratum).
-            iscenario_BASE2020notreat = 12;
-            iscenario_BASE2025notreat = 13;   %% WUENIC 2025 BD+HepB3, no treatment, no new interventions. Introduced because existing treatment scenarios have treatment coverage increasing to ~70% by 2100.
+            iscenario_PAP_TREAThighVL = 12;   %% PAP for High VL pregnant women
+            iscenario_PAP_TREATeAgpos = 13;             %% eAg+
+            iscenario_PAP_TREAT_highVL_or_eAgpos = 14;  %% Either high VL or eAg+ (or both)
+            iscenario_BASE2020_WITHTREAT = 15; %% The 'default' scenario - WUENIC 2019 BD+HepB3, 2016 treatment, no new interventions.
+            iscenario_BASE2025_WITHTREAT = 16;     %% WUENIC 2025 BD+HepB3, 2016 treatment, no new interventions. Addresses - how have changes in BD+Hep B3 coverage impacted result?
+
             %%iscenario_BD2025_LA_TDF = 6; %% WUENIC 2025 BD+HepB3, 2016 treatment, long-acting treatment introduced (increases coverage of TDF treatment).
             %%iscenario_BD2025_PoC_ALT_HBcrAg = 7;    %% WUENIC 2025 BD+HepB3, 2016 treatment, PoC ALT and HBcrAg introduced - higher treatment coverage, also some people on treatment who don't need it.
             %%iscenario_BD2025_cure = 9; %% WUENIC 2025 BD+HepB3, 2016 treatment, (hypothetical) cure replaces treatment at current test rates.
@@ -433,37 +437,37 @@ function country_level_analyses(sensitivity_analysis,...
        
             %% For each scenario we determine which intervention "levers" are used.
             switch scenario_num
-                case iscenario_BASE2020   %%case 'Status quo infant & BD'
+                case iscenario_BASE2020notreat   %%case 'Status quo infant & BD'
                     scenario_BD = I_BD_WUENIC2020;
                     scenario_HepB3 = I_HEPB3_WUENIC2020;
                     scenario_PAP = I_PAP_NOTREAT;
-                    scenario_Treatment = I_TREAT_INIT_SQ;
+                    scenario_Treatment = I_NOTREAT;
                     scenario_CohortTesting = I_NO_COHORT_TEST;
-                case iscenario_BASE2025     %% WUENIC 2025 BD+HepB3, 2016 treatment, no new interventions. Addresses - how have changes in BD+Hep B3 coverage impacted result?
+                case iscenario_BASE2025notreat     %% WUENIC 2025 BD+HepB3, 2016 treatment, no new interventions. Addresses - how have changes in BD+Hep B3 coverage impacted result?
                     scenario_BD = I_BD_WUENIC2025;
                     scenario_HepB3 = I_HEPB3_WUENIC2025;
                     scenario_PAP = I_PAP_NOTREAT;
-                    scenario_Treatment = I_TREAT_INIT_SQ;
+                    scenario_Treatment = I_NOTREAT;
                     scenario_CohortTesting = I_NO_COHORT_TEST;
                 case iscenario_INFACILITYBD     %% WUENIC 2025 HepB3, 2016 treatment, BD introduced in countries where it is not already present - coverage capped at in-facility birth coverage.
                     scenario_BD = I_BD_INFACILITY_INTRODUCTION;
                     scenario_HepB3 = I_HEPB3_WUENIC2025;
                     scenario_PAP = I_PAP_NOTREAT;
-                    scenario_Treatment = I_TREAT_INIT_SQ;
+                    scenario_Treatment = I_NOTREAT;
                     scenario_CohortTesting = I_NO_COHORT_TEST;
                 case iscenario_BDWHOtarget    %% BD reaches 90% coverage target
                     disp("BD target scenario")
                     scenario_BD = I_BD_WHOtarget;
                     scenario_HepB3 = I_HEPB3_WUENIC2025;
                     scenario_PAP = I_PAP_NOTREAT;
-                    scenario_Treatment = I_TREAT_INIT_SQ;
+                    scenario_Treatment = I_NOTREAT;
                     scenario_CohortTesting = I_NO_COHORT_TEST;
                 case iscenario_HepB3WHOtarget  %% HepB3 reaches 90% coverage target
                     disp("HepB3 target scenario")
                     scenario_BD = I_BD_WUENIC2025;
                     scenario_HepB3 = I_HEPB3_WHOtarget;
                     scenario_PAP = I_PAP_NOTREAT;
-                    scenario_Treatment = I_TREAT_INIT_SQ;
+                    scenario_Treatment = I_NOTREAT;
                     scenario_CohortTesting = I_NO_COHORT_TEST;
                 case iscenario_Treat40percent  %% Treatment reaches 40% (half of WHO target)
                     disp("Treatment target scenario")
@@ -490,34 +494,51 @@ function country_level_analyses(sensitivity_analysis,...
                     scenario_BD = I_BD_MAP;
                     scenario_HepB3 = I_HEPB3_WUENIC2025;
                     scenario_PAP = I_PAP_NOTREAT;
-                    scenario_Treatment = I_TREAT_INIT_SQ;
+                    scenario_Treatment = I_NOTREAT;
                     scenario_CohortTesting = I_NO_COHORT_TEST;
                 case iscenario_CPAD %% WUENIC 2025 BD+HepB3, 2016 treatment, CPAD patch introduced (increase BD but lower eff and different cost to MAP).
                     scenario_BD = I_BD_CPAD;
                     scenario_HepB3 = I_HEPB3_WUENIC2025;
                     scenario_PAP = I_PAP_NOTREAT;
-                    scenario_Treatment = I_TREAT_INIT_SQ;
+                    scenario_Treatment = I_NOTREAT;
                 case iscenario_BD2025_birthcohorttest   %% WUENIC 2025 BD+HepB3, 2016 treatment, Thai-B-type testing of pre-BD birth cohort on top of existing testing (cap so cannot test >100% of any age stratum).
                     scenario_BD = I_BD_WUENIC2025;
                     scenario_HepB3 = I_HEPB3_WUENIC2025;
                     scenario_PAP = I_PAP_NOTREAT;
-                    scenario_Treatment = I_TREAT_INIT_SQ;
+                    scenario_Treatment = I_NOTREAT;
                     scenario_CohortTesting = I_COHORT_TEST;     
-                case iscenario_BASE2020notreat   %%case 'Status quo infant & BD'
+                case iscenario_PAP_TREAThighVL
+                    scenario_BD = I_BD_WUENIC2025;
+                    scenario_HepB3 = I_HEPB3_WUENIC2025;
+                    scenario_PAP = I_PAP_TREAThighVL;
+                    scenario_Treatment = I_NOTREAT;
+                    scenario_CohortTesting = I_NO_COHORT_TEST;
+
+                case iscenario_PAP_TREATeAgpos
+                    scenario_BD = I_BD_WUENIC2025;
+                    scenario_HepB3 = I_HEPB3_WUENIC2025;
+                    scenario_PAP = I_PAP_TREATeAgpos;
+                    scenario_Treatment = I_NOTREAT;
+                    scenario_CohortTesting = I_NO_COHORT_TEST;
+                case iscenario_PAP_TREAT_highVL_or_eAgpos
+                    scenario_BD = I_BD_WUENIC2025;
+                    scenario_HepB3 = I_HEPB3_WUENIC2025;
+                    scenario_PAP = I_PAP_TREAT_highVL_or_eAgpos;
+                    scenario_Treatment = I_NOTREAT;
+                    scenario_CohortTesting = I_NO_COHORT_TEST;
+                case iscenario_BASE2020_WITHTREAT   %%case 'Status quo infant & BD'
                     scenario_BD = I_BD_WUENIC2020;
                     scenario_HepB3 = I_HEPB3_WUENIC2020;
                     scenario_PAP = I_PAP_NOTREAT;
-                    scenario_Treatment = I_NOTREAT;
+                    scenario_Treatment = I_TREAT_INIT_SQ;
                     scenario_CohortTesting = I_NO_COHORT_TEST;
-                case iscenario_BASE2025notreat     %% WUENIC 2025 BD+HepB3, 2016 treatment, no new interventions. Addresses - how have changes in BD+Hep B3 coverage impacted result?
+                case iscenario_BASE2025_WITHTREAT     %% WUENIC 2025 BD+HepB3, 2016 treatment, no new interventions. Addresses - how have changes in BD+Hep B3 coverage impacted result?
                     scenario_BD = I_BD_WUENIC2025;
                     scenario_HepB3 = I_HEPB3_WUENIC2025;
                     scenario_PAP = I_PAP_NOTREAT;
-                    scenario_Treatment = I_NOTREAT;
+                    scenario_Treatment = I_TREAT_INIT_SQ;
                     scenario_CohortTesting = I_NO_COHORT_TEST;
 
-
-                    
                 %     scenario_CohortTesting = I_NO_COHORT_TEST;
                 % case iscenario_BD2025_LA_TDF %% WUENIC 2025 BD+HepB3, 2016 treatment, long-acting treatment introduced (increases coverage of TDF treatment).
                 %     scenario_BD = I_BD_WUENIC2025;
