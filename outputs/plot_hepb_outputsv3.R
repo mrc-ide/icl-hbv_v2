@@ -50,7 +50,7 @@ extract_legend <- function(my_ggp) {
 
 read_country_df <- function(ISO,years.to.get)
 {
-  df <- read.csv(paste0("C:/Users/mpickles/Documents/Hepatitis_B/icl-hbv/HPC/summary_outputs_",ISO,".csv"),sep=",", header=T, stringsAsFactors = FALSE)
+  df <- read.csv(paste0("C:/Users/mpickles/Documents/Hepatitis_B/icl-hbv/HPC/v1_runs/summary_outputs_",ISO,".csv"),sep=",", header=T, stringsAsFactors = FALSE)
   ##df <- df[df$Year %in% years.to.get,!(colnames(df) %in% c("country_ISO"))]
   df <- df[df$Year %in% years.to.get,]
   

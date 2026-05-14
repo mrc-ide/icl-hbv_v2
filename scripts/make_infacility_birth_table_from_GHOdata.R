@@ -31,4 +31,4 @@ for (i in i.to.fix){
 GHOpercentdeliveredinhealthfacility_rawdata$prop_delivered_in_facility <- GHOpercentdeliveredinhealthfacility_rawdata$Percent_deliveredInHealthFacility/100
 
 GHOpercentdeliveredinhealthfacility_rawdata <- GHOpercentdeliveredinhealthfacility_rawdata[,colnames(GHOpercentdeliveredinhealthfacility_rawdata) %in% c("ISO","prop_delivered_in_facility")]
-write.csv(x=GHOpercentdeliveredinhealthfacility_rawdata,file="C:/Users/mpickles/Documents/Hepatitis_B/icl-hbv/resources/GHO_in_facility_births_summary.csv",row.names=FALSE)
+write.csv(x=GHOpercentdeliveredinhealthfacility_rawdata,file="C:/Users/mpickles/Documents/Hepatitis_B/icl-hbv/resources/GHO_in_facility_births_summary.csv",row.names=FALSE, quote = FALSE)

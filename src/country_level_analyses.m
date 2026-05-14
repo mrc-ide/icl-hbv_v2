@@ -41,7 +41,7 @@ function country_level_analyses(sensitivity_analysis,...
     
 
     for scenario_num = start_scenario:num_scenarios
-    %%for scenario_num = 10:10
+    %%for scenario_num = [3,9,10]
         disp("Rnning scenario")
         disp(scenario_num)
         % Make a copy of "Prog" for the given scenario - we can change

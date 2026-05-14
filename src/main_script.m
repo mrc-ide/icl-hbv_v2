@@ -55,15 +55,12 @@ num_stochas_runs = 1;
 load(fullfile(basedir,'resources','ListOfISOs.mat')) % contains ListOfISOs
 num_countries = length(ListOfISOs);
 
-GHO_infacilitybirthproportion = readtable("../resources/GHO_in_facility_births_summary.csv")
+GHO_infacilitybirthproportion = readtable("../resources/GHO_in_facility_births_summary.csv");
 GHO_infacilitybirthproportion.ISO = categorical(GHO_infacilitybirthproportion.ISO);
 GHO_infacilitybirthproportion_map = containers.Map('KeyType','char','ValueType','double');
 for country_num = 1:num_countries
     ISO = ListOfISOs{country_num};
-    %%GHO_infacilitybirthproportion = readtable("../resources/GHO_in_facility_births_summary.csv")
-    %%GHO_infacilitybirthproportion(matches(GHO_infacilitybirthproportion.ISO,ISO),2)
-    GHO_infacilitybirthproportion_map(ISO) = table2array(GHO_infacilitybirthproportion(matches(GHO_infacilitybirthproportion.ISO,ISO),2));
-    %%b = a(matches(a.ISO,"ETH"),2)
+    GHO_infacilitybirthproportion_map(ISO) = table2array(GHO_infacilitybirthproportion(GHO_infacilitybirthproportion.ISO==ISO,2));
 end
 
 
@@ -204,11 +201,20 @@ load(fullfile(basedir,'resources','treatment_rates_map.mat')) % contains treatme
 %% WUENIC DATA DOWNLOADED 9 FEB 2026:
 %% Source: https://immunizationdata.who.int/global/wiise-detail-page/hepatitis-b-vaccination-coverage?GROUP=Countries&ANTIGEN=HEPB_BD&YEAR=&CODE=
 %% BD coverage data:
-WUENIC2024BDdata = readtable('C:\Users\mpickles\OneDrive - Imperial College London\Dropbox_copy\Hepatits B\Data\Hepatitis B vaccination coverage 2026-17-02_BD.xlsx','Sheet','Sheet1');
+if(RUN_ON_CLUSTER==0)
+    WUENIC2024BDdata = readtable('C:\Users\mpickles\OneDrive - Imperial College London\Dropbox_copy\Hepatits B\Data\Hepatitis B vaccination coverage 2026-17-02_BD.xlsx','Sheet','Sheet1');
+else
+    WUENIC2024BDdata = readtable('Hepatitis B vaccination coverage 2026-17-02_BD.xlsx','Sheet','Sheet1');
+end
 WUENIC2024BDdata = WUENIC2024BDdata(WUENIC2024BDdata.COVERAGE_CATEGORY=="WUENIC", :);
 WUENIC2024BDdata = removevars(WUENIC2024BDdata,["GROUP","NAME","ANTIGEN","ANTIGEN_DESCRIPTION","COVERAGE_CATEGORY","COVERAGE_CATEGORY_DESCRIPTION","TARGET_NUMBER","DOSES"]);
 %% Hep B3 coverage data:
-WUENIC2024HepB3data = readtable('C:\Users\mpickles\OneDrive - Imperial College London\Dropbox_copy\Hepatits B\Data\Hepatitis B vaccination coverage 2026-17-02_HepB3.xlsx','Sheet','Sheet1');
+if(RUN_ON_CLUSTER==0)
+    WUENIC2024HepB3data = readtable('C:\Users\mpickles\OneDrive - Imperial College London\Dropbox_copy\Hepatits B\Data\Hepatitis B vaccination coverage 2026-17-02_HepB3.xlsx','Sheet','Sheet1');
+else
+    WUENIC2024HepB3data = readtable('Hepatitis B vaccination coverage 2026-17-02_HepB3.xlsx','Sheet','Sheet1');
+end
+
 WUENIC2024HepB3data = WUENIC2024HepB3data(WUENIC2024HepB3data.COVERAGE_CATEGORY=="WUENIC", :);
 WUENIC2024HepB3data = removevars(WUENIC2024HepB3data,["GROUP","NAME","ANTIGEN","ANTIGEN_DESCRIPTION","COVERAGE_CATEGORY","COVERAGE_CATEGORY_DESCRIPTION","TARGET_NUMBER","DOSES"]);
 

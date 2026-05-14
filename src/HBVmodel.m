@@ -919,6 +919,8 @@ for time = TimeSteps
                 moving_to_treatment_by_birthcohort_testing_this_timestep(i_treateligible, i_cohortage_min:(i_cohortage_min+i_birth_cohort_offset-1), :, :) ...
                     = zeros(length(i_treateligible), i_birth_cohort_offset, num_sexes, num_treat_blocks);
             end
+            %% Ensure we never go below 0:
+            moving_to_treatment_by_birthcohort_testing_this_timestep(moving_to_treatment_by_birthcohort_testing_this_timestep>next_X) = next_X(moving_to_treatment_by_birthcohort_testing_this_timestep>next_X);
             next_X(i_treateligible, :, :, :) = next_X(i_treateligible, :, :, :) - moving_to_treatment_by_birthcohort_testing_this_timestep(i_treateligible, :, :, :);
             next_X(i_TDFtreat, :, :, :) = next_X(i_TDFtreat, :, :, :) + sum(moving_to_treatment_by_birthcohort_testing_this_timestep, 1);
             %%otherwise
