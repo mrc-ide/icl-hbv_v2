@@ -443,6 +443,7 @@ elseif strcmp(source_HBsAg,'WHO')
     NumNotSAg = (1 - StartPrev_byAgeGroups) .* StartPop;
 end    
 
+%% LECZENIE:
 X(i_Susc, :, :, i_notreat) = NumNotSAg;
 %% MP: Magic number 0.5 (and 1-0.5) - put in main_script.m
 X(i_ImmReact, :, :, i_notreat) = 0.5 * NumSAg;
