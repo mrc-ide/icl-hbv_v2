@@ -47,7 +47,7 @@ basedir = fileparts(currentFolder); % path for folder one level up from script.
 % MP: There are 200 runs from calibration so this is default. Use less for testing.
 %TUTAJ:
 %num_stochas_runs = 200;
-num_stochas_runs = 1;
+num_stochas_runs = 56;
 
 
 
@@ -63,6 +63,35 @@ for country_num = 1:num_countries
     GHO_infacilitybirthproportion_map(ISO) = table2array(GHO_infacilitybirthproportion(GHO_infacilitybirthproportion.ISO==ISO,2));
 end
 
+ANC_coverage = readtable("../resources/ANC_coverage_data.csv");
+ANC_coverage.ISO = categorical(ANC_coverage.ISO);
+ANC_coverage_map = containers.Map('KeyType','char','ValueType','double');
+for country_num = 1:num_countries
+    ISO = ListOfISOs{country_num};
+    ANC_coverage_map(ISO) = table2array(ANC_coverage(ANC_coverage.ISO==ISO,3))/100.0;
+end
+
+%%
+Polaris_diag_treat_coverage = readtable("../resources/treatment_cascade.csv");
+Polaris_diag_treat_coverage.ISO = categorical(Polaris_diag_treat_coverage.ISO);
+Polaris_diagnosis_coverage_map = containers.Map('KeyType','char','ValueType','double');
+Polaris_treat_coverage_map = containers.Map('KeyType','char','ValueType','double');
+for country_num = 1:num_countries
+    ISO = ListOfISOs{country_num};
+    p_diag = table2array(Polaris_diag_treat_coverage(Polaris_diag_treat_coverage.ISO==ISO,2));
+    p_treat_given_diag = table2array(Polaris_diag_treat_coverage(Polaris_diag_treat_coverage.ISO==ISO,3));
+    Polaris_diagnosis_coverage_map(ISO) = p_diag;
+    %% We want the conditional probability P(start treatment|diagnosed) - so we can strenghten diagnosis and (starting treatment|diagnosis) sepatrately
+    %% Note that we *do* allow the conditional probabilities to be >1 (in reality testing can target those most likely to be eligible), so this is more like a RR.
+    %% In the improve testing scenarios we will take this RR to be 1 or >1 (the latter with targetd testing)
+    if(p_diag>0)
+        Polaris_treat_coverage_map(ISO) = p_treat_given_diag/p_diag;
+        assert(Polaris_treat_coverage_map(ISO)<=1)
+    else
+        Polaris_treat_coverage_map(ISO) = 0;
+    end
+end
+
 
 
 %% We specify countries as a vector, using the index from ListOfISOs:
@@ -75,8 +104,12 @@ end
 if RUN_ON_CLUSTER==0
     %% 30: Ethiopia; 36: Gambia; 92: Thailand.
     %%countries_to_run = [92, 93];
-    %%countries_to_run = [30, 36];
-    countries_to_run = 30;
+    
+    %% All broken countries:
+    %%countries_to_run = [6, 8, 17, 34, 38, 47, 50, 52, 56, 70, 92];  %%
+    %%countries_to_run = [1, 2];
+
+    countries_to_run = 6;
 else
     fileID = fopen('countries_to_run.txt','r');
     formatSpec = '%i';
@@ -478,6 +511,7 @@ for sensitivity_analysis_num=1:num_sensitivity_analyses
     disp(append('The "',sensitivity_analysis,'" sensitivity analysis started at ', string(begin_time_sensitivity_analysis)));
 
 
+    %% tutaj kawa ciasto
     for stochas_run=1:num_stochas_runs
 
         country_level_analyses(sensitivity_analysis,...
@@ -488,7 +522,8 @@ for sensitivity_analysis_num=1:num_sensitivity_analyses
             country_s_e_HCCdeaths_map,...
             params_map,stochas_params_mat,country_start_cols,...
             WUENIC2024BDdata, WUENIC2024HepB3data, ...
-            GHO_infacilitybirthproportion_map, ...
+            GHO_infacilitybirthproportion_map, ANC_coverage_map, ...
+            Polaris_diagnosis_coverage_map, Polaris_treat_coverage_map, ...
             basedir,...
             num_states,num_year_divisions,dt,ages,num_age_steps,start_year,num_years_simul,end_year,...
             theta,CFR_Acute,rate_6months,ECofactor,p_ChronicCarriage,life_expectancy,...

@@ -11,7 +11,7 @@ library(readxl)
 library(tibble)
 library(ggpubr)
 library("gridExtra")
-
+library(dplyr)
 
 basefolder <- "C:/Users/mpickles/"
 ##basefolder <- "/mnt/c/Users/mpickles/Documents/"
@@ -31,6 +31,10 @@ all_filenames <- gsub(paste0(wuenic.data.folder,'/'),'',all_files)
 
 hepb3_files <- all_filenames[stri_detect_fixed(all_filenames, "HepB3")]
 hepbb_files <- all_filenames[stri_detect_fixed(all_filenames, "HepBB")]
+
+CountryClassification <- read.csv("C:/Users/mpickles/Documents/Hepatitis_B/icl-hbv/resources/CountryClassifier.csv",header=TRUE)
+CountryClassification <- CountryClassification[,colnames(CountryClassification) %in% c("ISO","WHO_region")]
+
 
 ## Check files all match:
 ##a <- gsub('HepB3','',hepb3_files)
@@ -140,8 +144,103 @@ for (country in list_of_countries_to_use)
     hepB3.data <- rbind(hepB3.data, hepB3.country.data)
 }
 
+hepB3.data <- merge(hepB3.data,CountryClassification,by="ISO")
+bd.data <- merge(bd.data,CountryClassification,by="ISO")
+bd.data$Year <- as.numeric(bd.data$Year)
+bd.data$WUENIC <- as.numeric(bd.data$WUENIC)
+
+list.of.regions <- c("Africa","Americas","Eastern Mediterranean","Europe","South-East Asia","Western Pacific")
+#r <- "Europe"
+#r <- "Eastern Mediterranean"
+
+for(r in 1:length(list.of.regions)){
+  region.nospaces <- gsub(" ","_",list.of.regions[r])
+  pdf(paste0(basefolder,"Documents/Hepatitis_B/icl-hbv/resources/wuenic2024data/HepB3_timetrends_panel_",region.nospaces,".pdf"),width=20,height=12)
+  p <- ggplot(hepB3.data[hepB3.data$WHO_region %in% list.of.regions[r] ,], aes(x=Year, y=WUENIC)) +
+    geom_line(aes(color=ISO))+
+    geom_point(aes(color=ISO)) +
+    ##facet_wrap(~Country_name) +
+    theme_bw() +
+    theme(legend.position = "bottom",
+          axis.title = element_text(size=20),
+          axis.text = element_text(size=18),
+          plot.title = element_text(size=32, face="bold"),
+          strip.text = element_text(size=12),
+          panel.spacing = unit(2, "lines"),
+          legend.title = element_blank(),
+          legend.text = element_text(size=12)) +
+    xlab("") +
+    ylab("HepB3 coverage (%)") +
+    ##coord_cartesian(ylim=c(0,50)) +
+    ggtitle(list.of.regions[r])
+  print(p)
+  dev.off()
+}
+
+## Finding some outliers:
+hepB3.data[hepB3.data$Year %in% seq(2010,2024) & hepB3.data$WUENIC<50,]
+hepB3.data[hepB3.data$Year %in% seq(2010,2024) & hepB3.data$WUENIC<50 & hepB3.data$WHO_region %in% "Europe",]
+
+hepB3.data[hepB3.data$Year==2024 & hepB3.data$WUENIC<60 & hepB3.data$WHO_region %in% "Eastern Mediterranean",]
+hepB3.data[hepB3.data$Year==2021 & hepB3.data$WUENIC<50 ,]
+hepB3.data[hepB3.data$Year %in% seq(2010,2024) & hepB3.data$ISO %in% "BIH",]
+hepB3.data[hepB3.data$Year %in% seq(2010,2024) & hepB3.data$ISO %in% "SDN",]
 
 
+## BD:
+for(r in 1:length(list.of.regions)){
+  region.nospaces <- gsub(" ","_",list.of.regions[r])
+  pdf(paste0(basefolder,"Documents/Hepatitis_B/icl-hbv/resources/wuenic2024data/HepBD_timetrends_panel_",region.nospaces,".pdf"),width=20,height=12)
+  p <- ggplot(bd.data[bd.data$WHO_region %in% list.of.regions[r] ,], aes(x=Year, y=WUENIC)) +
+    geom_line(aes(color=ISO))+
+    geom_point(aes(color=ISO)) +
+    ##facet_wrap(~Country_name) +
+    theme_bw() +
+    theme(legend.position = "bottom",
+          axis.title = element_text(size=20),
+          axis.text = element_text(size=18),
+          plot.title = element_text(size=32, face="bold"),
+          strip.text = element_text(size=12),
+          panel.spacing = unit(2, "lines"),
+          legend.title = element_blank(),
+          legend.text = element_text(size=12)) +
+    xlab("") +
+    ylab("HepB BD coverage (%)") +
+    ##coord_cartesian(ylim=c(0,50)) +
+    ggtitle(list.of.regions[r])
+  print(p)
+  dev.off()
+}
+
+bd.data[bd.data$Year==2024 & bd.data$WUENIC<60 & bd.data$WHO_region %in% "Eastern Mediterranean",]
+a <- bd.data[bd.data$Year==2024 & bd.data$WUENIC<75 & bd.data$WUENIC>0,]
+a[order(a$WHO_region),]
+## 34 Gavi-eligible countries:
+bd.data[bd.data$Year %in% 2024 & bd.data$ISO %in% 
+          c("BGD","BDI","CMR","CAF","TCD","COM","COG","COD","ERI","ETH","GHA","GIN",
+            "GNB","HTI","KEN","LSO","LBR","MDG","MLI","MWI","MOZ","NPL","NER",
+            "RWA","SLE","SOM","SDN","SSD","TZA","TGO","UGA","YEM","ZMB","ZWE"),]
+
+bd.data[bd.data$Year %in% 2024 & bd.data$WUENIC %in% 0 & !(bd.data$ISO %in% 
+                                                             c("BGD","BDI","CMR","CAF","TCD","COM","COG","COD","ERI","ETH","GHA","GIN",
+                                                               "GNB","HTI","KEN","LSO","LBR","MDG","MLI","MWI","MOZ","NPL","NER",
+                                                               "RWA","SLE","SOM","SDN","SSD","TZA","TGO","UGA","YEM","ZMB","ZWE")),]
+##9 countries not currently GAVI-eligible:
+# 12   AGO                           Angola   HepBB 2024      0                Africa
+# 131  BOL Bolivia (Plurinational State of)   HepBB 2024      0              Americas
+# 482  JAM                          Jamaica   HepBB 2024      0              Americas
+# 483  JOR                           Jordan   HepBB 2024      0 Eastern Mediterranean
+# 562  LKA                        Sri Lanka   HepBB 2024      0       South-East Asia
+# 684  MRT                       Mauritania   HepBB 2024      0                Africa
+# 801  PRY                         Paraguay   HepBB 2024      0              Americas
+# 877  SWZ                         Eswatini   HepBB 2024      0                Africa
+# 1139 ZAF                     South Africa   HepBB 2024      0                Africa
+
+bd.data$ISO[bd.data$Year %in% 2024 & bd.data$WUENIC %in% 0 & !(bd.data$ISO %in% 
+                                                             c("BGD","BDI","CMR","CAF","TCD","COM","COG","COD","ERI","ETH","GHA","GIN",
+                                                               "GNB","HTI","KEN","LSO","LBR","MDG","MLI","MWI","MOZ","NPL","NER",
+                                                               "RWA","SLE","SOM","SDN","SSD","TZA","TGO","UGA","YEM","ZMB","ZWE"))]
+## List of ISOs: "AGO" "BOL" "JAM" "JOR" "LKA" "MRT" "PRY" "SWZ" "ZAF"
 ################################################################
 ## Get the UN WUP data on % rural pop by country each year:
 UN_rural_percent_rawdata <- read_excel(paste0(basefolder,"Documents/Hepatitis_B/icl-hbv/resources/wuenic2024data/UN_WUP2025_ruralpercentage_bycountry.xlsx"),sheet="Data")
@@ -295,11 +394,90 @@ names(treatment_cascade)[names(treatment_cascade) == 'Year.y'] <- 'Year_treatifd
 treatment_cascade$treatment_coverage <- treatment_cascade$Diagnosed * treatment_cascade$OnTreatOfDiagnosed 
 
 
+## Current data outliers:
+## There are a number of countries with diagnosis but no treatment - keep those as-is in status quo.
+## Turkmenistan (44%), Zimbabwe (29%), Kenya (30%) and Madagascar (100%) have high proportions of diagnosed on treatment.
+## Turkmenistan has 6192 on treatment out of 13962 diagnosed with chronic HepB in 2022. 6192/13962 = 44%
+## Zimbabwe has 2164 on treatment out of 7343 diagnosed with chronic HepB in 2022. 2164/7343 = 29.4%
+## Kenya 1714 on treatment out of 5804 diagnosed with chronic HepB in 2022. 1714/5804 = 29.5%
+## Madagascar 5989 on treatment out of 3191 diagnosed in 2022 >> 100% so Madagascar maybe a data glitch?
+## Polaris puts annual diagnosed <1% and annual treated <1% so not helpful.
+## Madagascar is low-income SSA/ East SSA. Low-income have 7% diagnosis, 1% on treatment (so 1/7=0.14 on treatment). Africa has 2% treatment,7% diagnosed. AFRO has 2% treatment, 6% diagnosed. East Africa has <1% treated, 8% diagnosed. East Africa is probably most geographically relevant and similar to low-income, so take 1/8=12.5%
 ##write.csv(treatment_cascade,paste0(basefolder,"OneDrive - Imperial College London/Dropbox_copy/Hepatits B/Presentations/15May2026/treatment_cascade.csv"),row.names = FALSE)
-write.csv(treatment_cascade,paste0(basefolder,"Documents/Hepatitis_B/icl-hbv/resources/treatment_cascade.csv"),row.names = FALSE)
+treatment_cascade$OnTreatOfDiagnosed[treatment_cascade$ISO %in% "MDG"] <- 0.125
+write.csv(treatment_cascade,paste0(basefolder,"Documents/Hepatitis_B/icl-hbv/resources/treatment_cascade_GHO.csv"),row.names = FALSE)
 
 
-setdiff(list.of.isos,Prop_ontreat_of_diagnosed$SpatialDimValueCode)
+Polaris_raw_data <- read_excel(paste0(basefolder,"OneDrive - Imperial College London/Dropbox_copy/Hepatits B/Data/Polaris/Polaris_data_from2023paperLGastHep.xlsx"),sheet="Data")
+Polaris_data <- Polaris_raw_data[,colnames(Polaris_raw_data) %in% c("ISO","Diagnosed","treatment_coverage","Diagnosed_Polaris2025","AnnualTreated_Polaris2025")]
+
+## Compare Polaris 2023 paper and GHO:
+temp <- merge(treatment_cascade,Polaris_data,by="ISO")
+
+## 
+# ISO Diagnosed.x Diagnosed.y
+# 12  BLZ        0.44        0.09
+# 16  CHN        0.68        0.24 *** This one ***
+# 32  FSM        0.17        0.06
+# 33  GEO        0.26        0.23
+# 51  KIR        0.07        0.01
+# 59  MHL        0.70        0.57
+# 63  MNG        0.46        0.10
+# 78  RWA        0.67        0.41
+# 84  SOM        0.00        0.07
+# 96  TON        0.34        0.28
+# 98  TUV        0.23        0.05
+temp[which(abs(temp$Diagnosed.x-temp$Diagnosed.y)>0.02),colnames(temp) %in% c("ISO","Diagnosed.x","Diagnosed.y")]
+
+## treatment_coverage.x is treatment of sAg+; treatment_coverage.y is treatemnt of eligible; so expect treatment_coverage.y to be about 3x treatment_coverage.x. Roughly speaking Rwanda (22% of eligibles vs 4% of sAg+) is slightly off.
+## The only major difference is china (30% of sAg+ is >>>> 15% of eligibles)
+temp[which(abs(temp$treatment_coverage.x-temp$treatment_coverage.y)>0.05),colnames(temp) %in% c("ISO","treatment_coverage.x","treatment_coverage.y")]
+
+## Given the large difference for China (and given Polaris's 2025 dataset - the excel above - gives China at 68% diagnosis and 30% treatemnt I will use that.)
+## Comparing the 2023 and 2025 Polaris data, the differences between 2023 Polaris and GHO seem to be smaller/gone by 2025 Polaris.
+## So use 2025 Polaris.
+
+plot(Polaris_data$treatment_coverage,Polaris_data$AnnualTreated_Polaris2025)
+setdiff(list.of.isos,Prop_ontreat_of_diagnosed$ISO)
+
+## Polaris 2025 diagnosed data seems more up-to-date than Polaris 2023 paper.
+## However, annual_treated_Polaris2025 seems to be smaller than 2023 value - it looks to me like the denominators are different (the 2025 probably uses all chronic sAg+).
+## So use 2023 treatment_coverage. *EXCEPT FOR CHINA* where the treatment/diagnosis is 15% in 2023 Polaris but treatment/sAg+ is 30% in GHO and 2025 Polaris.
+
+treatment_data_final <- Polaris_data[,colnames(Polaris_data) %in% c("ISO","Diagnosed_Polaris2025","treatment_coverage")]
+treatment_data_final$treatment_coverage[treatment_data_final$ISO %in% "CHN"] <- Polaris_data$AnnualTreated_Polaris2025[Polaris_data$ISO %in% "CHN"]
+
+colnames(treatment_data_final)[which(names(treatment_data_final) == "Diagnosed_Polaris2025")] <- "prop_diagnosed"
+colnames(treatment_data_final)[which(names(treatment_data_final) == "treatment_coverage")] <- "treatment_coverage_of_eligible"
+## Make order: ISO, prop_diagnosed, treatment_coverage_of_eligible:
+treatment_data_final <- treatment_data_final[,c(1,3,2)]
+head(treatment_data_final)
+
+## Note that some final fixes are needed:
+treatment_data_final[treatment_data_final$treatment_coverage_of_eligible > treatment_data_final$prop_diagnosed,]
+# ISO   prop_diagnosed treatment_coverage_of_eligible
+# <chr>          <dbl>                          <dbl>
+#   1 AFG             0.05                          0.09 
+# 2 EGY             0.06                          0.1  
+# 3 KEN             0                             0.004
+# 4 MWI             0.01                          0.03 
+# 5 ZWE             0                             0.006
+## AFG - 2025 dataset gives diag 5% treat <1%, so take treatment_coverage_of_eligible = 0.5%.
+## EGY - 2025 dataset gives diag 5% treat 3%, so take treatment_coverage_of_eligible = 3%.
+## KEN - 2025 dataset gives diag and treat both <1%, so take prop_diagnosed = 1% (so % of diagnosed on treat is not 100%).
+## MWI - 2025 dataset gives diag 1% treat <1%, so take treatment_coverage_of_eligible = 0.5%.
+## ZWE - 2025 dataset gives diag and treat both <1%, so take prop_diagnosed = 1% (so % of diagnosed on treat is not 100%).
+
+treatment_data_final$treatment_coverage_of_eligible[treatment_data_final$ISO %in% "AFG"] <- 0.005
+treatment_data_final$treatment_coverage_of_eligible[treatment_data_final$ISO %in% "EGY"] <- 0.03
+treatment_data_final$prop_diagnosed[treatment_data_final$ISO %in% "KEN"] <- 0.01
+treatment_data_final$treatment_coverage_of_eligible[treatment_data_final$ISO %in% "MWI"] <- 0.005
+treatment_data_final$prop_diagnosed[treatment_data_final$ISO %in% "ZWE"] <- 0.01
+
+## Double-check:
+treatment_data_final[treatment_data_final$treatment_coverage_of_eligible > treatment_data_final$prop_diagnosed,]
+
+write.csv(treatment_data_final,paste0(basefolder,"Documents/Hepatitis_B/icl-hbv/resources/treatment_cascade.csv"),row.names = FALSE)
 
 
 # Prop_diagnosed[nrow(Prop_diagnosed) + 1,] = c("AZE","Azerbaijan",2025,5)
@@ -321,6 +499,24 @@ setdiff(list.of.isos,Prop_ontreat_of_diagnosed$SpatialDimValueCode)
 
 
 
+ANC_coverage_raw <- read_excel(paste0(basefolder,"OneDrive - Imperial College London/Dropbox_copy/Hepatits B/Data/ANC_coverage/WB_ANC_coverage_to2025.xlsx"),sheet="Data")
+ANC.colnames <- colnames(ANC_coverage_raw)
+i.ISO <- which(ANC.colnames=="Country Code")
+ANC_coverage_processed <- data.frame(ISO=character(), year_of_last_ANC_coverage_data=integer(),ANC_coverage=numeric())
+for(i in 1:nrow(ANC_coverage_raw))
+{
+  i.last <- last(which(ANC_coverage_raw[i,]!=""))
+  print(ANC.colnames[i.last])
+  ANC_coverage_processed[nrow(ANC_coverage_processed) + 1,] = c(ANC_coverage_raw[i,i.ISO], as.integer(ANC.colnames[i.last]),as.numeric(ANC_coverage_raw[i,i.last]))
+}
 
 
+if("NIC" %in% list.of.isos){
+  ANC_coverage_processed <- ANC_coverage_processed[ANC_coverage_processed$ISO %in% list.of.isos,]
+}else{
+  ANC_coverage_processed <- ANC_coverage_processed[ANC_coverage_processed$ISO %in% c(list.of.isos,"NIC"),]
+}
+
+dim(ANC_coverage_processed)
+write.csv(ANC_coverage_processed,paste0(basefolder,"Documents/Hepatitis_B/icl-hbv/resources/ANC_coverage_data.csv"), row.names = FALSE)
 

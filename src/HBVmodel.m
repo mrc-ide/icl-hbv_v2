@@ -18,9 +18,12 @@ function output = HBVmodel(source_HBsAg,...
 num_sexes = 2; % F=1, M=2.
 i_female = 1;
 i_male = 2;
+
+% values for indices for 4th index (stratification as to whether would get tested/treated if needed)
+% Code relating to this (providing a cap for treatment) is marked with LECZENIE.
 num_treat_blocks = 2;
-i_notreat = 1;
-%% i_yestreat = 2; %% not currently needed.
+i_notseektreat = 1;  % would not get tested/treated
+i_seektreat = 2;     % would get tested/treated
 
 %% Note that these are also defined in country_level_analyses.m (need to match).
 I_NO_COHORT_TEST = 1;
@@ -444,10 +447,15 @@ elseif strcmp(source_HBsAg,'WHO')
 end    
 
 %% LECZENIE:
-X(i_Susc, :, :, i_notreat) = NumNotSAg;
+%% Incorporates the stratification i_notseektreat/i_seektreat which determines if someone will not/will seek treatment (currently TDF) for chronic HBV in future.
+%% Here we put a cap on the % that can get treated - those in the i_notseektreat stratum will not get TDF.
+X(i_Susc, :, :, i_notseektreat) = NumNotSAg * (1-(treatment_rate_params.prop_diagnosed_t0*treatment_rate_params.prop_treatifdiag_t0));
+X(i_Susc, :, :, i_seektreat) = NumNotSAg * (treatment_rate_params.prop_diagnosed_t0*treatment_rate_params.prop_treatifdiag_t0);
 %% MP: Magic number 0.5 (and 1-0.5) - put in main_script.m
-X(i_ImmReact, :, :, i_notreat) = 0.5 * NumSAg;
-X(i_AsymptCarr, :, :, i_notreat) = 0.5 * NumSAg;
+X(i_ImmReact, :, :, i_notseektreat) = 0.5 * NumSAg * (1-(treatment_rate_params.prop_diagnosed_t0*treatment_rate_params.prop_treatifdiag_t0));
+X(i_ImmReact, :, :, i_seektreat) = 0.5 * NumSAg * (treatment_rate_params.prop_diagnosed_t0*treatment_rate_params.prop_treatifdiag_t0);
+X(i_AsymptCarr, :, :, i_notseektreat) = 0.5 * NumSAg * (1-(treatment_rate_params.prop_diagnosed_t0*treatment_rate_params.prop_treatifdiag_t0));
+X(i_AsymptCarr, :, :, i_seektreat) = 0.5 * NumSAg * (treatment_rate_params.prop_diagnosed_t0*treatment_rate_params.prop_treatifdiag_t0);
 
 % Demography
 % Prepare an index that will allow quick population of the mu vector from
@@ -931,6 +939,7 @@ for time = TimeSteps
     end
     %%if (time >= birth_cohort_testing_start && time <= birth_cohort_testing_end)
 
+    %% TREATMENT:
     if (time >= treat_start_year && HAS_TREATMENT~=0)
     % 2016 must be the first year with nonzero treatment 
     % therefore start treating from 2015.9 onwards since prevalence is recorded at the top of the loop
@@ -938,32 +947,61 @@ for time = TimeSteps
         if ~initiated_treatment
             num_in_treatment = sum(sum(sum(sum(X(i_TDFtreat, :, :, :),1),2),3),4);
             assert(num_in_treatment==0) % no one is in treatment
-            prev_pop = sum(sum(sum(sum(X([i_sAgpos], :, :, :),1),2),3),4); 
+            if(treat_coverage_in_2016>0)
+                prev_pop = sum(sum(sum(sum(X(i_sAgpos, :, :, :),1),2),3),4); %% Whole pop of sAg+ (including those who don't seek treatment)
+    
+                %% Note - prev_pop is whole pop, so that treat_coverage_in_2016 is coverage in the whole population of sAg+.
+                total_num_to_move_to_treat = treat_coverage_in_2016 * prev_pop;
+                %% Eligible pop is only among those who would seek treatment:
+                eligible_pop = squeeze(sum(sum(sum(X(i_treateligible, :, :, i_seektreat),1),2),3)); 
+                
+                %% For low coverages it is possible to have 0 eligible but >0 coverage (due to rounding) so only care if >1%:
+                
+                
+                if(treat_coverage_in_2016>=0.01)
+                    if((total_num_to_move_to_treat>eligible_pop) && (total_num_to_move_to_treat<(6*eligible_pop)))
+                        total_num_to_move_to_treat = eligible_pop;
+                    end
 
-            total_num_to_move_to_treat = treat_coverage_in_2016 * prev_pop;
-            eligible_pop = sum(sum(sum(sum(X(i_treateligible, :, :, :),1),2),3),4); 
-            assert(total_num_to_move_to_treat<eligible_pop)
-            scaling_num = total_num_to_move_to_treat / eligible_pop;
-            next_X(i_treateligible,:,:,:)=next_X(i_treateligible,:,:,:) - X(i_treateligible,:,:,:) * scaling_num;
+                assert(total_num_to_move_to_treat<=eligible_pop)
+                end
+                if(eligible_pop>0)
+                    scaling_num = total_num_to_move_to_treat / eligible_pop;
+                else
+                    scaling_num = 0;
+                end
 
-            
-            % Every compartment in the eligible-for-treatment states in next_X must have a number subtracted from it 
-            % such that the total number subtracted from the eligible-for-treatment states is in_treatment_2016
-            % i.e. in_treatment_2016 = sum(sum(sum(sum(X(i_treateligible, :, :, :),1),2),3),4) * scaling_num = sum(sum(sum(sum(X(i_treateligible, :, :, :) * scaling_num,1),2),3),4)
-            % Hence, scaling_num scales each compartment in X(i_treateligible, :, :, :) such that X(i_treateligible,:,:,:) * scaling_num subtracts the same proportion of people from each compartment in each of the eligible-for-treatment states in order to subtract a total of in_treatment_2016 from the eligible-for-treatment states.
-            next_X(i_TDFtreat,:,:,:) = next_X(i_TDFtreat,:,:,:) + sum(X(i_treateligible,:,:,:) * scaling_num,1);
+                n_to_move_treatment_start_year = min(next_X(i_treateligible,:,:,i_seektreat), X(i_treateligible,:,:,i_seektreat) * scaling_num);
+                %%next_X(i_treateligible,:,:,i_seektreat)=next_X(i_treateligible,:,:,i_seektreat) - X(i_treateligible,:,:,i_seektreat) * scaling_num;
+                next_X(i_treateligible,:,:,i_seektreat)=next_X(i_treateligible,:,:,i_seektreat) - n_to_move_treatment_start_year;
+    
+                
+                % Every compartment in the eligible-for-treatment states in next_X must have a number subtracted from it 
+                % such that the total number subtracted from the eligible-for-treatment states is in_treatment_2016
+                % i.e. in_treatment_2016 = sum(sum(sum(sum(X(i_treateligible, :, :, :),1),2),3),4) * scaling_num = sum(sum(sum(sum(X(i_treateligible, :, :, :) * scaling_num,1),2),3),4)
+                % Hence, scaling_num scales each compartment in X(i_treateligible, :, :, :) such that X(i_treateligible,:,:,:) * scaling_num subtracts the same proportion of people from each compartment in each of the eligible-for-treatment states in order to subtract a total of in_treatment_2016 from the eligible-for-treatment states.
 
-            num_in_treatment = sum(sum(sum(sum(next_X(i_TDFtreat, :, :, :),1),2),3),4);
+                %next_X(i_TDFtreat,:,:,i_seektreat) = next_X(i_TDFtreat,:,:,i_seektreat) + sum(X(i_treateligible,:,:,i_seektreat) * scaling_num,1);
 
-            %% Since we just checked that the number in natural history state i_TDFtreat was zero before treatemnt started in the smulation, this represents the number of people starting treatment at this timestep.
-            number_starting_treatment_to_print = num_in_treatment;
-            
-            %% eligible_pop includes those on treatment here:
-            eligible_pop = sum(sum(sum(sum(X([i_treateligible, i_TDFtreat], :, :, :),1),2),3),4); 
-            assert(num_in_treatment/eligible_pop >= treat_coverage_in_2016)
-            % treatment coverage amongst treatment-eligible people will be greater than treatment coverage amongst HBsAg+ people, except if treatment coverage is 0
-            treat_coverage_2016 = num_in_treatment / eligible_pop; %% MP: CHECK WITH SHEVANTHI - THIS IS CURRENTLY DEAD CODE.
-
+                next_X(i_TDFtreat,:,:,i_seektreat) = next_X(i_TDFtreat,:,:,i_seektreat) + sum(n_to_move_treatment_start_year(:,:,:,1),1);
+    
+                %% Shouldn't matter if we sum over 4th index or not - but keep as summing over it in case we ever allow people from the "i_notseektreat" group to initiate treatment.
+                num_in_treatment = sum(sum(sum(sum(next_X(i_TDFtreat, :, :, :),1),2),3),4);
+    
+                %% Since we just checked that the number in natural history state i_TDFtreat was zero before treatemnt started in the smulation, this represents the number of people starting treatment at this timestep.
+                number_starting_treatment_to_print = num_in_treatment;
+                
+                %% eligible_pop includes those on treatment and those who do not seek treatment here:
+                eligible_pop = sum(sum(sum(sum(X([i_treateligible, i_TDFtreat], :, :, :),1),2),3),4); 
+                
+                
+                %% For low coverages it is possible to have 0 eligible but >0 coverage (due to rounding) so only care if >1%:
+                if(treat_coverage_in_2016>=0.015)
+                    assert(num_in_treatment/eligible_pop >= treat_coverage_in_2016)
+                end
+                % treatment coverage amongst treatment-eligible people will be greater than treatment coverage amongst HBsAg+ people, except if treatment coverage is 0
+                %%treat_coverage_2016 = num_in_treatment / eligible_pop; %% MP: CHECK WITH SHEVANTHI - THIS IS CURRENTLY DEAD CODE.
+            end
             initiated_treatment = true;
         else
             assert(initiated_treatment) % ensure that, each time this code is encountered, treatment has already been initiated
@@ -977,11 +1015,41 @@ for time = TimeSteps
             end
             assert(treatment_rate>=0)
             
-            moving_to_treatment(i_treateligible, :, :, :) = X(i_treateligible, :, :, :) .* treatment_rate;
-            next_X(i_treateligible, :, :, :) = next_X(i_treateligible, :, :, :) + dt * ( -moving_to_treatment(i_treateligible, :, :, :) );
-            next_X(i_TDFtreat, :, :, :) = next_X(i_TDFtreat, :, :, :) + dt * ( +sum(moving_to_treatment, 1) );
+            %% LECZENIE:
+            %% Determine if we are now increasing the number of people who would seek treatment if necessary (by removing barriers to testing/treatment e.g. through decentralisation, integration):
+            if(time>=treatment_rate_params.t_remove_treatment_barriers)
+                %% Check if the proportion currently seeking treatment is already above the threshold:
+                prop_currently_seek_treat = sum(sum(sum(sum(next_X(:, :, :, i_seektreat),1),2),3),4)/sum(sum(sum(sum(next_X(:, :, :, :),1),2),3),4);
+                assert(prop_currently_seek_treat>=0 && prop_currently_seek_treat<=1)
+                disp("Current treatment")
+                disp(time)
+                disp(prop_currently_seek_treat)
+                if(prop_currently_seek_treat<0.56)
+                    prop_inc_seek_treatment = dt*(treatment_rate_params.annual_increase_diagnosis*treatment_rate_params.annual_increase_treatifdiag);
+                    %min(0.7, treatment_rate_params.prop_wouldseektreat_tchange - ...
+                    %    treatment_rate_params.prop_wouldseektreat_t0 + (time-treatment_rate_params.t_remove_treatment_barriers)*treatment_rate_params.rate_increase_seektreat);
+                
+                
+                    assert(prop_inc_seek_treatment>=0 && prop_inc_seek_treatment<=1)
+                    N_inc_seek_treatment = prop_inc_seek_treatment * next_X(:, :, :, i_notseektreat);
+                    if(prop_inc_seek_treatment>0)
+                        disp("Boosting treatment by")
+                        disp(prop_inc_seek_treatment)
+                        next_X(:, :, :, i_notseektreat) = next_X(:, :, :, i_notseektreat) - N_inc_seek_treatment;
+                        next_X(:, :, :, i_seektreat)    = next_X(:, :, :, i_seektreat)    + N_inc_seek_treatment;
+                    end
+                end
+            end
+
+
+
+
+            moving_to_treatment(i_treateligible, :, :, i_seektreat) = X(i_treateligible, :, :, i_seektreat) .* treatment_rate;
+            next_X(i_treateligible, :, :, i_seektreat) = next_X(i_treateligible, :, :, i_seektreat) + dt * ( -moving_to_treatment(i_treateligible, :, :, i_seektreat) );
+            next_X(i_TDFtreat, :, :, i_seektreat) = next_X(i_TDFtreat, :, :, i_seektreat) + dt * ( +sum(moving_to_treatment(:, :, :, i_seektreat), 1) );
             assert(max(moving_to_treatment(:))>=0)
 
+            %% Shouldn't matter if we sum over 4th index or not - but keep as summing over it in case we ever allow people from the "i_notseektreat" group to initiate treatment.
             number_starting_treatment_to_print = squeeze(sum(sum(sum(sum(moving_to_treatment, 1), 2), 3), 4));
             assert(isscalar(number_starting_treatment_to_print))
 
@@ -1262,12 +1330,31 @@ for time = TimeSteps
     % female births -> 0 => sex_ratio -> infinity => female_multiplier -> 0
     % female births -> infinity => sex_ratio -> 0 => female_multiplier -> 1
     
-    X(i_Susc, 1, i_female, i_notreat) = female_multiplier * dt * babies_NotChronicCarriage;  % Suscpetible babies
-    X(i_ImmTol, 1, i_female, i_notreat) = female_multiplier * dt * babies_ChronicCarriage;     % Babies with chronic carriage
-    
-    X(i_Susc, 1, i_male, i_notreat) = male_multiplier * dt * babies_NotChronicCarriage;  % Suscpetible babies
-    X(i_ImmTol, 1, i_male, i_notreat) = male_multiplier * dt * babies_ChronicCarriage;     % Babies with chronic carriage
+    %% LECZENIE:
+    %% Incorporates the stratification i_notseektreat/i_seektreat which determines if someone will not/will seek treatment (currently TDF) for chronic HBV in future.
 
+    % Susceptible babies
+    if(time>=treatment_rate_params.t_remove_treatment_barriers)
+        %%prop_seek_treatment    = treatment_rate_params.prop_wouldseektreat_tchange;
+        %%prop_notseek_treatment = (1-treatment_rate_params.prop_wouldseektreat_tchange);
+        %% Use the previously calculated prop_currently_seek_treat (ignoring the possible increase at this timestep - so we don't have to deal with high treatment countries where it remains constant):
+        prop_seek_treatment = prop_currently_seek_treat;
+        prop_notseek_treatment = 1 - prop_seek_treatment;
+    else
+        prop_seek_treatment    = (treatment_rate_params.prop_diagnosed_t0*treatment_rate_params.prop_treatifdiag_t0);
+        prop_notseek_treatment = 1 - prop_seek_treatment;
+    end
+
+    X(i_Susc, 1, i_female, i_notseektreat) = female_multiplier * dt * babies_NotChronicCarriage * prop_notseek_treatment;
+    X(i_Susc, 1, i_male, i_notseektreat)   = male_multiplier * dt * babies_NotChronicCarriage * prop_notseek_treatment;
+    X(i_Susc, 1, i_female, i_seektreat)    = female_multiplier * dt * babies_NotChronicCarriage * prop_seek_treatment;
+    X(i_Susc, 1, i_male, i_seektreat)      = male_multiplier * dt * babies_NotChronicCarriage * prop_seek_treatment;
+
+    % Babies with chronic carriage
+    X(i_ImmTol, 1, i_female, i_notseektreat) = female_multiplier * dt * babies_ChronicCarriage * prop_notseek_treatment;
+    X(i_ImmTol, 1, i_male, i_notseektreat)   = male_multiplier * dt * babies_ChronicCarriage * prop_notseek_treatment;
+    X(i_ImmTol, 1, i_female, i_seektreat)    = female_multiplier * dt * babies_ChronicCarriage * prop_seek_treatment;
+    X(i_ImmTol, 1, i_male, i_seektreat)      = male_multiplier * dt * babies_ChronicCarriage * prop_seek_treatment;
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %% TAM: PAP Chunk 3:
@@ -1608,7 +1695,7 @@ if(store_results_as_text==1)
     disp(fullfile(basedir,'outputs',filename_results_csv))
     %%%size(results_to_print(:,i_1950:end))
     %%%size(Time(i_1950:end))
-    writematrix([Time(i_1950:end);results_to_print(:,i_1950:end);DALYs_summed(i_1950:end)]',fullfile(basedir,'outputs',filename_results_csv));
+    writematrix(round([Time(i_1950:end);results_to_print(:,i_1950:end);DALYs_summed(i_1950:end)]',4),fullfile(basedir,'outputs',filename_results_csv));
 end
 
 
