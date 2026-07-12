@@ -15,7 +15,10 @@ function country_level_analyses(sensitivity_analysis,...
     if nargin < 1
        error('No input')
     end
-    
+    %% Intervention with HepB3 takes 3 years and can start now:
+    T_INTERVENTION_START_HepB3 = 2026.0;
+    T_INTERVENTION_END_HepB3 = 2029.0;
+
     T_INTERVENTION_START = 2026.0;
     T_INTERVENTION_END = 2029.0;
     %% Birth dose takes 5 years:
@@ -45,7 +48,7 @@ function country_level_analyses(sensitivity_analysis,...
 
     for scenario_num = start_scenario:num_scenarios
     %%for scenario_num = [3,9,10]
-        disp("Rnning scenario")
+        disp("Running scenario")
         disp(scenario_num)
         % Make a copy of "Prog" for the given scenario - we can change
         % Prog_scenario in this loop if needed.
@@ -909,7 +912,7 @@ function country_level_analyses(sensitivity_analysis,...
                     disp("I_HEPB3_WHOtarget")
                     year_last_HepB3_data = 2024;
                     coverage_HepB3_to_last_datapoint = HepB3_wuenic2025;
-                    future_xvals_vec = [2024.0, T_INTERVENTION_START T_INTERVENTION_END, end_year];
+                    future_xvals_vec = [2024.0, T_INTERVENTION_START_HepB3 T_INTERVENTION_END_HepB3, end_year];
                     future_yvals_vec = [HepB3_wuenic2025(end), HepB3_wuenic2025(end), 0.9 0.9];
                 otherwise
                     disp("Error: Unknown value for scenario_HepB3. Exiting")
