@@ -14,6 +14,7 @@ library("gridExtra")
 library(dplyr)
 
 basefolder <- "C:/Users/mpickles/"
+graph.dir <- "C:/Users/mpickles/OneDrive - Imperial College London/Dropbox_copy/Hepatits B/Data/"
 ##basefolder <- "/mnt/c/Users/mpickles/Documents/"
 
 extract_legend <- function(my_ggp) {
@@ -155,7 +156,7 @@ list.of.regions <- c("Africa","Americas","Eastern Mediterranean","Europe","South
 
 for(r in 1:length(list.of.regions)){
   region.nospaces <- gsub(" ","_",list.of.regions[r])
-  pdf(paste0(basefolder,"Documents/Hepatitis_B/icl-hbv/resources/wuenic2024data/HepB3_timetrends_panel_",region.nospaces,".pdf"),width=20,height=12)
+  pdf(paste0(graph.dir,"WUENIC/HepB3_timetrends_panel_",region.nospaces,".pdf"),width=20,height=12)
   p <- ggplot(hepB3.data[hepB3.data$WHO_region %in% list.of.regions[r] ,], aes(x=Year, y=WUENIC)) +
     geom_line(aes(color=ISO))+
     geom_point(aes(color=ISO)) +
@@ -190,7 +191,7 @@ hepB3.data[hepB3.data$Year %in% seq(2010,2024) & hepB3.data$ISO %in% "SDN",]
 ## BD:
 for(r in 1:length(list.of.regions)){
   region.nospaces <- gsub(" ","_",list.of.regions[r])
-  pdf(paste0(basefolder,"Documents/Hepatitis_B/icl-hbv/resources/wuenic2024data/HepBD_timetrends_panel_",region.nospaces,".pdf"),width=20,height=12)
+  pdf(paste0(graph.dir,"WUENIC/HepBD_timetrends_panel_",region.nospaces,".pdf"),width=20,height=12)
   p <- ggplot(bd.data[bd.data$WHO_region %in% list.of.regions[r] ,], aes(x=Year, y=WUENIC)) +
     geom_line(aes(color=ISO))+
     geom_point(aes(color=ISO)) +
@@ -520,3 +521,19 @@ if("NIC" %in% list.of.isos){
 dim(ANC_coverage_processed)
 write.csv(ANC_coverage_processed,paste0(basefolder,"Documents/Hepatitis_B/icl-hbv/resources/ANC_coverage_data.csv"), row.names = FALSE)
 
+
+
+## Compare HepB3 and ANC most recent
+
+ANC.HepB3 <- merge(ANC_coverage_processed,hepB3.data[hepB3.data$Year %in% 2024,], by="ISO")
+
+pdf(paste0(graph.dir,"WUENIC/HepB3_ANC_coverage.pdf"),width=6,height=6)
+ggplot(ANC.HepB3, aes(x=ANC_coverage, y=WUENIC)) +
+  geom_point(aes(color=WHO_region)) +
+  geom_abline(slope=1,intercept=0) +
+  geom_text(aes(label=ifelse(WUENIC<70,as.character(ISO),'')),hjust=0,vjust=0) + 
+  xlab("WB ANC coverage, most recent year (%)") +
+  ylab("WUENIC Hep B3 coverage, 2024 (%)") +
+  theme_bw() +
+  theme(legend.position = "bottom", legend.title = element_blank())
+dev.off()

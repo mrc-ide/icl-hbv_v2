@@ -47,7 +47,7 @@ basedir = fileparts(currentFolder); % path for folder one level up from script.
 % MP: There are 200 runs from calibration so this is default. Use less for testing.
 %TUTAJ:
 %num_stochas_runs = 200;
-num_stochas_runs = 56;
+num_stochas_runs = 2;
 
 
 
