@@ -6,6 +6,7 @@ function country_level_analyses(sensitivity_analysis,...
     country_s_e_HCCdeaths_map,...
     params_map,stochas_params_mat,country_start_cols,...
     WUENIC2024BDdata, WUENIC2024HepB3data, ...
+    Countrylevel_intervention_params, Global_intervention_params, ...
     GHO_infacilitybirthproportion_map, ANC_coverage_map, ...
     Polaris_diagnosis_coverage_map, Polaris_treat_coverage_map, ...
     basedir,...
@@ -15,20 +16,24 @@ function country_level_analyses(sensitivity_analysis,...
     if nargin < 1
        error('No input')
     end
+    
     %% Intervention with HepB3 takes 3 years and can start now:
-    T_INTERVENTION_START_HepB3 = 2026.0;
-    T_INTERVENTION_END_HepB3 = 2029.0;
+    T_INTERVENTION_START_HepB3 = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'Start_ContImp+HepB3'),:).Value;
+    T_INTERVENTION_END_HepB3 = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'End_ContImp+HepB3'),:).Value;
+    HepB3_WHO_target_coverage = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'HepB3_WHO_target_coverage'),:).Value;
+    assert(T_INTERVENTION_START_HepB3>2024 && T_INTERVENTION_END_HepB3>2024)
+    assert(HepB3_WHO_target_coverage>=0 && HepB3_WHO_target_coverage<=1)
 
     T_INTERVENTION_START = 2026.0;
     T_INTERVENTION_END = 2029.0;
     %% Birth dose takes 5 years:
     T_INTERVENTION_START_BD = 2026.0;
     T_INTERVENTION_END_BD  = 2031.0;
-
+    
     % TUTAJ:
     num_scenarios = 11;
     %start_scenario = 17;
-    start_scenario = 1;
+    start_scenario = 6;
 
     assert(ismember(sensitivity_analysis,{'default','infant_100','treat_medium','treat_high'}))
 
@@ -372,7 +377,8 @@ function country_level_analyses(sensitivity_analysis,...
 
        
             
-
+            %% Get country-specific intervention data:
+            Intervention_data_thiscountry = Countrylevel_intervention_params(strcmp(Countrylevel_intervention_params.ISO,ISO), :);
 
 
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -383,16 +389,33 @@ function country_level_analyses(sensitivity_analysis,...
             %%i_scenario_BASE2020notreat = 1;
             %%i_scenario_BASE2025notreat = 1;   %% WUENIC 2025 BD+HepB3, no treatment, no new interventions. Introduced because existing treatment scenarios have treatment coverage increasing to ~70% by 2100.
             i_scenario_SQ = 1;  %% Post-2025 all coverage (BD,HepB3,PAP,diagnosis,treatment) kept fixed at 2025 levles.
-            i_scenario_cont_imp = 2;      
-            i_scenario_cont_imp_plusB3 = 3;  %% cont_imp + HepB3 to 90% (or current coverage if higher) increasing T_INTERVENTION_START_HepB3-T_INTERVENTION_END_HepB3
-            i_scenario_cont_imp_plusBD = 4;  %% cont_imp + BD to 60% in non-facility births (
-            i_scenario_cont_imp_plusPAP = 5;  %% cont_imp + 90% PAP coverage of high VL
-            i_scenario_cont_imp_plusdiag = 6;  %% As i_scenario_cont_imp, but maximising PAP+BD coverage (so no overlap if possible)
-            i_scenario_cont_imp_plustreat = 7;  %% As i_scenario_cont_imp, but maximising PAP+BD coverage (so no overlap if possible)
-            i_scenario_cont_imp_plusB3_BD = 8;  
-            i_scenario_cont_imp_plusB3_BD_PAP = 9;  %% cont_imp + BD to 60% in non-facility births (
-            i_scenario_cont_imp_plusB3_BD_PAP_diag = 10;  %% cont_imp + 90% PAP coverage of high VL
-            i_scenario_cont_imp_plusB3_BD_PAP_diag_treat = 11;  %% As i_scenario_cont_imp, but maximising PAP+BD coverage (so no overlap if possible)
+            i_scenario_ContImp = 2;         %% Continued improvement - HepB3 and BD remain at current levels. PAP increases to 5% (2026-2030) of HVL. Treatment and diagnosis increase annually by region-specific rate
+            i_scenario_ContImp_plusB3 = 3;  %% ContImp + HepB3 to 90% (or current coverage if higher) increasing T_INTERVENTION_START_HepB3-T_INTERVENTION_END_HepB3
+            i_scenario_ContImp_plusBD_IF = 4;  %% ContImp + in-facility (IF) BD optimization: BD to IF ceiling in countries with BD at present
+            i_scenario_ContImp_plusBD_OOF = 5;  %% ContImp + BD increases to also reach to 60% of non-facility births (BD introduced in non-BD countries).
+            i_scenario_ContImp_plusBD_IF_OOF = 6;  %% ContImp + combined IF/OOF BD.
+            i_scenario_ContImp_plusPAP_HVL_targeted = 7;  %% ContImp + X% PAP coverage of high VL (X%=access to VL monitoring). 
+            i_scenario_ContImp_plusPAP_PoC = 8;  %% ContImp + PoC test to determine PAP eligibility. Assume 90% sensitivity, and 90% specificity.
+            i_scenario_ContImp_plusPAP_all = 9;  %% ContImp + PAP ANC-1 coverage of all pregnant women (HVL+LVL)
+            i_scenario_ContImp_plusDx_ANCscreening = 10;  %% ContImp with additional diagnosis among pregnant women during ANC (ANC-1 capped at HIV screening %)
+            i_scenario_ContImp_plusDx_BirthCohort = 11;  %% ContImp with additional diagnosis through birth cohort screening (those born within 5 years of country introduction of HepB3)
+            i_scenario_ContImp_plusDx_IFscreening = 12; %% ContImp with diagnosis through in-facility screening (e.g. acute care). Use WHO 
+            i_scenario_ContImp_plusDx_CommunityScreening = 13; %% ContImp with additional diagnosis through (realistic) community screening similar to PROLIFICA.
+            i_scenario_ContImp_plusDx_CommunityScreening_perfect = 14; %% ContImp with additional diagnosis through perfect community screening.
+            i_scenario_ContImp_plusDx_IntegratedServices = 15;  %% CompInt with integrated services (TBD?)
+            i_scenario_ContImp_plusTx_PoCeligibility = 16; %% CompInt with PoC treatment eligibility 
+            i_scenario_ContImp_plusTx_treatall = 17;
+            i_scenario_ContImp_plusTx_LA = 18;
+            i_scenario_ContImp_plusDecentralisedDxTx = 19;
+            i_scenario_ContImp_plusTx_cure_Bepi = 20;
+            i_scenario_ContImp_plusTx_cure_improved = 21;
+
+            % i_scenario_ContImp_plusdiag = 6;  %% As i_scenario_ContImp, but maximising PAP+BD coverage (so no overlap if possible)
+            % i_scenario_ContImp_plustreat = 7;  %% As i_scenario_ContImp, but maximising PAP+BD coverage (so no overlap if possible)
+            % i_scenario_ContImp_plusB3_BD = 8;  
+            % i_scenario_ContImp_plusB3_BD_PAP = 9;  %% ContImp + BD to 60% in non-facility births (
+            % i_scenario_ContImp_plusB3_BD_PAP_diag = 10;  %% ContImp + 90% PAP coverage of high VL
+            % i_scenario_ContImp_plusB3_BD_PAP_diag_treat = 11;  %% As i_scenario_ContImp, but maximising PAP+BD coverage (so no overlap if possible)
             
 
             % i_scenario_INFACILITYBD_VLPAPtoANC = 4;  %% As i_scenario_INFACILITYBD, but with HVL PAP to ANC coverage levels.
@@ -428,69 +451,44 @@ function country_level_analyses(sensitivity_analysis,...
             
         
             %% Index values for scenario_BD: Governs BD coverage time trends, introduction of different BD devices (MAP, CPAD).
-            %%I_BD_WUENIC2020 = 1;  %% Follow WUENIC2020 (existing scenario) and after 2019 coverage remains at last (2019) value
-            I_BD_WUENIC2025 = 2;  %% Follow WUENIC2025 and after 2024 coverage remains at last (2024) value
-            I_BD_contimp = 3;  %% Continuous improvement scenario - BD increases to in-facility cap (or current level if higher) in countries with BD. BD introduced into all other countries (to in-facility cap) EXCEPT non-GAVI-eligible countries that don't currently have BD.
-            I_BD_PLUS = 4; %% Continuous improvement but with additional intervention to reach oof_acceptance=60% of OOF births (e.g. CHW, MAP)
+            I_BD_WUENIC2025 = 100;  %% Follow WUENIC2025 and after 2024 coverage remains at last (2024) value
+            I_BD_contimp = 101;  %% Possible increase beyond WUENIC2025 at a slow rate (currently 0). Introduction of BD to GAVI-approved countries
+            I_BD_IFexpansion = 102; %% BD increases to current in-facilility % (or current coverage if higher) in all countries with BD/GAVI-approved.
+            I_BD_OOFexpansion = 103; %% I_BD_IFexpansion with additional intervention to reach BD_oof_coverage=60% of OOF births (e.g. CHW, MAP). BD introduced in countries without BD.
+            I_BD_IF_OOFexpansion = 104; %% Combining IF expansion + OOF 
+
+            %% Index values for scenario_HepB3: Hep B3 scenarios. 
+            I_HEPB3_WUENIC2025 = 201;  %% Fixed at WUENIC 2025
+            I_HEPB3_contimp = 202;      %% Possible increase beyond WUENIC2025 at a slow rate (currently 0).
+            I_HEPB3_WHOtarget = 203;        %% Increase to WHO target.
             
-            %% Not used:
-            %% I_BD_INFACILITY_INTRODUCTION = 3;  %% Follow WUENIC2025. For countries without BD, introduce BD in T_INTERVENTION_START and scale up to be some % of the in-facility births. For countries with BD already this will be identical to I_BD_WUENIC2025.
-            %%I_BD_MAP = 4;  %% Follow WUENIC2025, then an extra (different efficacy) product increases overall BD coverage up to a level capped by out-of-facility deliveries.
-            %%I_BD_CPAD = 5; %% Follow WUENIC2025, then an extra (different efficacy) product increases overall BD coverage up to a level capped by out-of-facility deliveries.
-            %%I_BD_75target = 106; %% 90% BD coverage by T_INTERVENTION_END.
-            %%I_BD_WHOtarget = 107; %% 90% BD coverage by T_INTERVENTION_END.
-
-            %% Index values for scenario_HepB3: Hep B3 scenarios. Currently just use 2020 or 2025 WUENIC data.
-            %%I_HEPB3_WUENIC2020 = 1;
-            I_HEPB3_WUENIC2025 = 1;
-            I_HEPB3_PLUS = 2;
-
-            %% Not used:
-            %%I_HEPB3_WHOtarget = 102; %% 90% coverage.
+            
             
             %% Index values for scenario_PAP: peripartum antiviral prophylaxis (PAP) treatment for HBsAg+ mothers (treat all, treat high VL etc).
-            I_PAP_SQ = 1;      %% No PAP unless already present.
-            I_PAP_HVL_contimp = 2; %% Increase PAP to 20% of HVL unless already present.
-            I_PAP_HVL_PLUS = 3; %% Increase PAP to 60% of HVL unless already present.
-            %% Not used:
-            % I_PAP_NOTREAT = 100;
-            %% Current WHO recommendation is PAP for women HBsAg+ with HBV DNA levels >=200,000 IU/ml or if HBeAg+. 
-            % I_PAP_highVL_BDcoverage = 102;             %% High VL at BD coverage levels
-            % I_PAP_highVL_ANCcoverage = 103;             %% High VL at ANC coverage levels
-            % I_PAP_universal_BDcoverage = 104;             %% Universal PAP at BD coverage levels
-            % I_PAP_universal_ANCcoverage = 105;             %% Universal PAP at ANC coverage levels
+            I_PAP_SQ = 301;      %% No PAP unless already present.
+            I_PAP_HVL_contimp = 302; %% Increase PAP to 20% of HVL unless already present.
+            I_PAP_HVL_targeted = 303; %% Increase PAP to X% of HVL unless already present (X% placeholder but will be based on VL testing availability).
+            I_PAP_PoC = 304;      %% Eligibility based on PoC test with given sensitivity, specificity and (globally constant) coverage.
+            I_PAP_all = 305; %% All eligible (no VL criteria). Uptake to national ANC-1 value.
 
-            %I_PAP_TREATeAgpos = 3;             %% eAg+
-            %I_PAP_TREAT_highVL_or_eAgpos = 4;  %% Either high VL or eAg+ (or both)
             
             %% scenario_Treatment: governs how treatment happens:
             % Modified by treat-all, introduction of PoC HBcrAg, PoC ALT tests, 
     
-            %%I_NOTREAT = 1;       %% no treatment ever.
-            I_TREAT_INIT_SQ = 1;         %% Current treatment (Capped at most recent treatemnt data - currently Polaris 2025).
-            I_TREAT_INIT_continuousimprovement = 2;
-            I_diag70percent = 3;         %% Increase diagnosis to 70% (China is 68%)
-            I_TREATlink45 = 4;           %% 45% of those diagnosed+eligible will end up on treatment
-            I_TREAT_PLUS = 5;
+            I_TREAT_SQ = 1;         %% Current treatment (Capped at most recent treatemnt data - currently Polaris 2025).
+            I_TREAT_continuedimprovement = 2;
+            I_TREAT_ANCscreening = 3;
+            I_TREAT_IFscreeing = 4;
+            I_TREAT_IntegratedServices = 5; 
+            I_TREAT_PoCeligibility = 6;
+            I_TREAT_universal = 7;
+            I_TREAT_LA = 8;
+            I_TREAT_decentralised = 9;
+            I_TREAT_cureBepi = 10;
+            I_TREAT_curev2 = 11;
             
-            % I_TREATlink45 = 102;           %% 45% of those diagnosed+eligible will end up on treatment
-            % I_TREATlink80 = 103;           %% 80% of those diagnosed+eligible will end up on treatment
-            % I_diag30percent = 104;         %% As I_TREATlink80, but increase diagnosis to 40% (~E European levels)
-            % I_diag70percent = 105;         %% As I_TREATlink80, but increase diagnosis to 70% (China is 68%)
-            
-            %%I_TREAT_INIT_POC_cr_ALT = 4; %% Introduce PoC tests for HBcrAg and ALT - increase rate of treatment initiation in eligible groups.
-            %%I_TREAT_INIT_LA = 5;         % Introduce long-acting treatment. SQ treatment failure rate is very low (0.001), so we take the "TDF treatment" group to be "On treatment, adherent and not going to drop out". LA treatment then just increases the proportion of people in this compartment (either by improving adherence, preventing dropout, or offering a more convenient/preffered option).
-            %%I_CURE = 6;                  % Cure replaces treatment - in this case 
 
-
-            % %% scenario_TreatmentRetention: governs introduction of long-acting treatment (TDF).
-            % I_TREAT_RET_SQ = 1;
-            % I_TREAT_RET_LA_TREAT = 2;
             
-            
-            %% scenario_CohortTesting: governs whether we have testing of a birth cohort (like Thai-B). 
-            I_NO_COHORT_TEST = 1;
-            I_COHORT_TEST = 2;
        
             %% For each scenario we determine which intervention "levers" are used.
             switch scenario_num
@@ -498,243 +496,282 @@ function country_level_analyses(sensitivity_analysis,...
                     scenario_BD = I_BD_WUENIC2025;
                     scenario_HepB3 = I_HEPB3_WUENIC2025;
                     scenario_PAP = I_PAP_SQ;
-                    scenario_Treatment = I_TREAT_INIT_SQ;
-                    scenario_CohortTesting = I_NO_COHORT_TEST;
-                case i_scenario_cont_imp     
+                    scenario_Treatment = I_TREAT_SQ;
+                    scenario_AddScreenIntervention = "No additional screening";
+                case i_scenario_ContImp    %% Continued improvement - BD can increase (+ starts up in GAVI-approved countries). HepB3 can in crease
                     scenario_BD = I_BD_contimp;
-                    scenario_HepB3 = I_HEPB3_WUENIC2025;
+                    scenario_HepB3 = I_HEPB3_contimp;
                     scenario_PAP = I_PAP_HVL_contimp;
-                    scenario_Treatment = I_TREAT_INIT_continuousimprovement;
-                    scenario_CohortTesting = I_NO_COHORT_TEST;
-                % case i_scenario_SQ_plusB3     %% Hep B3 increases to 90% 2026-2029 (T_INTERVENTION_START_HepB3-T_INTERVENTION_END_HepB3)
-                %     scenario_BD = I_BD_WUENIC2025;
-                %     scenario_HepB3 = I_HEPB3_WHOtarget;
-                %     scenario_PAP = I_PAP_SQ;
-                %     scenario_Treatment = I_TREAT_INIT_SQ;
-                %     scenario_CohortTesting = I_NO_COHORT_TEST;
-                case i_scenario_cont_imp_plusB3     %% Hep B3 increases to 90% 2026-2029 (T_INTERVENTION_START_HepB3-T_INTERVENTION_END_HepB3)
+                    scenario_Treatment = I_TREAT_continuedimprovement;
+                    scenario_AddScreenIntervention = "No additional screening";
+                case i_scenario_ContImp_plusB3     %% Hep B3 increases to 90% 2026-2029 (T_INTERVENTION_START_HepB3-T_INTERVENTION_END_HepB3)
                     scenario_BD = I_BD_contimp;
-                    scenario_HepB3 = I_HEPB3_PLUS;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
                     scenario_PAP = I_PAP_HVL_contimp;
-                    scenario_Treatment = I_TREAT_INIT_continuousimprovement;
-                    scenario_CohortTesting = I_NO_COHORT_TEST;                    
-                case i_scenario_cont_imp_plusBD     %% BD increases - increasing OOF coverage
-                    scenario_BD = I_BD_PLUS;
-                    scenario_HepB3 = I_HEPB3_WUENIC2025;
+                    scenario_Treatment = I_TREAT_continuedimprovement;
+                    scenario_AddScreenIntervention = "No additional screening";                    
+                case i_scenario_ContImp_plusBD_IF     %% BD increases - increasing OOF coverage
+                    scenario_BD = I_BD_IFexpansion;
+                    scenario_HepB3 = I_HEPB3_contimp;
                     scenario_PAP = I_PAP_HVL_contimp;
-                    scenario_Treatment = I_TREAT_INIT_continuousimprovement;
-                    scenario_CohortTesting = I_NO_COHORT_TEST;
-                case i_scenario_cont_imp_plusPAP     %% WUENIC 2025 HepB3, 2016 treatment, BD introduced in countries where it is not already present - coverage capped at in-facility birth coverage.
+                    scenario_Treatment = I_TREAT_continuedimprovement;
+                    scenario_AddScreenIntervention = "No additional screening";
+                case i_scenario_ContImp_plusBD_OOF     %% BD increases - increasing OOF coverage
+                    scenario_BD = I_BD_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_contimp;
+                    scenario_PAP = I_PAP_HVL_contimp;
+                    scenario_Treatment = I_TREAT_continuedimprovement;
+                    scenario_AddScreenIntervention = "No additional screening";
+                case i_scenario_ContImp_plusBD_IF_OOF     %% BD increases - increasing IF+OOF coverage
+                    scenario_BD = I_BD_IF_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_contimp;
+                    scenario_PAP = I_PAP_HVL_contimp;
+                    scenario_Treatment = I_TREAT_continuedimprovement;
+                    scenario_AddScreenIntervention = "No additional screening";
+                case i_scenario_ContImp_plusPAP_HVL_targeted     %% ContImp+ PAP for HVL only, capped at level of availability of VL testing.
                     scenario_BD = I_BD_contimp;
-                    scenario_HepB3 = I_HEPB3_WUENIC2025;
-                    scenario_PAP = I_PAP_HVL_PLUS;
-                    scenario_Treatment = I_TREAT_INIT_continuousimprovement;
-                    scenario_CohortTesting = I_NO_COHORT_TEST;
-                case i_scenario_cont_imp_plusdiag    %% Diagnosis increases to 70%     
+                    scenario_HepB3 = I_HEPB3_contimp;
+                    scenario_PAP = I_PAP_HVL_targeted;
+                    scenario_Treatment = I_TREAT_continuedimprovement;
+                    scenario_AddScreenIntervention = "No additional screening";
+                case i_scenario_ContImp_plusPAP_PoC     %% ContImp+ PAP eligibility through PoC test.
                     scenario_BD = I_BD_contimp;
-                    scenario_HepB3 = I_HEPB3_WUENIC2025;
-                    scenario_PAP = I_PAP_HVL_contimp;
-                    scenario_Treatment = I_diag70percent;
-                    scenario_CohortTesting = I_NO_COHORT_TEST;
-                case i_scenario_cont_imp_plustreat    %% Treatment (of diagnosed+eligible) increases to 45%     
+                    scenario_HepB3 = I_HEPB3_contimp;
+                    scenario_PAP = I_PAP_PoC;
+                    scenario_Treatment = I_TREAT_continuedimprovement;
+                    scenario_AddScreenIntervention = "No additional screening";
+                case i_scenario_ContImp_plusPAP_all     %% ContImp+ PAP eligibility through PoC test.
                     scenario_BD = I_BD_contimp;
-                    scenario_HepB3 = I_HEPB3_WUENIC2025;
+                    scenario_HepB3 = I_HEPB3_contimp;
+                    scenario_PAP = I_PAP_all;  %% PAP available to all pregnant women regardless of VL
+                    scenario_Treatment = I_TREAT_continuedimprovement;
+                    scenario_AddScreenIntervention = "No additional screening";  
+                WYBOR:
+                %% ContImp with additional diagnosis among pregnant women during ANC (ANC-1 capped at HIV screening %)
+                case i_scenario_ContImp_plusDx_ANCscreening
+                    scenario_BD = I_BD_contimp;
+                    scenario_HepB3 = I_HEPB3_contimp;
                     scenario_PAP = I_PAP_HVL_contimp;
-                    scenario_Treatment = I_TREATlink45;
-                    scenario_CohortTesting = I_NO_COHORT_TEST;
-                case i_scenario_cont_imp_plusB3_BD
-                    scenario_BD = I_BD_PLUS;
-                    scenario_HepB3 = I_HEPB3_PLUS;
+                    scenario_Treatment = I_TREAT_ANCscreening;
+                    scenario_AddScreenIntervention = "ANC screening";  
+                 %% ContImp with additional diagnosis through birth cohort screening (those born within 5 years of country introduction of HepB3)
+                case i_scenario_ContImp_plusDx_BirthCohort
+                    scenario_BD = I_BD_contimp;
+                    scenario_HepB3 = I_HEPB3_contimp;
                     scenario_PAP = I_PAP_HVL_contimp;
-                    scenario_Treatment = I_TREAT_INIT_continuousimprovement;
-                    scenario_CohortTesting = I_NO_COHORT_TEST;
-                case i_scenario_cont_imp_plusB3_BD_PAP
-                    scenario_BD = I_BD_PLUS;
-                    scenario_HepB3 = I_HEPB3_PLUS;
-                    scenario_PAP = I_PAP_HVL_PLUS;
-                    scenario_Treatment = I_TREAT_INIT_continuousimprovement;
-                    scenario_CohortTesting = I_NO_COHORT_TEST;
-                case i_scenario_cont_imp_plusB3_BD_PAP_diag
-                    scenario_BD = I_BD_PLUS;
-                    scenario_HepB3 = I_HEPB3_PLUS;
-                    scenario_PAP = I_PAP_HVL_PLUS;
-                    scenario_Treatment = I_diag70percent;
-                    scenario_CohortTesting = I_NO_COHORT_TEST;
-                case i_scenario_cont_imp_plusB3_BD_PAP_diag_treat
-                    scenario_BD = I_BD_PLUS;
-                    scenario_HepB3 = I_HEPB3_PLUS;
-                    scenario_PAP = I_PAP_HVL_PLUS;
-                    scenario_Treatment = I_TREAT_PLUS;
-                    scenario_CohortTesting = I_NO_COHORT_TEST;
-            
-                    
+                    scenario_Treatment = I_TREAT_continuedimprovement;
+                    scenario_AddScreenIntervention = "Birth cohort screening";  
+                case i_scenario_ContImp_plusDx_IFscreening
+                    scenario_BD = I_BD_contimp;
+                    scenario_HepB3 = I_HEPB3_contimp;
+                    scenario_PAP = I_PAP_HVL_contimp;
+                    scenario_Treatment = I_TREAT_IFscreeing;
+                    scenario_AddScreenIntervention = "No additional screening";  
+                %% ContImp with additional diagnosis through (realistic) community screening similar to PROLIFICA.
+                case i_scenario_ContImp_plusDx_CommunityScreening
+                    scenario_BD = I_BD_contimp;
+                    scenario_HepB3 = I_HEPB3_contimp;
+                    scenario_PAP = I_PAP_HVL_contimp;
+                    scenario_Treatment = I_TREAT_continuedimprovement;
+                    scenario_AddScreenIntervention = "Community screening";  
+                %% ContImp with additional diagnosis through perfect community screening.
+                case i_scenario_ContImp_plusDx_CommunityScreening_perfect
+                    scenario_BD = I_BD_contimp;
+                    scenario_HepB3 = I_HEPB3_contimp;
+                    scenario_PAP = I_PAP_HVL_contimp;
+                    scenario_Treatment = I_TREAT_continuedimprovement;
+                    scenario_AddScreenIntervention = "Perfect community screening";  
+                %% CompInt with integrated services (TBD?)
+                case i_scenario_ContImp_plusDx_IntegratedServices
+                    scenario_BD = I_BD_contimp;
+                    scenario_HepB3 = I_HEPB3_contimp;
+                    scenario_PAP = I_PAP_HVL_contimp;
+                    scenario_Treatment = I_TREAT_IntegratedServices;
+                    scenario_AddScreenIntervention = "No additional screening";  
+                %% CompInt with PoC treatment eligibility 
+                case i_scenario_ContImp_plusTx_PoCeligibility
+                    scenario_BD = I_BD_contimp;
+                    scenario_HepB3 = I_HEPB3_contimp;
+                    scenario_PAP = I_PAP_HVL_contimp;
+                    scenario_Treatment = I_TREAT_PoCeligibility;
+                    scenario_AddScreenIntervention = "No additional screening";  
+                case i_scenario_ContImp_plusTx_treatall
+                    scenario_BD = I_BD_contimp;
+                    scenario_HepB3 = I_HEPB3_contimp;
+                    scenario_PAP = I_PAP_HVL_contimp;
+                    scenario_Treatment = I_TREAT_universal;
+                    scenario_AddScreenIntervention = "No additional screening";  
+                %% Long-acting treatment available:
+                case i_scenario_ContImp_plusTx_LA
+                    scenario_BD = I_BD_contimp;
+                    scenario_HepB3 = I_HEPB3_contimp;
+                    scenario_PAP = I_PAP_HVL_contimp;
+                    scenario_Treatment = I_TREAT_LA;
+                    scenario_AddScreenIntervention = "No additional screening";  
+                %% Decentralised testing and treatment:
+                case i_scenario_ContImp_plusDecentralisedDxTx
+                    scenario_BD = I_BD_contimp;
+                    scenario_HepB3 = I_HEPB3_contimp;
+                    scenario_PAP = I_PAP_HVL_contimp;
+                    scenario_Treatment = I_TREAT_decentralised;
+                    scenario_AddScreenIntervention = "No additional screening";  
+                %% Bepi-like cure available:
+                case i_scenario_ContImp_plusTx_cure_Bepi
+                    scenario_BD = I_BD_contimp;
+                    scenario_HepB3 = I_HEPB3_contimp;
+                    scenario_PAP = I_PAP_HVL_contimp;
+                    scenario_Treatment = I_TREAT_cureBepi;
+                    scenario_AddScreenIntervention = "No additional screening";  
+                %% Better-than-Bepi cure available:
+                case i_scenario_ContImp_plusTx_cure_improved
+                    scenario_BD = I_BD_contimp;
+                    scenario_HepB3 = I_HEPB3_contimp;
+                    scenario_PAP = I_PAP_HVL_contimp;
+                    scenario_Treatment = I_TREAT_curev2;
+                    scenario_AddScreenIntervention = "No additional screening";  
+                % case i_scenario_ContImp_plusdiag    %% Diagnosis increases to 70%     
+                % case i_scenario_ContImp_plustreat    %% Treatment (of diagnosed+eligible) increases to 45%     
+                                
                 % case i_scenario_INFACILITYBD_VLPAPtoANC     %% WUENIC 2025 HepB3, 2016 treatment, BD introduced in countries where it is not already present - coverage capped at in-facility birth coverage.
-                %     scenario_BD = I_BD_INFACILITY_INTRODUCTION;
-                %     scenario_HepB3 = I_HEPB3_WUENIC2025;
                 %     scenario_PAP = I_PAP_highVL_ANCcoverage;
-                %     scenario_Treatment = I_TREAT_INIT_SQ;
-                %     scenario_CohortTesting = I_NO_COHORT_TEST;
-                % case i_scenario_INFACILITYBD_UniPAPtoBD     %% WUENIC 2025 HepB3, 2016 treatment, BD introduced in countries where it is not already present - coverage capped at in-facility birth coverage.
-                %     scenario_BD = I_BD_INFACILITY_INTRODUCTION;
-                %     scenario_HepB3 = I_HEPB3_WUENIC2025;
-                %     scenario_PAP = I_PAP_universal_BDcoverage;
-                %     scenario_Treatment = I_TREAT_INIT_SQ;
-                %     scenario_CohortTesting = I_NO_COHORT_TEST;
                 % case i_scenario_INFACILITYBD_UniPAPtoANC     %% WUENIC 2025 HepB3, 2016 treatment, BD introduced in countries where it is not already present - coverage capped at in-facility birth coverage.
-                %     scenario_BD = I_BD_INFACILITY_INTRODUCTION;
-                %     scenario_HepB3 = I_HEPB3_WUENIC2025;
                 %     scenario_PAP = I_PAP_universal_ANCcoverage;
-                %     scenario_Treatment = I_TREAT_INIT_SQ;
-                %     scenario_CohortTesting = I_NO_COHORT_TEST;
-                % case i_scenario_BD75percent    %% BD reaches 75% coverage (or current if higher)
-                %     disp("BD 75% scenario")
-                %     scenario_BD = I_BD_75target;
-                %     scenario_HepB3 = I_HEPB3_WUENIC2025;
-                %     scenario_PAP = I_PAP_NOTREAT;
-                %     scenario_Treatment = I_TREAT_INIT_SQ;
-                %     scenario_CohortTesting = I_NO_COHORT_TEST;
                 % case i_scenario_BDWHOtarget    %% BD reaches 90% coverage target
-                %     disp("BD target scenario")
                 %     scenario_BD = I_BD_WHOtarget;
-                %     scenario_HepB3 = I_HEPB3_WUENIC2025;
-                %     scenario_PAP = I_PAP_NOTREAT;
-                %     scenario_Treatment = I_TREAT_INIT_SQ;
-                %     scenario_CohortTesting = I_NO_COHORT_TEST;
                 % case i_scenario_BDWHOtarget_VLPAPtoBD    %% BD reaches 90% coverage target, PAP for HVL to BD coverage levels
                 %     scenario_BD = I_BD_WHOtarget;
                 %     scenario_HepB3 = I_HEPB3_WUENIC2025;
                 %     scenario_PAP = I_PAP_highVL_BDcoverage;
-                %     scenario_Treatment = I_TREAT_INIT_SQ;
-                %     scenario_CohortTesting = I_NO_COHORT_TEST;
+                %     scenario_Treatment = I_TREAT_SQ;
+                %     scenario_AddScreenIntervention = "No additional screening";
                 % case i_scenario_BDWHOtarget_VLPAPtoANC    %% BD reaches 90% coverage target, PAP for HVL to ANC coverage levels
                 %     scenario_BD = I_BD_WHOtarget;
                 %     scenario_HepB3 = I_HEPB3_WUENIC2025;
                 %     scenario_PAP = I_PAP_highVL_ANCcoverage;
-                %     scenario_Treatment = I_TREAT_INIT_SQ;
-                %     scenario_CohortTesting = I_NO_COHORT_TEST;
+                %     scenario_Treatment = I_TREAT_SQ;
+                %     scenario_AddScreenIntervention = "No additional screening";
                 % case i_scenario_BDWHOtarget_UniPAPtoBD    %% BD reaches 90% coverage target, universal PAP to BD coverage levels
                 %     scenario_BD = I_BD_WHOtarget;
                 %     scenario_HepB3 = I_HEPB3_WUENIC2025;
                 %     scenario_PAP = I_PAP_universal_BDcoverage;
-                %     scenario_Treatment = I_TREAT_INIT_SQ;
-                %     scenario_CohortTesting = I_NO_COHORT_TEST;
+                %     scenario_Treatment = I_TREAT_SQ;
+                %     scenario_AddScreenIntervention = "No additional screening";
                 % case i_scenario_BDWHOtarget_UniPAPtoANC    %% BD reaches 90% coverage target, universal PAP to ANC coverage levels
                 %     scenario_BD = I_BD_WHOtarget;
                 %     scenario_HepB3 = I_HEPB3_WUENIC2025;
                 %     scenario_PAP = I_PAP_universal_ANCcoverage;
-                %     scenario_Treatment = I_TREAT_INIT_SQ;
-                %     scenario_CohortTesting = I_NO_COHORT_TEST;
+                %     scenario_Treatment = I_TREAT_SQ;
+                %     scenario_AddScreenIntervention = "No additional screening";
                 % case i_scenario_HepB3WHOtarget  %% HepB3 reaches 90% coverage target
                 %     scenario_BD = I_BD_WHOtarget;
                 %     scenario_HepB3 = I_HEPB3_WHOtarget;
                 %     scenario_PAP = I_PAP_highVL_ANCcoverage;
-                %     scenario_Treatment = I_TREAT_INIT_SQ;
-                %     scenario_CohortTesting = I_NO_COHORT_TEST;
+                %     scenario_Treatment = I_TREAT_SQ;
+                %     scenario_AddScreenIntervention = "No additional screening";
                 % case i_scenario_Treatlink45  %% 45% of those diag+elig start treatment
                 %     scenario_BD = I_BD_WHOtarget;
                 %     scenario_HepB3 = I_HEPB3_WHOtarget;
                 %     scenario_PAP = I_PAP_highVL_ANCcoverage;
                 %     scenario_Treatment = I_TREATlink45;
-                %     scenario_CohortTesting = I_NO_COHORT_TEST;
+                %     scenario_AddScreenIntervention = "No additional screening";
                 % case i_scenario_Treatlink80  %% 80% of those diag+elig start treatment
                 %     scenario_BD = I_BD_WHOtarget;
                 %     scenario_HepB3 = I_HEPB3_WHOtarget;
                 %     scenario_PAP = I_PAP_highVL_ANCcoverage;
                 %     scenario_Treatment = I_TREATlink80;
-                %     scenario_CohortTesting = I_NO_COHORT_TEST;
+                %     scenario_AddScreenIntervention = "No additional screening";
                 % case i_scenario_Diag30  %% 30% diagnosed. Treatment linkage as for I_TREATlink80.
                 %     scenario_BD = I_BD_WHOtarget;
                 %     scenario_HepB3 = I_HEPB3_WHOtarget;
                 %     scenario_PAP = I_PAP_highVL_ANCcoverage;
                 %     scenario_Treatment = I_diag30percent;
-                %     scenario_CohortTesting = I_NO_COHORT_TEST;
+                %     scenario_AddScreenIntervention = "No additional screening";
                 % case i_scenario_Diag70  %% 70% diagnosed. Treatment linkage as for I_TREATlink80.
                 %     scenario_BD = I_BD_WHOtarget;
                 %     scenario_HepB3 = I_HEPB3_WHOtarget;
                 %     scenario_PAP = I_PAP_highVL_ANCcoverage;
                 %     scenario_Treatment = I_diag70percent;
-                %     scenario_CohortTesting = I_NO_COHORT_TEST;
+                %     scenario_AddScreenIntervention = "No additional screening";
                 % case i_scenario_TreatWHOtarget  %% Treatment reaches 80% target
                 %     disp("Treatment target scenario")
                 %     scenario_BD = I_BD_WUENIC2025;
                 %     scenario_HepB3 = I_HEPB3_WUENIC2025;
                 %     scenario_PAP = I_PAP_NOTREAT;
                 %     scenario_Treatment = I_TREAT_WHOtarget;
-                %     scenario_CohortTesting = I_NO_COHORT_TEST;
+                %     scenario_AddScreenIntervention = "No additional screening";
                 % case i_scenario_WHOtarget       %% BD, HepB3 and treatment reach targets
                 %     disp("WHO target scenario")
                 %     scenario_BD = I_BD_WHOtarget;
                 %     scenario_HepB3 = I_HEPB3_WHOtarget;
                 %     scenario_PAP = I_PAP_highVL_ANCcoverage;
                 %     scenario_Treatment = I_TREAT_WHOtarget;
-                %     scenario_CohortTesting = I_NO_COHORT_TEST;
+                %     scenario_AddScreenIntervention = "No additional screening";
                 % case i_scenario_MAP %% WUENIC 2025 BD+HepB3, 2016 treatment, Microarray patch introduced in T_INTERVENTION_START (increase BD coverage, but lower efficacy).
                 %     scenario_BD = I_BD_MAP;
                 %     scenario_HepB3 = I_HEPB3_WUENIC2025;
                 %     scenario_PAP = I_PAP_NOTREAT;
                 %     scenario_Treatment = I_NOTREAT;
-                %     scenario_CohortTesting = I_NO_COHORT_TEST;
+                %     scenario_AddScreenIntervention = "No additional screening";
                 % case i_scenario_CPAD %% WUENIC 2025 BD+HepB3, 2016 treatment, CPAD patch introduced (increase BD but lower eff and different cost to MAP).
                 %     scenario_BD = I_BD_CPAD;
                 %     scenario_HepB3 = I_HEPB3_WUENIC2025;
                 %     scenario_PAP = I_PAP_NOTREAT;
-                %     scenario_Treatment = I_NOTREAT;
                 % case i_scenario_BD2025_birthcohorttest   %% WUENIC 2025 BD+HepB3, 2016 treatment, Thai-B-type testing of pre-BD birth cohort on top of existing testing (cap so cannot test >100% of any age stratum).
                 %     scenario_BD = I_BD_WUENIC2025;
                 %     scenario_HepB3 = I_HEPB3_WUENIC2025;
                 %     scenario_PAP = I_PAP_NOTREAT;
                 %     scenario_Treatment = I_NOTREAT;
-                %     scenario_CohortTesting = I_COHORT_TEST;     
+                %     scenario_AddScreenIntervention = I_BIRTHCOHORT_SCREENING;     
                 % case i_scenario_PAP_TREAThighVL
                 %     scenario_BD = I_BD_WUENIC2025;
                 %     scenario_HepB3 = I_HEPB3_WUENIC2025;
                 %     scenario_PAP = I_PAP_TREAThighVL;
                 %     scenario_Treatment = I_NOTREAT;
-                %     scenario_CohortTesting = I_NO_COHORT_TEST;
+                %     scenario_AddScreenIntervention = "No additional screening";
                 % case i_scenario_PAP_TREATeAgpos
                 %     scenario_BD = I_BD_WUENIC2025;
                 %     scenario_HepB3 = I_HEPB3_WUENIC2025;
                 %     scenario_PAP = I_PAP_TREATeAgpos;
                 %     scenario_Treatment = I_NOTREAT;
-                %     scenario_CohortTesting = I_NO_COHORT_TEST;
+                %     scenario_AddScreenIntervention = "No additional screening";
                 % case i_scenario_PAP_TREAT_highVL_or_eAgpos
                 %     scenario_BD = I_BD_WUENIC2025;
                 %     scenario_HepB3 = I_HEPB3_WUENIC2025;
                 %     scenario_PAP = I_PAP_TREAT_highVL_or_eAgpos;
                 %     scenario_Treatment = I_NOTREAT;
-                %     scenario_CohortTesting = I_NO_COHORT_TEST;
+                %     scenario_AddScreenIntervention = "No additional screening";
                 % case i_scenario_BASE2020_WITHTREAT   %%case 'Status quo infant & BD'
                 %     scenario_BD = I_BD_WUENIC2020;
                 %     scenario_HepB3 = I_HEPB3_WUENIC2020;
                 %     scenario_PAP = I_PAP_NOTREAT;
-                %     scenario_Treatment = I_TREAT_INIT_SQ;
-                %     scenario_CohortTesting = I_NO_COHORT_TEST;
+                %     scenario_Treatment = I_TREAT_SQ;
+                %     scenario_AddScreenIntervention = "No additional screening";
                 % case i_scenario_BASE2025_WITHTREAT     %% WUENIC 2025 BD+HepB3, 2016 treatment, no new interventions. Addresses - how have changes in BD+Hep B3 coverage impacted result?
                 %     scenario_BD = I_BD_WUENIC2025;
                 %     scenario_HepB3 = I_HEPB3_WUENIC2025;
                 %     scenario_PAP = I_PAP_NOTREAT;
-                %     scenario_Treatment = I_TREAT_INIT_SQ;
-                %     scenario_CohortTesting = I_NO_COHORT_TEST;
+                %     scenario_Treatment = I_TREAT_SQ;
+                %     scenario_AddScreenIntervention = "No additional screening";
 
-                %     scenario_CohortTesting = I_NO_COHORT_TEST;
+                %     scenario_AddScreenIntervention = "No additional screening";
                 % case i_scenario_BD2025_LA_TDF %% WUENIC 2025 BD+HepB3, 2016 treatment, long-acting treatment introduced (increases coverage of TDF treatment).
                 %     scenario_BD = I_BD_WUENIC2025;
                 %     scenario_HepB3 = I_HEPB3_WUENIC2025;
                 %     scenario_PAP = I_PAP_NOTREAT;
                 %     scenario_Treatment = I_TREAT_INIT_LA;
-                %     scenario_CohortTesting = I_NO_COHORT_TEST;
+                %     scenario_AddScreenIntervention = "No additional screening";
                 % case i_scenario_BD2025_PoC_ALT_HBcrAg   %% WUENIC 2025 BD+HepB3, 2016 treatment, PoC ALT and HBcrAg introduced - higher treatment coverage, also some people on treatment who don't need it.
                 %     scenario_BD = I_BD_WUENIC2025;
                 %     scenario_HepB3 = I_HEPB3_WUENIC2025;
                 %     scenario_PAP = I_PAP_NOTREAT;
                 %     scenario_Treatment = I_TREAT_INIT_POC_cr_ALT;
-                %     scenario_CohortTesting = I_NO_COHORT_TEST;
+                %     scenario_AddScreenIntervention = "No additional screening";
                 % case i_scenario_BD2025_cure
                 %     scenario_BD = I_BD_WUENIC2025;
                 %     scenario_HepB3 = I_HEPB3_WUENIC2025;
                 %     scenario_PAP = I_PAP_NOTREAT;
                 %     scenario_Treatment = I_CURE;
-                %     scenario_CohortTesting = I_NO_COHORT_TEST;
+                %     scenario_AddScreenIntervention = "No additional screening";
                 otherwise
                     disp("Error - unknown scenario. Exiting")
                     return  %% Exit the script.
@@ -746,25 +783,16 @@ function country_level_analyses(sensitivity_analysis,...
             %%prop_accept_MAP = 0.9;   %% Placeholder assumption - easier to accept a patch than a needle
             %%prop_accept_CPAD = 0.85; %% Placeholder assumption
 
-            
-            in_facility_BD_acceptance = 1.0;  %% For now assume up to 90% of in-facility births will give BD.
+            %% In countries where BD is introduced in continued improvement scenario, this represents 
+            %% Analysis is simply the median of WUENIC2024/(% in-facility births) for countries with BD - see BD.divided.by.infacility variable in process_polaris_timeseries_data.R
+            BD_in_facility_acceptance_contimp = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'BD_in_facility_acceptance_contimp'),:).Value;
+
             %%prop_OOF_births = 1-GHO_infacilitybirthproportion_map(ISO);
 
             % Make model scenario birth dose coverage over time:
             %%last_BD_scaleup_year = 2030.0;  %% Assumption that BD plateaus after this time.
             
             switch scenario_BD
-                % case I_BD_WUENIC2020   
-                %     disp("I_BD_WUENIC2020")
-                %     coverage_BD_to_last_datapoint = BirthDose_wuenic2020;
-                %     year_last_BD_data = 2019;
-                %     %% Previously called 'Status quo infant & BD'. Follow WUENIC2020 (existing scenario) and after 2019 coverage remains at last (2019) value
-                %     future_xvals_vec = [2019.0, 2020.0, end_year];
-                %     future_yvals_vec = [BirthDose_wuenic2020(end), BirthDose_wuenic2020(end), BirthDose_wuenic2020(end)];
-                %     %% No MAP or CPAD introduced:
-                %     scenario_BDcoverage_fromMAP = zeros(1,length(years_vec_01yr));
-                %     scenario_BDcoverage_fromCPAD = zeros(1,length(years_vec_01yr));
-                %     %%label_array{scenario_num} = 'Status quo HepB3 & Hep2B-BD (baseline)';
                 case I_BD_WUENIC2025
                     disp("I_BD_WUENIC2025")
                     year_last_BD_data = 2024;
@@ -779,28 +807,77 @@ function country_level_analyses(sensitivity_analysis,...
                     year_last_BD_data = 2024;
                     disp("I_BD_contimp")
                     coverage_BD_to_last_datapoint = BirthDose_wuenic2025;
-                    %% Coverage up to in_facility_BD_acceptance% of the in-facility births, or current (2025 WUENIC) value - whichever is bigger.
                     %% Non-GAVI eligible countries (as of 2026):
-                    if(ISO=="AGO" || ISO=="BOL" || ISO=="JAM" || ISO=="JOR" || ISO=="LKA" || ISO=="MRT" || ISO=="PRY" || ISO=="SWZ" || ISO=="ZAF")
-                        max_in_facility_coverage=0;
+                    if(Intervention_data_thiscountry.HasBDorGAVIeligible==0)
+                        future_xvals_vec = [2024.0, end_year];
+                        future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end)];
                     else
-                        max_in_facility_coverage = max(GHO_infacilitybirthproportion_map(ISO)*in_facility_BD_acceptance,BirthDose_wuenic2025(end));
+                        %% BD increases at a slow rate in countries which already have BD; increases to BD_in_facility_acceptance_contimp% of in-facility births in 
+                        %% Annual percentage point increase in Hep B3 (capped at 90%)
+                        annual_BDimprovement = Intervention_data_thiscountry.ContImp_BD_annual_increase;
+                        %% Check whether, at this rate of increase from 2025 onwards, if we ever go above in-facility births:
+                        potential_bd_target = BirthDose_wuenic2025(end)+(end_year-2025)*annual_BDimprovement;
+                        if(potential_bd_target>BirthDose_wuenic2025(end))
+                            if(potential_bd_target>(GHO_infacilitybirthproportion_map(ISO)*BD_in_facility_acceptance_contimp))
+                                year_reach_IF_target = floor(((GHO_infacilitybirthproportion_map(ISO)*BD_in_facility_acceptance_contimp)-BirthDose_wuenic2025(end))/annual_BDimprovement);
+                                future_xvals_vec = [2024.0, 2025.0, year_reach_IF_target, end_year];
+                                future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end), GHO_infacilitybirthproportion_map(ISO), GHO_infacilitybirthproportion_map(ISO)];
+                            else
+                                future_xvals_vec = [2024.0, 2025.0, end_year];
+                                future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end), potential_bd_target];
+                            end
+                        else
+                            future_xvals_vec = [2024.0, 2025.0, end_year];
+                            future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end), potential_bd_target];
+                        end
                     end
-
-                    %% Currently 5 year scale-up of BD.
-                    future_xvals_vec = [2024.0, T_INTERVENTION_START_BD, T_INTERVENTION_END_BD, end_year];
-                    future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end), max_in_facility_coverage, max_in_facility_coverage];
                     %% No MAP or CPAD introduced:
                     scenario_BDcoverage_fromMAP = zeros(1,length(years_vec_01yr));
                     scenario_BDcoverage_fromCPAD = zeros(1,length(years_vec_01yr));
-                case I_BD_PLUS  %% I_BD_INFACILITY_INTRODUCTION plus coverage of non-facility births through CHW/MAP etc. Also include non-GAVI-eligible non-BD countries:
+                case I_BD_IFexpansion  %% Optimisation of in-facility BD
                     year_last_BD_data = 2024;
-                    disp("I_BD_PLUS")
+                    disp("I_BD_IFexpansion")
                     coverage_BD_to_last_datapoint = BirthDose_wuenic2025;
-                    %% Coverage up to in_facility_BD_acceptance% of the in-facility births, or current (2025 WUENIC) value - whichever is bigger.
-                    max_in_facility_coverage = GHO_infacilitybirthproportion_map(ISO)*in_facility_BD_acceptance;
-                    oof_acceptance = 0.6; %% Assumption
-                    max_OOF_coverage = (1.0-GHO_infacilitybirthproportion_map(ISO))*oof_acceptance;
+                    %% Coverage up to % in-facility births, or current (2025 WUENIC) value - whichever is bigger.
+                    max_in_facility_coverage = GHO_infacilitybirthproportion_map(ISO)*BD_in_facility_acceptance_contimp;
+                    max_coverage = max(max_in_facility_coverage,BirthDose_wuenic2025(end));
+                    assert(max_coverage<=1);
+                    %% Currently 5 year scale-up of BD.
+                    future_xvals_vec = [2024.0, T_INTERVENTION_START_BD, T_INTERVENTION_END_BD, end_year];
+                    future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end), max_coverage, max_coverage];
+                    %% No MAP or CPAD introduced:
+                    scenario_BDcoverage_fromMAP = zeros(1,length(years_vec_01yr));
+                    scenario_BDcoverage_fromCPAD = zeros(1,length(years_vec_01yr));
+
+                case I_BD_OOFexpansion
+                    year_last_BD_data = 2024;
+                    disp("I_BD_OOFexpansion")
+                    coverage_BD_to_last_datapoint = BirthDose_wuenic2025;
+                    %% Coverage up to % in-facility births, or current (2025 WUENIC) value - whichever is bigger.
+                    max_in_facility_coverage = GHO_infacilitybirthproportion_map(ISO)*BD_in_facility_acceptance_contimp;
+
+                    BD_oof_coverage = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'BD_oof_coverage'),:).Value;
+                    max_OOF_coverage = (1.0-GHO_infacilitybirthproportion_map(ISO))*BD_oof_coverage;
+                    
+                    max_coverage = max(max_in_facility_coverage + max_OOF_coverage,BirthDose_wuenic2025(end));
+                    assert(max_coverage<=1);
+                    %% Currently 5 year scale-up of BD.
+                    future_xvals_vec = [2024.0, T_INTERVENTION_START_BD, T_INTERVENTION_END_BD, end_year];
+                    future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end), max_coverage, max_coverage];
+                    %% No MAP or CPAD introduced:
+                    scenario_BDcoverage_fromMAP = zeros(1,length(years_vec_01yr));
+                    scenario_BDcoverage_fromCPAD = zeros(1,length(years_vec_01yr));
+                case I_BD_IF_OOFexpansion
+                    BIDOOF
+                    year_last_BD_data = 2024;
+                    disp("I_BD_OOFexpansion")
+                    coverage_BD_to_last_datapoint = BirthDose_wuenic2025;
+                    %% Coverage up to % in-facility births, or current (2025 WUENIC) value - whichever is bigger.
+                    max_in_facility_coverage = GHO_infacilitybirthproportion_map(ISO)*BD_in_facility_acceptance_contimp;
+
+                    BD_oof_coverage = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'BD_oof_coverage'),:).Value;
+                    max_OOF_coverage = (1.0-GHO_infacilitybirthproportion_map(ISO))*BD_oof_coverage;
+                    
                     max_coverage = max(max_in_facility_coverage + max_OOF_coverage,BirthDose_wuenic2025(end));
                     assert(max_coverage<=1);
                     %% Currently 5 year scale-up of BD.
@@ -810,6 +887,7 @@ function country_level_analyses(sensitivity_analysis,...
                     scenario_BDcoverage_fromMAP = zeros(1,length(years_vec_01yr));
                     scenario_BDcoverage_fromCPAD = zeros(1,length(years_vec_01yr));
 
+                    
                     % case I_BD_MAP  %% MAP introduced:
                 %     disp("I_BD_MAP")
                 %     year_last_BD_data = 2024;
@@ -834,60 +912,7 @@ function country_level_analyses(sensitivity_analysis,...
                 %     disp("MAP1")
                 %     scenario_BDcoverage_fromMAP = make_coverage_vec(start_year,num_year_divisions,dt,end_year,coverageMAP_to_present,future_xvals_vec_MAP, future_yvals_vec_MAP, year_last_BD_data);
                 %     scenario_BDcoverage_fromCPAD = zeros(1,length(years_vec_01yr));
-                % case I_BD_CPAD  %% CPAD introduced:
-                %     disp("I_BD_CPAD")
-                %     year_last_BD_data = 2024;
-                %     %% Follow WUENIC2025, then an extra (different efficacy) product increases overall BD coverage up to a level capped by out-of-facility deliveries.
-                %     coverage_BD_to_last_datapoint = BirthDose_wuenic2025;
-                %     %% This governs the coverage of the standard BD injection:
-                %     future_xvals_vec = [2024.0, 2025.0, end_year];  
-                %     future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end), BirthDose_wuenic2025(end)];
-                % 
-                %     %% This governs the coverage of the additional CPAD injection:
-                %     future_xvals_vec_CPAD = [2024.0, T_INTERVENTION_START, T_INTERVENTION_END, end_year];
-                %     %% Increase in BD if introduce CPAD (requires BD to currently be available):
-                %     if(BirthDose_wuenic2025(end)>0)  %% BD already available
-                %         %% Increase in BD is capped to not exceed the current proportion not getting BD.
-                %         current_prop_not_getting_BD = (1-BirthDose_wuenic2025(end));
-                %         BD_increase_from_CPAD = min(prop_OOF_births*prop_accept_CPAD, current_prop_not_getting_BD);
-                %     else                             %% BD not currently available
-                %         BD_increase_from_CPAD = 0;
-                %     end
-                % 
-                %     future_yvals_vec_CPAD = [0, 0, BD_increase_from_CPAD, BD_increase_from_CPAD];                    
-                %     coverageCPAD_to_present = zeros(1,length(BirthDose_wuenic2025));  
-                %     disp("CPAD1")                    
-                %     scenario_BDcoverage_fromCPAD = make_coverage_vec(start_year, num_year_divisions, dt, end_year, coverageCPAD_to_present, future_xvals_vec_CPAD, future_yvals_vec_CPAD, year_last_BD_data);
-                %     scenario_BDcoverage_fromMAP = zeros(1,length(years_vec_01yr));
-                % case I_BD_75target
-                %     year_last_BD_data = 2024;
-                %     %% Update using WUENIC 2025: follow WUENIC2025 and after 2024 coverage remains at last (2024) value
-                %     coverage_BD_to_last_datapoint = BirthDose_wuenic2025;
-                %     future_xvals_vec = [2024.0, T_INTERVENTION_START, T_INTERVENTION_END, end_year];
-                %     if(BirthDose_wuenic2025(end)<0.75)
-                %         BDtarget = 0.75;
-                %     else
-                %         BDtarget = BirthDose_wuenic2025(end);
-                %     end
-                %     future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end), BDtarget, BDtarget];
-                %     %% No MAP or CPAD introduced:
-                %     scenario_BDcoverage_fromMAP = zeros(1,length(years_vec_01yr));
-                %     scenario_BDcoverage_fromCPAD = zeros(1,length(years_vec_01yr));
-                % case I_BD_WHOtarget
-                %     disp("I_BD_WHOtarget")
-                %     year_last_BD_data = 2024;
-                %     %% Update using WUENIC 2025: follow WUENIC2025 and after 2024 coverage remains at last (2024) value
-                %     coverage_BD_to_last_datapoint = BirthDose_wuenic2025;
-                %     if(BirthDose_wuenic2025(end)<0.9)
-                %         BDtarget = 0.9;
-                %     else
-                %         BDtarget = BirthDose_wuenic2025(end);
-                %     end
-                %     future_xvals_vec = [2024.0, T_INTERVENTION_START, T_INTERVENTION_END, end_year];
-                %     future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end), BDtarget, BDtarget];
-                %     %% No MAP or CPAD introduced:
-                %     scenario_BDcoverage_fromMAP = zeros(1,length(years_vec_01yr));
-                %     scenario_BDcoverage_fromCPAD = zeros(1,length(years_vec_01yr));
+                 
                 otherwise 
                     disp("Error - unknown scenario_BD. Exiting")
                     return  %% Exit the script.
@@ -895,6 +920,14 @@ function country_level_analyses(sensitivity_analysis,...
             end  %% end switch scenario_BD
             
             %% Now get the full timetrend of BD coverage from start_year to end_year (note that MAP/CPAD coverage is stored separately in scenario_BDcoverage_fromMAP/CPAD)
+            disp([start_year,num_year_divisions,dt,end_year])
+            disp(coverage_BD_to_last_datapoint)
+            disp("A")
+            disp(future_xvals_vec)
+            disp("B")
+            disp(future_yvals_vec)
+            disp(year_last_BD_data)
+            disp("DONE")
             scenario_BDcoverage = make_coverage_vec(start_year,num_year_divisions,dt,end_year,coverage_BD_to_last_datapoint,future_xvals_vec,future_yvals_vec,year_last_BD_data);
             scenario_BDcoverage = min(1,scenario_BDcoverage);    % Ensure coverage is <=100% at every timestep:
             assert(isequal(size(scenario_BDcoverage),size(years_vec_01yr)))
@@ -912,91 +945,39 @@ function country_level_analyses(sensitivity_analysis,...
             
 
 
-            %     %%case {'Status quo infant & BD expansion to 25%','Status quo infant & BD expansion to 50%','Status quo infant & BD expansion to 75%','Status quo infant & BD expansion to 90%'}
-            %         X = extract_percent_from_BDexpansion_scenario_label(scenario);
-            %         % X in {25%, 50%, 75%, 90%}
-            %         % Any country that is <X%, goes to X% by last_BD_scaleup_year (linear expansion); others that are >X% stay at that level.
-            %         max_BD_cov_val = max([BirthDose_wuenic2020(end) X/100]);
-            %         future_xvals_vec = [2019.0 first_expansion_year last_BD_scaleup_year end_year];
-            %         future_yvals_vec = [BirthDose_wuenic2020(end) BirthDose_wuenic2020(end) max_BD_cov_val max_BD_cov_val];
-            % 
-            %         label_array_string = replace(scenario, 'Status quo infant & BD expansion', 'HepB-BD scale-up');
-            %         label_array{scenario_num} = label_array_string;
-            % 
-            %     case {'Status quo infant & BD drop 5 2020', 'Status quo infant & BD drop 10 2020', 'Status quo infant & BD drop 15 2020', 'Status quo infant & BD drop 20 2020'}
-            %         % Follows status quo but, during the year 2020, birth dose vaccination drops by X% in relative terms.
-            %         % X in {5%, 10%, 15%, 20%}
-            %         X = extract_percent_from_BDdrop_scenario_label(scenario);
-            % 
-            %         future_xvals_vec = [2019.0 2019.9 2020.0 2020.9 2021.0 2030 end_year];
-            %         %% Reduce BD by X/100, so the remaining BD coverage is (1-X/100) times original coverage.
-            %         pc_reduction = 1 - X/100;
-            %         future_yvals_vec = [BirthDose_wuenic2020(end) BirthDose_wuenic2020(end) pc_reduction*BirthDose_wuenic2020(end) pc_reduction*BirthDose_wuenic2020(end) BirthDose_wuenic2020(end) BirthDose_wuenic2020(end) BirthDose_wuenic2020(end)];
-            % 
-            %         %% label_array_string should look like 'HepB-BD disruptions 5% in 2020'.
-            %         label_array_string = replace(replace(scenario, 'Status quo infant & BD drop', 'HepB-BD disruptions'),' 2020','% in 2020');
-            %         label_array{scenario_num} = label_array_string;
-            %     case {'Status quo infant & BD delayed expansion 2023 to 2030','Status quo infant & BD delayed expansion 2023 to 2033','Status quo infant & BD delayed expansion 2025 to 2040'}
-            % 
-            %         max_BD_cov_val_90 = max([BirthDose_wuenic2020(end) 0.9]);                
-            % 
-            %         if(scenario=='Status quo infant & BD delayed expansion 2023 to 2030')
-            %             % Planned expansion of birth-dose vaccination is
-            %             % postponed by 3 years, finishing in 2030
-            %             label_array{scenario_num} = 'HepB-BD delayed & fast scale-up 2023 to 2030';
-            %             start_delay = 3;   % Delay in starting (after 2020)
-            %             end_delay = 0;     % Delay in finishing (after 2030)
-            %         elseif(scenario=='Status quo infant & BD delayed expansion 2023 to 2033')
-            %             % Planned expansion of birth-dose vaccination is
-            %             % postponed by 3 years, still taking 10 years
-            %             label_array{scenario_num} = 'HepB-BD delayed & normal scale-up 2023 to 2033';
-            %             start_delay = 3;   % Delay in starting (after 2020)
-            %             end_delay = 3;     % Delay in finishing (after 2030)
-            %         elseif(scenario=='Status quo infant & BD delayed expansion 2025 to 2040')
-            %             % Planned expansion of birth-dose vaccination is postponed by 5 years and takes longer
-            %             label_array{scenario_num} = 'HepB-BD delayed & slow scale-up 2025 to 2040';
-            %             start_delay = 5;   % Delay in starting (after 2020)
-            %             end_delay = 10;     % Delay in finishing (after 2030)
-            %         else
-            %             fprintf('Unknown scenario %s. Exiting',scenario)
-            %             return
-            %         end
-            % 
-            %         future_xvals_vec = [2019.0 first_expansion_year first_expansion_year+start_delay last_BD_scaleup_year+end_delay end_year];
-            %         future_yvals_vec = [BirthDose_wuenic2020(end) BirthDose_wuenic2020(end) BirthDose_wuenic2020(end) max_BD_cov_val_90 max_BD_cov_val_90];                  
-            % end
-            % switch scenario_BD
-            %     case I_BD_WUENIC2020
-            %         future_xvals_vec = [2019.0 first_expansion_year (first_expansion_year+0.1) end_year];
-            %     future_yvals_vec = [HepB3_wuenic2020(end) HepB3_wuenic2020(end) 1 1];
-            % 
-
-
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             %% Now HepB3 coverage scenarios:
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             
             switch scenario_HepB3
-                % case I_HEPB3_WUENIC2020
-                %     disp("I_HEPB3_WUENIC2020")
-                %     year_last_HepB3_data = 2019;
-                %     %% Previously called 'Status quo infant & BD'. Follow WUENIC2020 (existing scenario) and after 2019 coverage remains at last (2019) value
-                %     coverage_HepB3_to_last_datapoint = HepB3_wuenic2020;
-                %     future_xvals_vec = [2019.0 2020.0 end_year];
-                %     future_yvals_vec = [HepB3_wuenic2020(end) HepB3_wuenic2020(end) HepB3_wuenic2020(end)];
-                %     %%label_array{scenario_num} = 'Status quo HepB3 & Hep2B-BD (baseline)';
                 case I_HEPB3_WUENIC2025
                     disp("I_HEPB3_WUENIC2025")
                     year_last_HepB3_data = 2024;
                     coverage_HepB3_to_last_datapoint = HepB3_wuenic2025;
                     future_xvals_vec = [2024.0, 2025.0, end_year];
                     future_yvals_vec = [HepB3_wuenic2025(end), HepB3_wuenic2025(end), HepB3_wuenic2025(end)];
-                case I_HEPB3_PLUS
-                    disp("I_HEPB3_PLUS")
+                case I_HEPB3_contimp
+                    disp("I_HEPB3_contimp")
                     year_last_HepB3_data = 2024;
                     coverage_HepB3_to_last_datapoint = HepB3_wuenic2025;
-                    %% Increase to 90% (or current value if higher) from 2026 to 2029
-                    hepb3_target = max(HepB3_wuenic2025(end),0.9);
+                    %% Annual percentage point increase in Hep B3 (capped at 90%)
+                    annual_hepB3improvement = Intervention_data_thiscountry.ContImp_HepB3_annual_increase;
+                    %% Check whether, at this rate of increase from 2025 onwards, if we ever go above the WHO target of 90%:
+                    potential_hepb3_target = HepB3_wuenic2025(end)+(end_year-2025)*annual_hepB3improvement;
+                    if(potential_hepb3_target>HepB3_WHO_target_coverage)
+                        year_reach_whotarget = floor((HepB3_WHO_target_coverage-HepB3_wuenic2025(end))/annual_hepB3improvement);
+                        future_xvals_vec = [2024.0, 2025.0, year_reach_whotarget, end_year];
+                        future_yvals_vec = [HepB3_wuenic2025(end), HepB3_wuenic2025(end), HepB3_WHO_target_coverage, HepB3_WHO_target_coverage];
+                    else
+                        future_xvals_vec = [2024.0, 2025.0, end_year];
+                        future_yvals_vec = [HepB3_wuenic2025(end), HepB3_wuenic2025(end), potential_hepb3_target];
+                    end
+                case I_HEPB3_WHOtarget
+                    disp("I_HEPB3_WHOtarget")
+                    year_last_HepB3_data = 2024;
+                    coverage_HepB3_to_last_datapoint = HepB3_wuenic2025;
+                    %% Increase to HepB3_WHO_target_coverage (90%) (or current value if higher) from 2026 to 2029
+                    hepb3_target = max(HepB3_wuenic2025(end),HepB3_WHO_target_coverage);
                     future_xvals_vec = [2024.0, T_INTERVENTION_START_HepB3 T_INTERVENTION_END_HepB3, end_year];
                     future_yvals_vec = [HepB3_wuenic2025(end), HepB3_wuenic2025(end), hepb3_target hepb3_target];
                 otherwise
@@ -1020,41 +1001,11 @@ function country_level_analyses(sensitivity_analysis,...
             %% Make sure scenario_HepB3coverage lies in range 0-1:
             assert(all(scenario_HepB3coverage>=0) && all(scenario_HepB3coverage<=1))
             
-            %% Dead code:
-            %% Now copy infant_vacc_vec into params (from now on we use params.InfantVacc):
-            %% params.InfantVacc = infant_vacc_vec;
-                    
-            
- 
-            %% Now make the BirthDose coverage vector and store it in params:
-            % params.scenario_BirthDose_coverage = make_coverage_vec(start_year,num_year_divisions,dt,end_year,BirthDose_wuenic2020,future_xvals_vec,future_yvals_vec);
-            % params.scenario_BirthDose_coverage = min(1,params.scenario_BirthDose_coverage);
-            % assert(isequal(size(params.scenario_BirthDose_coverage),size(years_vec_01yr)))
 
-            %% These are scenarios where PAP is capped at ANC coverage.
-            %% So if ANC>scenario_BDcoverage(end) then we assume everyone who gets BD would also attend ANC.
-            %% The
-            ANC_coverage_level = ANC_coverage_map(ISO);
-            BD_coverage_level = scenario_BDcoverage(end);
-            %% in_facility_births = GHO_infacilitybirthproportion_map(ISO);
-            if(ANC_coverage_level>=BD_coverage_level)
-                PAP_coverage_withBD_ANCcap = 1.0; %% Everyone 
-                PAP_coverage_withoutBD_ANCcap = (ANC_coverage_level-BD_coverage_level)/(1.0-BD_coverage_level);
-            else
-                %% Only those who got BD get PAP:
-                PAP_coverage_withBD_ANCcap = ANC_coverage_level/BD_coverage_level;
-                assert(PAP_coverage_withBD_ANCcap<=1)
-                PAP_coverage_withoutBD_ANCcap = 0; 
-            end
-
-            PAP_acceptability = 1.0; %% Assumption
-            %% Of women who received BD, the % of PAP-eligible who get PAP:
-            % PAP_coverage_withBD = 1.0;
-            % %% Of women who DID NOT received BD, the % of PAP-eligible who get PAP:
-            % PAP_coverage_withoutBD = 1.0;
-
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            %% PAP coverage:
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
            
-            %%PAP_scaleup_end_year = 2030;
             PAP_cov_params = struct('current_cov_BDandPAP_EAgHighVL', 0,...
                     'current_cov_BDandPAP_SAgHighVL', 0,...
                     'current_cov_BDandPAP_EAgLowVL', 0,...
@@ -1138,22 +1089,8 @@ function country_level_analyses(sensitivity_analysis,...
                     PAP_cov_params.Past_TScaleup_PAP_start = 2019;
                     PAP_cov_params.Past_TScaleup_PAP_end = 2021;                            
             end
-            %% Now set the future PAP coverage trend:
-            PAP_cov_params.Intervention_TScaleup_PAP_start = 2026;
-            PAP_cov_params.Intervention_TScaleup_PAP_end = 2030;
-            switch scenario_PAP
-                case I_PAP_SQ
-                    PAP_max_coverage = PAP_current_coverage;
-                %% 20% HVL:
-                case I_PAP_HVL_contimp
-                    PAP_max_coverage = max(PAP_current_coverage,0.2);
-                case I_PAP_HVL_PLUS
-                    PAP_max_coverage = max(PAP_current_coverage,0.75);
-                otherwise
-                    disp("Error: Unknown value for scenario_PAP. Exiting")
-                    return
-            end
-            PAP_cov_params.current_cov_BDandPAP_EAgHighVL = PAP_current_coverage; %% Everyone who wants PAP who got BD + is HVL gets it
+            
+            PAP_cov_params.current_cov_BDandPAP_EAgHighVL = PAP_current_coverage;
             PAP_cov_params.current_cov_BDandPAP_SAgHighVL = PAP_current_coverage;
             PAP_cov_params.current_cov_BDandPAP_EAgLowVL  = 0;  
             PAP_cov_params.current_cov_BDandPAP_SAgLowVL  = 0;
@@ -1162,100 +1099,79 @@ function country_level_analyses(sensitivity_analysis,...
             PAP_cov_params.current_cov_PAPonly_EAgLowVL  = 0;
             PAP_cov_params.current_cov_PAPonly_SAgLowVL  = 0;        
 
-            PAP_cov_params.max_cov_BDandPAP_EAgHighVL = PAP_max_coverage; %% Everyone who wants PAP who got BD + is HVL gets it
-            PAP_cov_params.max_cov_BDandPAP_SAgHighVL = PAP_max_coverage;
-            PAP_cov_params.max_cov_BDandPAP_EAgLowVL  = 0;  
-            PAP_cov_params.max_cov_BDandPAP_SAgLowVL  = 0;
-            PAP_cov_params.max_cov_PAPonly_EAgHighVL = PAP_max_coverage;
-            PAP_cov_params.max_cov_PAPonly_SAgHighVL = PAP_max_coverage;
-            PAP_cov_params.max_cov_PAPonly_EAgLowVL  = 0;
-            PAP_cov_params.max_cov_PAPonly_SAgLowVL  = 0;        
-                            
-                % case I_PAP_highVL_BDcoverage
-                %     % PAP to pregnant women who have High VL (whatever eAg
-                %     % status) and get BD only.
-                %     PAP_cov_params.max_cov_BDandPAP_EAgHighVL = PAP_acceptability; %% Everyone who wants PAP who got BD + is HVL gets it
-                %     PAP_cov_params.max_cov_BDandPAP_SAgHighVL = PAP_acceptability;
-                %     PAP_cov_params.max_cov_BDandPAP_EAgLowVL  = 0;  
-                %     PAP_cov_params.max_cov_BDandPAP_SAgLowVL  = 0;
-                %     PAP_cov_params.max_cov_PAPonly_EAgHighVL = 0;   % no coverage among those who missed BD
-                %     PAP_cov_params.max_cov_PAPonly_SAgHighVL = 0;
-                %     PAP_cov_params.max_cov_PAPonly_EAgLowVL  = 0;
-                %     PAP_cov_params.max_cov_PAPonly_SAgLowVL  = 0;
-                % case I_PAP_highVL_ANCcoverage
-                %     PAP_cov_params.max_cov_BDandPAP_EAgHighVL = PAP_coverage_withBD_ANCcap*PAP_acceptability; %% Everyone who wants PAP who got BD + is HVL gets it
-                %     PAP_cov_params.max_cov_BDandPAP_SAgHighVL = PAP_coverage_withBD_ANCcap*PAP_acceptability;
-                %     PAP_cov_params.max_cov_BDandPAP_EAgLowVL  = 0;
-                %     PAP_cov_params.max_cov_BDandPAP_SAgLowVL  = 0;
-                %     PAP_cov_params.max_cov_PAPonly_EAgHighVL = PAP_coverage_withoutBD_ANCcap*PAP_acceptability;
-                %     PAP_cov_params.max_cov_PAPonly_SAgHighVL = PAP_coverage_withoutBD_ANCcap*PAP_acceptability;
-                %     PAP_cov_params.max_cov_PAPonly_EAgLowVL  = 0;
-                %     PAP_cov_params.max_cov_PAPonly_SAgLowVL  = 0;
-                % case I_PAP_universal_BDcoverage
-                %     % PAP to all pregnant women and get BD only.
-                %     PAP_cov_params.max_cov_BDandPAP_EAgHighVL = PAP_acceptability; %% Everyone who wants PAP who got BD + is HVL gets it
-                %     PAP_cov_params.max_cov_BDandPAP_SAgHighVL = PAP_acceptability;
-                %     PAP_cov_params.max_cov_BDandPAP_EAgLowVL  = PAP_acceptability;  
-                %     PAP_cov_params.max_cov_BDandPAP_SAgLowVL  = PAP_acceptability;
-                %     PAP_cov_params.max_cov_PAPonly_EAgHighVL = 0;   % no coverage among those who missed BD
-                %     PAP_cov_params.max_cov_PAPonly_SAgHighVL = 0;
-                %     PAP_cov_params.max_cov_PAPonly_EAgLowVL  = 0;
-                %     PAP_cov_params.max_cov_PAPonly_SAgLowVL  = 0;
-                % case I_PAP_universal_ANCcoverage
-                %     PAP_cov_params.max_cov_BDandPAP_EAgHighVL = PAP_coverage_withBD_ANCcap*PAP_acceptability; %% Everyone who wants PAP who got BD + is HVL gets it
-                %     PAP_cov_params.max_cov_BDandPAP_SAgHighVL = PAP_coverage_withBD_ANCcap*PAP_acceptability;
-                %     PAP_cov_params.max_cov_BDandPAP_EAgLowVL  = PAP_coverage_withBD_ANCcap*PAP_acceptability;
-                %     PAP_cov_params.max_cov_BDandPAP_SAgLowVL  = PAP_coverage_withBD_ANCcap*PAP_acceptability;
-                %     PAP_cov_params.max_cov_PAPonly_EAgHighVL = PAP_coverage_withoutBD_ANCcap*PAP_acceptability;
-                %     PAP_cov_params.max_cov_PAPonly_SAgHighVL = PAP_coverage_withoutBD_ANCcap*PAP_acceptability;
-                %     PAP_cov_params.max_cov_PAPonly_EAgLowVL  = PAP_coverage_withoutBD_ANCcap*PAP_acceptability;
-                %     PAP_cov_params.max_cov_PAPonly_SAgLowVL  = PAP_coverage_withoutBD_ANCcap*PAP_acceptability;
-                % case I_PAP_TREAThighVL
-                %     % PAP to (PAP_coverage)% of the pregnant women who have High VL (whatever eAg status) (irrespective of BD)
-                %     PAP_cov_params.max_cov_BDandPAP_EAgHighVL = PAP_coverage_withBD;
-                %     PAP_cov_params.max_cov_BDandPAP_SAgHighVL = PAP_coverage_withBD;
-                %     PAP_cov_params.max_cov_BDandPAP_EAgLowVL  = 0;  
-                %     PAP_cov_params.max_cov_BDandPAP_SAgLowVL  = 0;
-                %     PAP_cov_params.max_cov_PAPonly_EAgHighVL = PAP_coverage_withoutBD;   % coverage among those who missed BD
-                %     PAP_cov_params.max_cov_PAPonly_SAgHighVL = PAP_coverage_withoutBD;
-                %     PAP_cov_params.max_cov_PAPonly_EAgLowVL  = 0;
-                %     PAP_cov_params.max_cov_PAPonly_SAgLowVL  = 0;
-                %     PAP_cov_params.TScaleup_PAP = PAP_scaleup_end_year;
-                % case I_PAP_TREATeAgpos
-                %     % PAP to (PAP_coverage)% of the pregnant women who are HBeAg+ (whatever VL status) (irrespective of BD)
-                %     PAP_cov_params.max_cov_BDandPAP_EAgHighVL = PAP_coverage_withBD;
-                %     PAP_cov_params.max_cov_BDandPAP_SAgHighVL = 0;
-                %     PAP_cov_params.max_cov_BDandPAP_EAgLowVL = PAP_coverage_withBD;  
-                %     PAP_cov_params.max_cov_BDandPAP_SAgLowVL = 0;
-                %     PAP_cov_params.max_cov_PAPonly_EAgHighVL = PAP_coverage_withoutBD;   % coverage among those who missed BD
-                %     PAP_cov_params.max_cov_PAPonly_SAgHighVL = 0;
-                %     PAP_cov_params.max_cov_PAPonly_EAgLowVL  = PAP_coverage_withoutBD;
-                %     PAP_cov_params.max_cov_PAPonly_SAgLowVL  = 0;
-                %     PAP_cov_params.TScaleup_PAP = PAP_scaleup_end_year;
-                % case I_PAP_TREAT_highVL_or_eAgpos
-                %     % PAP to (PAP_coverage)% of the pregnant women who are HBeAg+ or high VL (or both) (irrespective of BD)
-                %     PAP_cov_params.max_cov_BDandPAP_EAgHighVL = PAP_coverage_withBD;
-                %     PAP_cov_params.max_cov_BDandPAP_SAgHighVL = PAP_coverage_withBD;
-                %     PAP_cov_params.max_cov_BDandPAP_EAgLowVL = PAP_coverage_withBD;  
-                %     PAP_cov_params.max_cov_BDandPAP_SAgLowVL = 0;
-                %     PAP_cov_params.max_cov_PAPonly_EAgHighVL = PAP_coverage_withoutBD;   % coverage among those who missed BD
-                %     PAP_cov_params.max_cov_PAPonly_SAgHighVL = PAP_coverage_withoutBD;
-                %     PAP_cov_params.max_cov_PAPonly_EAgLowVL  = PAP_coverage_withoutBD;
-                %     PAP_cov_params.max_cov_PAPonly_SAgLowVL  = 0;
-                %     PAP_cov_params.TScaleup_PAP = PAP_scaleup_end_year;
-                % case I_PAP_TREAT_sAgpos
-                %     % PAP to (PAP_coverage)% of the pregnant women who are HBeAg+ or high VL (or both) (irrespective of BD)
-                %     PAP_cov_params.max_cov_BDandPAP_EAgHighVL = PAP_coverage_withBD;
-                %     PAP_cov_params.max_cov_BDandPAP_SAgHighVL = PAP_coverage_withBD;
-                %     PAP_cov_params.max_cov_BDandPAP_EAgLowVL = PAP_coverage_withBD;
-                %     PAP_cov_params.max_cov_BDandPAP_SAgLowVL = PAP_coverage_withBD;
-                %     PAP_cov_params.max_cov_PAPonly_EAgHighVL = PAP_coverage_withoutBD;   % coverage among those who missed BD
-                %     PAP_cov_params.max_cov_PAPonly_SAgHighVL = PAP_coverage_withoutBD;
-                %     PAP_cov_params.max_cov_PAPonly_EAgLowVL  = PAP_coverage_withoutBD;
-                %     PAP_cov_params.max_cov_PAPonly_SAgLowVL  = PAP_coverage_withoutBD;
-                %     PAP_cov_params.TScaleup_PAP = PAP_scaleup_end_year;
+            %% Now set the future PAP coverage trend:
+            PAP_cov_params.Intervention_TScaleup_PAP_start = 2026;
+            PAP_cov_params.Intervention_TScaleup_PAP_end = 2030;
+            switch scenario_PAP
+                %% Scenarios where only HVL is eligible:
+                case {I_PAP_SQ,I_PAP_HVL_contimp,I_PAP_HVL_targeted}
+                    if (scenario_PAP==I_PAP_SQ)
+                        PAP_max_coverage = PAP_current_coverage;
+                    elseif (scenario_PAP==I_PAP_HVL_contimp)
+                        %% 5% of HVL or current coverage (whichever is higher - this is done in the Excel file)
+                        PAP_max_coverage = Intervention_data_thiscountry.ContImp_PAP_final_coverage;
+                    elseif (scenario_PAP==I_PAP_HVL_targeted)
+                        %% Currently a placeholder, but will be related to VL testing:
+                        PAP_max_coverage = Intervention_data_thiscountry.PAP_HVL_targeted_coverage;
+                    end
+                    %% These scenarios all provide PAP only to HVL:
+                    PAP_cov_params.max_cov_BDandPAP_EAgHighVL = PAP_max_coverage;
+                    PAP_cov_params.max_cov_BDandPAP_SAgHighVL = PAP_max_coverage;
+                    PAP_cov_params.max_cov_BDandPAP_EAgLowVL  = 0;  
+                    PAP_cov_params.max_cov_BDandPAP_SAgLowVL  = 0;
+                    PAP_cov_params.max_cov_PAPonly_EAgHighVL = PAP_max_coverage;
+                    PAP_cov_params.max_cov_PAPonly_SAgHighVL = PAP_max_coverage;
+                    PAP_cov_params.max_cov_PAPonly_EAgLowVL  = 0;
+                    PAP_cov_params.max_cov_PAPonly_SAgLowVL  = 0;        
+
+                case I_PAP_PoC
+                    PoC_coverage = Intervention_data_thiscountry.PAP_PoC_coverage;
+                    PoC_sensitivity = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'PAP_PoC_sensitivity'),:).Value;
+                    PoC_specificity = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'PAP_PoC_specificity'),:).Value;
+
+                    PAP_cov_params.max_cov_BDandPAP_EAgHighVL = PoC_coverage*PoC_sensitivity;
+                    PAP_cov_params.max_cov_BDandPAP_SAgHighVL = PoC_coverage*PoC_sensitivity;
+                    PAP_cov_params.max_cov_BDandPAP_EAgLowVL  = PoC_coverage*(1-PoC_specificity);  
+                    PAP_cov_params.max_cov_BDandPAP_SAgLowVL  = PoC_coverage*(1-PoC_specificity);
+                    PAP_cov_params.max_cov_PAPonly_EAgHighVL = PoC_coverage*PoC_sensitivity;
+                    PAP_cov_params.max_cov_PAPonly_SAgHighVL = PoC_coverage*PoC_sensitivity;
+                    PAP_cov_params.max_cov_PAPonly_EAgLowVL  = PoC_coverage*(1-PoC_specificity);
+                    PAP_cov_params.max_cov_PAPonly_SAgLowVL  = PoC_coverage*(1-PoC_specificity);
+                case I_PAP_all
+                    %% PAP is universal, capped at ANC-1 coverage.
+                    ANC_coverage_level = ANC_coverage_map(ISO);
+                    
+                    PAP_cov_params.max_cov_BDandPAP_EAgHighVL = ANC_coverage_level; %% Everyone who wants PAP who got BD + is HVL gets it
+                    PAP_cov_params.max_cov_BDandPAP_SAgHighVL = ANC_coverage_level;
+                    PAP_cov_params.max_cov_BDandPAP_EAgLowVL  = ANC_coverage_level;  
+                    PAP_cov_params.max_cov_BDandPAP_SAgLowVL  = ANC_coverage_level;
+                    PAP_cov_params.max_cov_PAPonly_EAgHighVL = ANC_coverage_level;
+                    PAP_cov_params.max_cov_PAPonly_SAgHighVL = ANC_coverage_level;
+                    PAP_cov_params.max_cov_PAPonly_EAgLowVL  = ANC_coverage_level;
+                    PAP_cov_params.max_cov_PAPonly_SAgLowVL  = ANC_coverage_level;        
+
+                    %% In this code chunk, if ANC>scenario_BDcoverage(end) then we assume everyone who gets BD would also attend ANC.
+                    % BD_coverage_level = scenario_BDcoverage(end);
+                    % %% in_facility_births = GHO_infacilitybirthproportion_map(ISO);
+                    % if(ANC_coverage_level>=BD_coverage_level)
+                    %     PAP_coverage_withBD_ANCcap = 1.0; %% Everyone 
+                    %     PAP_coverage_withoutBD_ANCcap = (ANC_coverage_level-BD_coverage_level)/(1.0-BD_coverage_level);
+                    % else
+                    %     %% Only those who got BD get PAP:
+                    %     PAP_coverage_withBD_ANCcap = ANC_coverage_level/BD_coverage_level;
+                    %     assert(PAP_coverage_withBD_ANCcap<=1)
+                    %     PAP_coverage_withoutBD_ANCcap = 0; 
+                    % end
+                    
+                otherwise
+                    disp("Error: Unknown value for scenario_PAP. Exiting")
+                    return
+            end
         
-            
+
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            %% Diagnosis and treatment:
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             treatment_rate_params = struct('Treatmentrate_2016', stochas_params_mat(stochas_run_num,country_start_col+7),...
                     'Treatmentrate_final', 0,...
                     't_treatment_scaleup_start', T_INTERVENTION_START,...
@@ -1268,7 +1184,7 @@ function country_level_analyses(sensitivity_analysis,...
                     %%'prop_wouldseektreat_t0',0,...
                     %%'prop_wouldseektreat_tchange',0.5);
             switch scenario_Treatment
-                case I_TREAT_INIT_SQ           %% Use current rates of treatment uptake and failure.
+                case I_TREAT_SQ           %% Use current rates of treatment uptake and failure.
                     %%params.PriorTDFTreatRate = stochas_params_mat(stochas_run_num,country_start_col+7);
                     treatment_rate_params.Treatmentrate_final = treatment_rate_params.Treatmentrate_2016;
                     treatment_rate_params.prop_diagnosed_t0 = Polaris_diagnosis_coverage_map(ISO);
@@ -1285,34 +1201,9 @@ function country_level_analyses(sensitivity_analysis,...
                 %     treatment_rate_params.prop_wouldseektreat_tchange = 0;
                 %     treatment_rate_params.t_remove_treatment_barriers = 9999; % Dummy value at time beyond any simulation.
                 %     HAS_TREATMENT = 0;  % Treatment never introduced
-                case I_TREAT_INIT_continuousimprovement
-                    switch ISO
-                        %% See slides Dropbox_copy\Hepatits B\Presentations\12June2026\Slides_treatment_andPaperFig1.pptx and Dropbox_copy\Hepatits B\Data\Polarisprocess_polaris_timeseries_data.R
-                        %% Europe:
-                        case {"ALB","ARM","AZE","BIH","BLR","GEO","KGZ","MDA","MKD","SRB","TJK","TKM","UKR","UZB"}
-                            treatment_rate_params.annual_increase_diagnosis = 0.0150;
-                            treatment_rate_params.annual_increase_treatifdiag = 0.0127;
-                        %% Eastern Mediterrenean:
-                        case {"AFG","DJI","EGY","IRN","IRQ","JOR","MAR","PAK","SDN","SOM","SYR","TUN","YEM"}
-                            treatment_rate_params.annual_increase_diagnosis = 0.0040;
-                            treatment_rate_params.annual_increase_treatifdiag = 0.0125;
-                        %% Africa
-                        case {"AGO","BDI","BEN","BFA","CAF","CIV","CMR","COD","COG","COM","CPV","DZA","ERI","ETH","GHA","GIN","GMB","GNB","KEN","LBR","LSO","MDG","MLI","MOZ","MRT","MWI","NAM","NER","NGA","RWA","SEN","SLE","SSD","STP","SWZ","TCD","TGO","TZA","UGA","ZAF","ZMB","ZWE"}
-                            treatment_rate_params.annual_increase_diagnosis = 0.0040;
-                            treatment_rate_params.annual_increase_treatifdiag = 0.000;
-                        %% Americas
-                        case {"BLZ","BOL","COL","CUB","ECU","GTM","GUY","HND","HTI","JAM","NIC","PER","PRY","SLV","VEN"}
-                            treatment_rate_params.annual_increase_diagnosis = 0.0070;
-                            treatment_rate_params.annual_increase_treatifdiag = 0.0031;
-                        %% South-East Asia
-                        case {"BGD","BTN","IND","LKA","MMR","NPL","PRK","THA","TLS"}
-                            treatment_rate_params.annual_increase_diagnosis = 0.0100;
-                            treatment_rate_params.annual_increase_treatifdiag = 0.0000;
-                        %% Western Pacific
-                        case {"CHN","FJI","FSM","IDN","KHM","KIR","LAO","MHL","MNG","PHL","PNG","SLB","TON","TUV","VNM","VUT","WSM"}
-                            treatment_rate_params.annual_increase_diagnosis = 0.0160;
-                            treatment_rate_params.annual_increase_treatifdiag = 0.0038;
-                    end
+                case I_TREAT_continuedimprovement
+                    treatment_rate_params.annual_increase_diagnosis = Intervention_data_thiscountry.ContImp_Dx_annual_increase;
+                    treatment_rate_params.annual_increase_treatifdiag = Intervention_data_thiscountry.ContImp_TxifDx_annual_increase;
                     treatment_rate_params.Treatmentrate_final = treatment_boundaries_vec(5); % 80% scenario from MJDV code - corresponds to about 0.15/yr for ETH/GMB.
                     treatment_rate_params.prop_diagnosed_t0 = Polaris_diagnosis_coverage_map(ISO);
                     treatment_rate_params.prop_treatifdiag_t0 = Polaris_treat_coverage_map(ISO);
@@ -1322,7 +1213,31 @@ function country_level_analyses(sensitivity_analysis,...
                     %treatment_rate_params.prop_wouldseektreat_tchange = new_diag_prop*new_treatlink_prop;
                     treatment_rate_params.t_remove_treatment_barriers = T_INTERVENTION_START;
                     HAS_TREATMENT = 1;
-
+                case I_TREAT_ANCscreening  %% as Cont Imp treatment except for pregnant women.
+                    %% Ceiling = number ANC-1 by age x acceptability of test in a country (use HIV test?)
+                    treatment_rate_params.annual_increase_diagnosis = Intervention_data_thiscountry.ContImp_Dx_annual_increase;
+                    treatment_rate_params.annual_increase_treatifdiag = Intervention_data_thiscountry.ContImp_TxifDx_annual_increase;
+                    treatment_rate_params.Treatmentrate_final = treatment_boundaries_vec(5); % 80% scenario from MJDV code - corresponds to about 0.15/yr for ETH/GMB.
+                    treatment_rate_params.prop_diagnosed_t0 = Polaris_diagnosis_coverage_map(ISO);
+                    treatment_rate_params.prop_treatifdiag_t0 = Polaris_treat_coverage_map(ISO);
+                    max_treatment_coverage = 0.45*0.7;
+                    %new_treatlink_prop = max(0.80,Polaris_treat_coverage_map(ISO));
+                    %new_diag_prop = max(0.70,Polaris_diagnosis_coverage_map(ISO));
+                    %treatment_rate_params.prop_wouldseektreat_tchange = new_diag_prop*new_treatlink_prop;
+                    treatment_rate_params.t_remove_treatment_barriers = T_INTERVENTION_START;
+                    HAS_TREATMENT = 1;
+                case I_TREAT_IFscreeing
+                    treatment_rate_params.annual_increase_diagnosis = Intervention_data_thiscountry.ContImp_Dx_annual_increase;
+                    treatment_rate_params.annual_increase_treatifdiag = Intervention_data_thiscountry.ContImp_TxifDx_annual_increase;
+                    treatment_rate_params.Treatmentrate_final = treatment_boundaries_vec(5); % 80% scenario from MJDV code - corresponds to about 0.15/yr for ETH/GMB.
+                    treatment_rate_params.prop_diagnosed_t0 = Polaris_diagnosis_coverage_map(ISO);
+                    treatment_rate_params.prop_treatifdiag_t0 = Polaris_treat_coverage_map(ISO);
+                    max_treatment_coverage = 0.45*0.7;
+                    %new_treatlink_prop = max(0.80,Polaris_treat_coverage_map(ISO));
+                    %new_diag_prop = max(0.70,Polaris_diagnosis_coverage_map(ISO));
+                    %treatment_rate_params.prop_wouldseektreat_tchange = new_diag_prop*new_treatlink_prop;
+                    treatment_rate_params.t_remove_treatment_barriers = T_INTERVENTION_START;
+                    HAS_TREATMENT = 1;
                 case I_TREATlink45
                     treatment_rate_params.Treatmentrate_final = treatment_boundaries_vec(5); % 80% scenario from MJDV code - corresponds to about 0.15/yr for ETH/GMB.
                     treatment_rate_params.prop_diagnosed_t0 = Polaris_diagnosis_coverage_map(ISO);
@@ -1359,16 +1274,6 @@ function country_level_analyses(sensitivity_analysis,...
                     %%treatment_rate_params.prop_wouldseektreat_tchange = Polaris_diagnosis_coverage_map(ISO)*new_treatlink_prop;
                     treatment_rate_params.t_remove_treatment_barriers = T_INTERVENTION_START;
                     HAS_TREATMENT = 1;
-                % case I_diag30percent
-                %     treatment_rate_params.Treatmentrate_final = treatment_boundaries_vec(5); % 80% scenario from MJDV code - corresponds to about 0.15/yr for ETH/GMB.
-                %     treatment_rate_params.prop_diagnosed_t0 = Polaris_diagnosis_coverage_map(ISO);
-                %     treatment_rate_params.prop_treatifdiag_t0 = Polaris_treat_coverage_map(ISO);
-                %     %%treatment_rate_params.prop_wouldseektreat_t0 = Polaris_diagnosis_coverage_map(ISO)*Polaris_treat_coverage_map(ISO);
-                %     %%new_treatlink_prop = max(0.80,Polaris_treat_coverage_map(ISO));
-                %     %%new_diag_prop = max(0.3,Polaris_diagnosis_coverage_map(ISO));
-                %     %%treatment_rate_params.prop_wouldseektreat_tchange = new_diag_prop*new_treatlink_prop;
-                %     treatment_rate_params.t_remove_treatment_barriers = T_INTERVENTION_START;
-                %     HAS_TREATMENT = 1;
                 % case I_diag70percent
                 %     treatment_rate_params.Treatmentrate_final = treatment_boundaries_vec(5); % 80% scenario from MJDV code - corresponds to about 0.15/yr for ETH/GMB.
                 %     treatment_rate_params.prop_diagnosed_t0 = Polaris_diagnosis_coverage_map(ISO);
@@ -1380,7 +1285,7 @@ function country_level_analyses(sensitivity_analysis,...
                 %     treatment_rate_params.t_remove_treatment_barriers = T_INTERVENTION_START;
                 %     HAS_TREATMENT = 1;
 
-                % case I_TREAT_INIT_SQ           %% Use current rates of treatment uptake and failure.
+                % case I_TREAT_SQ           %% Use current rates of treatment uptake and failure.
                 %     %%params.PriorTDFTreatRate = stochas_params_mat(stochas_run_num,country_start_col+7);
                 %     treatment_rate_params.Treatmentrate_final = treatment_rate_params.Treatmentrate_2016;
                 %     HAS_TREATMENT = 1; % Treatment introduced in 2016 at rate from MJdV.
@@ -1407,13 +1312,13 @@ function country_level_analyses(sensitivity_analysis,...
             end
 
             %% This is now dealt with in HBVmodel.m:
-            % switch scenario_CohortTesting
-            %     case I_NO_COHORT_TEST
+            % switch scenario_AddScreenIntervention
+            %     case I_NO_ADDITIONAL_SCREENING
             %         a=7;
-            %     case I_COHORT_TEST
+            %     case I_BIRTHCOHORT_SCREENING
             %         a=8;
             %     otherwise
-            %         disp("Error: Unknown value for scenario_CohortTesting. Exiting")
+            %         disp("Error: Unknown value for scenario_AddScreenIntervention. Exiting")
             %         return
             % end  
 
@@ -1492,11 +1397,12 @@ function country_level_analyses(sensitivity_analysis,...
                 theta,ECofactor,treatment_rate_params, treatment_start_year-dt, ...
                 HBsAg_treat_cov_all_ages, ...
                 params, PAP_VL_params, PAP_cov_params, ...
+                Global_intervention_params, ...
                 p_ChronicCarriage,Prog_scenario,Transactions,......
                 scenario_BDcoverage, scenario_BDcoverage_fromMAP,...
                 scenario_BDcoverage_fromCPAD, scenario_HepB3coverage, ...
                 HAS_TREATMENT, max_treatment_coverage, ...
-                ISO, scenario_num, scenario_CohortTesting, ...
+                ISO, scenario_num, scenario_AddScreenIntervention, ...
                 num_year_1980_2100, life_expectancy, ...
                 stochas_run_str, sensitivity_analysis, basedir, store_results_as_text);
             lastrun.DALYPerYear = make_daly_mat(lastrun,num_years_simul,num_year_1980_2100,life_expectancy);

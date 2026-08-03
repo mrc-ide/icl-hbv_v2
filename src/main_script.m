@@ -102,14 +102,15 @@ end
 %i_start_country = 92;  % Thailand is 92
 %i_end_country = 93;
 if RUN_ON_CLUSTER==0
-    %% 30: Ethiopia; 36: Gambia; 92: Thailand.
-    %%countries_to_run = [92, 93];
+    %% 16: China; 30: Ethiopia; 36: Gambia; 92: Thailand.
+    %%countries_to_run = [16,30,36,92];
+    %%countries_to_run = 3:110;
     
     %% All broken countries:
     %%countries_to_run = [6, 8, 17, 34, 38, 47, 50, 52, 56, 70, 92];  %%
-    %%countries_to_run = [1, 2];
+    countries_to_run = [1, 2];
 
-    countries_to_run = 6;
+    %%countries_to_run = 6;
 else
     fileID = fopen('countries_to_run.txt','r');
     formatSpec = '%i';
@@ -231,22 +232,27 @@ load(fullfile(basedir,'resources','treatment_2016_map.mat')) % contains num_in_t
 
 load(fullfile(basedir,'resources','treatment_rates_map.mat')) % contains treatment_rates_map
 
+
+
 %% WUENIC DATA DOWNLOADED 9 FEB 2026:
 %% Source: https://immunizationdata.who.int/global/wiise-detail-page/hepatitis-b-vaccination-coverage?GROUP=Countries&ANTIGEN=HEPB_BD&YEAR=&CODE=
-%% BD coverage data:
+%% BD and Hep B3 coverage data:
 if(RUN_ON_CLUSTER==0)
-    WUENIC2024BDdata = readtable('C:\Users\mpickles\OneDrive - Imperial College London\Dropbox_copy\Hepatits B\Data\Hepatitis B vaccination coverage 2026-17-02_BD.xlsx','Sheet','Sheet1');
+    WUENIC2024BDdata = readtable('C:\Users\mpickles\OneDrive - Imperial College London\Dropbox_copy\Hepatitis B\Data\Hepatitis B vaccination coverage 2026-17-02_BD.xlsx','Sheet','Sheet1');
+    WUENIC2024HepB3data = readtable('C:\Users\mpickles\OneDrive - Imperial College London\Dropbox_copy\Hepatitis B\Data\Hepatitis B vaccination coverage 2026-17-02_HepB3.xlsx','Sheet','Sheet1');  
+    Countrylevel_intervention_params = readtable('C:\Users\mpickles\OneDrive - Imperial College London\Dropbox_copy\Hepatitis B\Modelling\Intervention_parameters.xlsx','Sheet','CountryParameters');
+    Global_intervention_params        = readtable('C:\Users\mpickles\OneDrive - Imperial College London\Dropbox_copy\Hepatitis B\Modelling\Intervention_parameters.xlsx','Sheet','GlobalParams');
+    
 else
     WUENIC2024BDdata = readtable('Hepatitis B vaccination coverage 2026-17-02_BD.xlsx','Sheet','Sheet1');
+    WUENIC2024HepB3data = readtable('Hepatitis B vaccination coverage 2026-17-02_HepB3.xlsx','Sheet','Sheet1');
+    %% Parameters related to different intervention scenarios (19 July 2026):
+    Countrylevel_intervention_params = readtable(fullfile(basedir,'resources','Intervention_parameters.xlsx'),'Sheet','CountryParameters');
+    Global_intervention_params       = readtable(fullfile(basedir,'resources','Intervention_parameters.xlsx'),'Sheet','GlobalParams');
+
 end
 WUENIC2024BDdata = WUENIC2024BDdata(WUENIC2024BDdata.COVERAGE_CATEGORY=="WUENIC", :);
 WUENIC2024BDdata = removevars(WUENIC2024BDdata,["GROUP","NAME","ANTIGEN","ANTIGEN_DESCRIPTION","COVERAGE_CATEGORY","COVERAGE_CATEGORY_DESCRIPTION","TARGET_NUMBER","DOSES"]);
-%% Hep B3 coverage data:
-if(RUN_ON_CLUSTER==0)
-    WUENIC2024HepB3data = readtable('C:\Users\mpickles\OneDrive - Imperial College London\Dropbox_copy\Hepatits B\Data\Hepatitis B vaccination coverage 2026-17-02_HepB3.xlsx','Sheet','Sheet1');
-else
-    WUENIC2024HepB3data = readtable('Hepatitis B vaccination coverage 2026-17-02_HepB3.xlsx','Sheet','Sheet1');
-end
 
 WUENIC2024HepB3data = WUENIC2024HepB3data(WUENIC2024HepB3data.COVERAGE_CATEGORY=="WUENIC", :);
 WUENIC2024HepB3data = removevars(WUENIC2024HepB3data,["GROUP","NAME","ANTIGEN","ANTIGEN_DESCRIPTION","COVERAGE_CATEGORY","COVERAGE_CATEGORY_DESCRIPTION","TARGET_NUMBER","DOSES"]);
@@ -522,6 +528,7 @@ for sensitivity_analysis_num=1:num_sensitivity_analyses
             country_s_e_HCCdeaths_map,...
             params_map,stochas_params_mat,country_start_cols,...
             WUENIC2024BDdata, WUENIC2024HepB3data, ...
+            Countrylevel_intervention_params, Global_intervention_params, ...
             GHO_infacilitybirthproportion_map, ANC_coverage_map, ...
             Polaris_diagnosis_coverage_map, Polaris_treat_coverage_map, ...
             basedir,...

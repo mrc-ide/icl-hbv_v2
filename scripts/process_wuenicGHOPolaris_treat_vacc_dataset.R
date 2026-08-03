@@ -14,7 +14,7 @@ library("gridExtra")
 library(dplyr)
 
 basefolder <- "C:/Users/mpickles/"
-graph.dir <- "C:/Users/mpickles/OneDrive - Imperial College London/Dropbox_copy/Hepatits B/Data/"
+graph.dir <- "C:/Users/mpickles/OneDrive - Imperial College London/Dropbox_copy/Hepatitis B/Data/"
 ##basefolder <- "/mnt/c/Users/mpickles/Documents/"
 
 extract_legend <- function(my_ggp) {
@@ -309,7 +309,7 @@ bd.coverage.2024 <- merge(bd.coverage.2024, df.date.first.bd, by="ISO")
 
 
 
-##write.csv(bd.coverage.2024,paste0(basefolder,"OneDrive - Imperial College London/Dropbox_copy/Hepatits B/Presentations/15May2026/BDdatatemp.csv"), row.names = FALSE)
+##write.csv(bd.coverage.2024,paste0(basefolder,"OneDrive - Imperial College London/Dropbox_copy/Hepatitis B/Presentations/15May2026/BDdatatemp.csv"), row.names = FALSE)
 write.csv(bd.coverage.2024,paste0(basefolder,"Documents/Hepatitis_B/icl-hbv/resources/wuenic2024data/BDdata_infacility_rural.csv"), row.names = FALSE)
 
 
@@ -318,9 +318,9 @@ write.csv(bd.coverage.2024,paste0(basefolder,"Documents/Hepatitis_B/icl-hbv/reso
 ## Now extract GHO treatment data:
 
 
-Prop_ontreat_of_diagnosed <- read_excel(paste0(basefolder,"OneDrive - Imperial College London/Dropbox_copy/Hepatits B/Data/GHO_treatment/Prop_ontreat_of_diagnosed.xlsx"),sheet="Prop_ontreat_of_diagnosed")
+Prop_ontreat_of_diagnosed <- read_excel(paste0(basefolder,"OneDrive - Imperial College London/Dropbox_copy/Hepatitis B/Data/GHO_treatment/Prop_ontreat_of_diagnosed.xlsx"),sheet="Prop_ontreat_of_diagnosed")
 
-Prop_diagnosed <- read_excel(paste0(basefolder,"OneDrive - Imperial College London/Dropbox_copy/Hepatits B/Data/GHO_treatment/Prop_diagnosed.xlsx"),sheet="Prop_diagnosed")
+Prop_diagnosed <- read_excel(paste0(basefolder,"OneDrive - Imperial College London/Dropbox_copy/Hepatitis B/Data/GHO_treatment/Prop_diagnosed.xlsx"),sheet="Prop_diagnosed")
 
 Prop_diagnosed <- Prop_diagnosed[Prop_diagnosed$Indicator %in% "Chronic hepatitis B (HBV) diagnosis coverage as a percentage of infected (%)" & Prop_diagnosed$IsLatestYear,]
 Prop_ontreat_of_diagnosed <- Prop_ontreat_of_diagnosed[Prop_ontreat_of_diagnosed$Indicator %in% "Chronic hepatitis B (HBV) treatment rate as percentage of diagnosed (%)" & Prop_ontreat_of_diagnosed$IsLatestYear,]
@@ -354,7 +354,7 @@ if(!("NIC" %in% list.of.isos))
   missing.isos <- c(missing.isos,"NIC")
 ## [1] "AZE" "BGD" "CHN" "PRK" "IND" "KIR" "MHL" "FSM" "MMR" "WSM" "TON" "TUV"
 ## Taken from Polaris 2025 estimates:
-Polaris2025 <- read_excel(paste0(basefolder,"OneDrive - Imperial College London/Dropbox_copy/Hepatits B/Data/Polaris/Polaris Database Query – CDA Foundation.xlsx"),sheet="Cleaned")
+Polaris2025 <- read_excel(paste0(basefolder,"OneDrive - Imperial College London/Dropbox_copy/Hepatitis B/Data/Polaris/Polaris Database Query – CDA Foundation.xlsx"),sheet="Cleaned")
 Polaris_propdiag <- Polaris2025[Polaris2025$ISO %in% missing.isos, colnames(Polaris2025) %in% c("Country_name","ISO","Diagnosed")]
 Polaris_propdiag$Year <- 2025 ## All 2025 estimates
 Polaris_propdiag <- Polaris_propdiag[,c(2,1,4,3)]
@@ -404,12 +404,12 @@ treatment_cascade$treatment_coverage <- treatment_cascade$Diagnosed * treatment_
 ## Madagascar 5989 on treatment out of 3191 diagnosed in 2022 >> 100% so Madagascar maybe a data glitch?
 ## Polaris puts annual diagnosed <1% and annual treated <1% so not helpful.
 ## Madagascar is low-income SSA/ East SSA. Low-income have 7% diagnosis, 1% on treatment (so 1/7=0.14 on treatment). Africa has 2% treatment,7% diagnosed. AFRO has 2% treatment, 6% diagnosed. East Africa has <1% treated, 8% diagnosed. East Africa is probably most geographically relevant and similar to low-income, so take 1/8=12.5%
-##write.csv(treatment_cascade,paste0(basefolder,"OneDrive - Imperial College London/Dropbox_copy/Hepatits B/Presentations/15May2026/treatment_cascade.csv"),row.names = FALSE)
+##write.csv(treatment_cascade,paste0(basefolder,"OneDrive - Imperial College London/Dropbox_copy/Hepatitis B/Presentations/15May2026/treatment_cascade.csv"),row.names = FALSE)
 treatment_cascade$OnTreatOfDiagnosed[treatment_cascade$ISO %in% "MDG"] <- 0.125
 write.csv(treatment_cascade,paste0(basefolder,"Documents/Hepatitis_B/icl-hbv/resources/treatment_cascade_GHO.csv"),row.names = FALSE)
 
 
-Polaris_raw_data <- read_excel(paste0(basefolder,"OneDrive - Imperial College London/Dropbox_copy/Hepatits B/Data/Polaris/Polaris_data_from2023paperLGastHep.xlsx"),sheet="Data")
+Polaris_raw_data <- read_excel(paste0(basefolder,"OneDrive - Imperial College London/Dropbox_copy/Hepatitis B/Data/Polaris/Polaris_data_from2023paperLGastHep.xlsx"),sheet="Data")
 Polaris_data <- Polaris_raw_data[,colnames(Polaris_raw_data) %in% c("ISO","Diagnosed","treatment_coverage","Diagnosed_Polaris2025","AnnualTreated_Polaris2025")]
 
 ## Compare Polaris 2023 paper and GHO:
@@ -500,7 +500,7 @@ write.csv(treatment_data_final,paste0(basefolder,"Documents/Hepatitis_B/icl-hbv/
 
 
 
-ANC_coverage_raw <- read_excel(paste0(basefolder,"OneDrive - Imperial College London/Dropbox_copy/Hepatits B/Data/ANC_coverage/WB_ANC_coverage_to2025.xlsx"),sheet="Data")
+ANC_coverage_raw <- read_excel(paste0(basefolder,"OneDrive - Imperial College London/Dropbox_copy/Hepatitis B/Data/ANC_coverage/WB_ANC_coverage_to2025.xlsx"),sheet="Data")
 ANC.colnames <- colnames(ANC_coverage_raw)
 i.ISO <- which(ANC.colnames=="Country Code")
 ANC_coverage_processed <- data.frame(ISO=character(), year_of_last_ANC_coverage_data=integer(),ANC_coverage=numeric())
