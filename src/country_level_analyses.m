@@ -31,9 +31,9 @@ function country_level_analyses(sensitivity_analysis,...
     T_INTERVENTION_END_BD  = 2031.0;
     
     % TUTAJ:
-    num_scenarios = 11;
+    num_scenarios = 10;
     %start_scenario = 17;
-    start_scenario = 6;
+    start_scenario = 1;
 
     assert(ismember(sensitivity_analysis,{'default','infant_100','treat_medium','treat_high'}))
 
@@ -476,16 +476,15 @@ function country_level_analyses(sensitivity_analysis,...
             % Modified by treat-all, introduction of PoC HBcrAg, PoC ALT tests, 
     
             I_TREAT_SQ = 1;         %% Current treatment (Capped at most recent treatemnt data - currently Polaris 2025).
-            I_TREAT_continuedimprovement = 2;
-            I_TREAT_ANCscreening = 3;
-            I_TREAT_IFscreeing = 4;
-            I_TREAT_IntegratedServices = 5; 
-            I_TREAT_PoCeligibility = 6;
-            I_TREAT_universal = 7;
-            I_TREAT_LA = 8;
-            I_TREAT_decentralised = 9;
-            I_TREAT_cureBepi = 10;
-            I_TREAT_curev2 = 11;
+            I_TREAT_continuedimprovement = 2; 
+            I_TREAT_IFscreeing = 3;
+            I_TREAT_IntegratedServices = 4; 
+            I_TREAT_PoCeligibility = 5;
+            I_TREAT_universal = 6;
+            I_TREAT_LA = 7;
+            I_TREAT_decentralised = 8;
+            I_TREAT_cureBepi = 9;
+            I_TREAT_curev2 = 10;
             
 
             
@@ -546,13 +545,13 @@ function country_level_analyses(sensitivity_analysis,...
                     scenario_PAP = I_PAP_all;  %% PAP available to all pregnant women regardless of VL
                     scenario_Treatment = I_TREAT_continuedimprovement;
                     scenario_AddScreenIntervention = "No additional screening";  
-                WYBOR:
+                
                 %% ContImp with additional diagnosis among pregnant women during ANC (ANC-1 capped at HIV screening %)
                 case i_scenario_ContImp_plusDx_ANCscreening
                     scenario_BD = I_BD_contimp;
                     scenario_HepB3 = I_HEPB3_contimp;
                     scenario_PAP = I_PAP_HVL_contimp;
-                    scenario_Treatment = I_TREAT_ANCscreening;
+                    scenario_Treatment = I_TREAT_continuedimprovement;
                     scenario_AddScreenIntervention = "ANC screening";  
                  %% ContImp with additional diagnosis through birth cohort screening (those born within 5 years of country introduction of HepB3)
                 case i_scenario_ContImp_plusDx_BirthCohort
@@ -868,7 +867,6 @@ function country_level_analyses(sensitivity_analysis,...
                     scenario_BDcoverage_fromMAP = zeros(1,length(years_vec_01yr));
                     scenario_BDcoverage_fromCPAD = zeros(1,length(years_vec_01yr));
                 case I_BD_IF_OOFexpansion
-                    BIDOOF
                     year_last_BD_data = 2024;
                     disp("I_BD_OOFexpansion")
                     coverage_BD_to_last_datapoint = BirthDose_wuenic2025;
@@ -964,8 +962,9 @@ function country_level_analyses(sensitivity_analysis,...
                     annual_hepB3improvement = Intervention_data_thiscountry.ContImp_HepB3_annual_increase;
                     %% Check whether, at this rate of increase from 2025 onwards, if we ever go above the WHO target of 90%:
                     potential_hepb3_target = HepB3_wuenic2025(end)+(end_year-2025)*annual_hepB3improvement;
-                    if(potential_hepb3_target>HepB3_WHO_target_coverage)
+                    if(annual_hepB3improvement>0 && potential_hepb3_target>HepB3_WHO_target_coverage)
                         year_reach_whotarget = floor((HepB3_WHO_target_coverage-HepB3_wuenic2025(end))/annual_hepB3improvement);
+                       
                         future_xvals_vec = [2024.0, 2025.0, year_reach_whotarget, end_year];
                         future_yvals_vec = [HepB3_wuenic2025(end), HepB3_wuenic2025(end), HepB3_WHO_target_coverage, HepB3_WHO_target_coverage];
                     else
@@ -993,6 +992,7 @@ function country_level_analyses(sensitivity_analysis,...
             end  %% End switch scenario_HepB3
 
             % Using the above, create coverage vector that has coverage at each timestep:
+          
             scenario_HepB3coverage = make_coverage_vec(start_year,num_year_divisions,dt,end_year,coverage_HepB3_to_last_datapoint,future_xvals_vec,future_yvals_vec,year_last_HepB3_data);
             
             % Ensure coverage is <=100% at every timestep:
@@ -1194,13 +1194,11 @@ function country_level_analyses(sensitivity_analysis,...
                     max_treatment_coverage = treatment_rate_params.prop_diagnosed_t0*treatment_rate_params.prop_treatifdiag_t0;
                     %%treatment_rate_params.prop_wouldseektreat_tchange = Polaris_diagnosis_coverage_map(ISO)*Polaris_treat_coverage_map(ISO);
                     treatment_rate_params.t_remove_treatment_barriers = 9999; % Dummy value at time beyond any simulation.
-                    HAS_TREATMENT = 1; % Treatment introduced in 2016 at rate from MJdV.
                 % case I_NOTREAT
                 %     treatment_rate_params.Treatmentrate_final = 0; % no treatment
                 %     treatment_rate_params.prop_wouldseektreat_t0 = 0;
                 %     treatment_rate_params.prop_wouldseektreat_tchange = 0;
                 %     treatment_rate_params.t_remove_treatment_barriers = 9999; % Dummy value at time beyond any simulation.
-                %     HAS_TREATMENT = 0;  % Treatment never introduced
                 case I_TREAT_continuedimprovement
                     treatment_rate_params.annual_increase_diagnosis = Intervention_data_thiscountry.ContImp_Dx_annual_increase;
                     treatment_rate_params.annual_increase_treatifdiag = Intervention_data_thiscountry.ContImp_TxifDx_annual_increase;
@@ -1212,21 +1210,26 @@ function country_level_analyses(sensitivity_analysis,...
                     %new_diag_prop = max(0.70,Polaris_diagnosis_coverage_map(ISO));
                     %treatment_rate_params.prop_wouldseektreat_tchange = new_diag_prop*new_treatlink_prop;
                     treatment_rate_params.t_remove_treatment_barriers = T_INTERVENTION_START;
-                    HAS_TREATMENT = 1;
-                case I_TREAT_ANCscreening  %% as Cont Imp treatment except for pregnant women.
-                    %% Ceiling = number ANC-1 by age x acceptability of test in a country (use HIV test?)
-                    treatment_rate_params.annual_increase_diagnosis = Intervention_data_thiscountry.ContImp_Dx_annual_increase;
-                    treatment_rate_params.annual_increase_treatifdiag = Intervention_data_thiscountry.ContImp_TxifDx_annual_increase;
-                    treatment_rate_params.Treatmentrate_final = treatment_boundaries_vec(5); % 80% scenario from MJDV code - corresponds to about 0.15/yr for ETH/GMB.
-                    treatment_rate_params.prop_diagnosed_t0 = Polaris_diagnosis_coverage_map(ISO);
-                    treatment_rate_params.prop_treatifdiag_t0 = Polaris_treat_coverage_map(ISO);
-                    max_treatment_coverage = 0.45*0.7;
-                    %new_treatlink_prop = max(0.80,Polaris_treat_coverage_map(ISO));
-                    %new_diag_prop = max(0.70,Polaris_diagnosis_coverage_map(ISO));
-                    %treatment_rate_params.prop_wouldseektreat_tchange = new_diag_prop*new_treatlink_prop;
-                    treatment_rate_params.t_remove_treatment_barriers = T_INTERVENTION_START;
-                    HAS_TREATMENT = 1;
                 case I_TREAT_IFscreeing
+                    %% PLACEHOLDER
+                    %prop_accessing_healthcare_F = [0,0,0,0.02,0.02,0.02,0.03,0.03,0.03,0.04,0.04,0.05,0.1,0.2,0.4,0.4,0.5,0.5,0.5,0.5];
+                    %prop_accessing_healthcare_M = [0,0,0,0.02,0.02,0.02,0.03,0.03,0.03,0.04,0.04,0.05,0.1,0.2,0.4,0.4,0.5,0.5,0.5,0.5];
+                    prop_accessing_healthcare = 0.05;
+                    prop_accept_test = 0.6;
+                    
+                    treatment_rate_params.annual_increase_diagnosis = Intervention_data_thiscountry.ContImp_Dx_annual_increase + prop_accessing_healthcare*prop_accept_test;
+                    treatment_rate_params.annual_increase_treatifdiag = Intervention_data_thiscountry.ContImp_TxifDx_annual_increase;
+                    treatment_rate_params.Treatmentrate_final = treatment_boundaries_vec(5); % 80% scenario from MJDV code - corresponds to about 0.15/yr for ETH/GMB.
+                    treatment_rate_params.prop_diagnosed_t0 = Polaris_diagnosis_coverage_map(ISO);
+                    treatment_rate_params.prop_treatifdiag_t0 = Polaris_treat_coverage_map(ISO);
+                    max_treatment_coverage = 0.45*0.7;
+                    %new_treatlink_prop = max(0.80,Polaris_treat_coverage_map(ISO));
+                    %new_diag_prop = max(0.70,Polaris_diagnosis_coverage_map(ISO));
+                    %treatment_rate_params.prop_wouldseektreat_tchange = new_diag_prop*new_treatlink_prop;
+                    treatment_rate_params.t_remove_treatment_barriers = T_INTERVENTION_START;
+
+                %% PLACEHOLDER:
+                case I_TREAT_IntegratedServices
                     treatment_rate_params.annual_increase_diagnosis = Intervention_data_thiscountry.ContImp_Dx_annual_increase;
                     treatment_rate_params.annual_increase_treatifdiag = Intervention_data_thiscountry.ContImp_TxifDx_annual_increase;
                     treatment_rate_params.Treatmentrate_final = treatment_boundaries_vec(5); % 80% scenario from MJDV code - corresponds to about 0.15/yr for ETH/GMB.
@@ -1237,7 +1240,81 @@ function country_level_analyses(sensitivity_analysis,...
                     %new_diag_prop = max(0.70,Polaris_diagnosis_coverage_map(ISO));
                     %treatment_rate_params.prop_wouldseektreat_tchange = new_diag_prop*new_treatlink_prop;
                     treatment_rate_params.t_remove_treatment_barriers = T_INTERVENTION_START;
-                    HAS_TREATMENT = 1;
+                %% PLACEHOLDER:
+                case I_TREAT_PoCeligibility
+                    treatment_rate_params.annual_increase_diagnosis = Intervention_data_thiscountry.ContImp_Dx_annual_increase;
+                    treatment_rate_params.annual_increase_treatifdiag = Intervention_data_thiscountry.ContImp_TxifDx_annual_increase;
+                    treatment_rate_params.Treatmentrate_final = treatment_boundaries_vec(5); % 80% scenario from MJDV code - corresponds to about 0.15/yr for ETH/GMB.
+                    treatment_rate_params.prop_diagnosed_t0 = Polaris_diagnosis_coverage_map(ISO);
+                    treatment_rate_params.prop_treatifdiag_t0 = Polaris_treat_coverage_map(ISO);
+                    max_treatment_coverage = 0.45*0.7;
+                    %new_treatlink_prop = max(0.80,Polaris_treat_coverage_map(ISO));
+                    %new_diag_prop = max(0.70,Polaris_diagnosis_coverage_map(ISO));
+                    %treatment_rate_params.prop_wouldseektreat_tchange = new_diag_prop*new_treatlink_prop;
+                    treatment_rate_params.t_remove_treatment_barriers = T_INTERVENTION_START;
+                %% PLACEHOLDER:
+                case I_TREAT_universal
+                    treatment_rate_params.annual_increase_diagnosis = Intervention_data_thiscountry.ContImp_Dx_annual_increase;
+                    treatment_rate_params.annual_increase_treatifdiag = Intervention_data_thiscountry.ContImp_TxifDx_annual_increase;
+                    treatment_rate_params.Treatmentrate_final = treatment_boundaries_vec(5); % 80% scenario from MJDV code - corresponds to about 0.15/yr for ETH/GMB.
+                    treatment_rate_params.prop_diagnosed_t0 = Polaris_diagnosis_coverage_map(ISO);
+                    treatment_rate_params.prop_treatifdiag_t0 = Polaris_treat_coverage_map(ISO);
+                    max_treatment_coverage = 0.45*0.7;
+                    %new_treatlink_prop = max(0.80,Polaris_treat_coverage_map(ISO));
+                    %new_diag_prop = max(0.70,Polaris_diagnosis_coverage_map(ISO));
+                    %treatment_rate_params.prop_wouldseektreat_tchange = new_diag_prop*new_treatlink_prop;
+                    treatment_rate_params.t_remove_treatment_barriers = T_INTERVENTION_START;
+                %% PLACEHOLDER:
+                case I_TREAT_LA
+                    treatment_rate_params.annual_increase_diagnosis = Intervention_data_thiscountry.ContImp_Dx_annual_increase;
+                    treatment_rate_params.annual_increase_treatifdiag = Intervention_data_thiscountry.ContImp_TxifDx_annual_increase;
+                    treatment_rate_params.Treatmentrate_final = treatment_boundaries_vec(5); % 80% scenario from MJDV code - corresponds to about 0.15/yr for ETH/GMB.
+                    treatment_rate_params.prop_diagnosed_t0 = Polaris_diagnosis_coverage_map(ISO);
+                    treatment_rate_params.prop_treatifdiag_t0 = Polaris_treat_coverage_map(ISO);
+                    max_treatment_coverage = 0.45*0.7;
+                    %new_treatlink_prop = max(0.80,Polaris_treat_coverage_map(ISO));
+                    %new_diag_prop = max(0.70,Polaris_diagnosis_coverage_map(ISO));
+                    %treatment_rate_params.prop_wouldseektreat_tchange = new_diag_prop*new_treatlink_prop;
+                    treatment_rate_params.t_remove_treatment_barriers = T_INTERVENTION_START;
+                case I_TREAT_decentralised
+                    %% TO DO - DECIDE IF THERE SHOULD BE AN (IMMEDIATE?) INCREASE IN THOSE CURRENTLY ON TREATMENT BY THE SAME MULTIPLIER.
+                    %% Proportion of country that is rural:
+                    prop_rural = Intervention_data_thiscountry.Decentralisation_prop_rural;
+                    increase_by_decentralisation = 1 + prop_rural/(1-prop_rural);
+                    treatment_rate_params.annual_increase_diagnosis = increase_by_decentralisation*Intervention_data_thiscountry.ContImp_Dx_annual_increase;
+                    treatment_rate_params.annual_increase_treatifdiag = increase_by_decentralisation*Intervention_data_thiscountry.ContImp_TxifDx_annual_increase;
+                    treatment_rate_params.Treatmentrate_final = treatment_boundaries_vec(5); % 80% scenario from MJDV code - corresponds to about 0.15/yr for ETH/GMB.
+                    treatment_rate_params.prop_diagnosed_t0 = Polaris_diagnosis_coverage_map(ISO);
+                    treatment_rate_params.prop_treatifdiag_t0 = Polaris_treat_coverage_map(ISO);
+                    max_treatment_coverage = 0.45*0.7;
+                    %new_treatlink_prop = max(0.80,Polaris_treat_coverage_map(ISO));
+                    %new_diag_prop = max(0.70,Polaris_diagnosis_coverage_map(ISO));
+                    %treatment_rate_params.prop_wouldseektreat_tchange = new_diag_prop*new_treatlink_prop;
+                    treatment_rate_params.t_remove_treatment_barriers = T_INTERVENTION_START;
+                %% PLACEHOLDER
+                case I_TREAT_cureBepi
+                    treatment_rate_params.annual_increase_diagnosis = Intervention_data_thiscountry.ContImp_Dx_annual_increase;
+                    treatment_rate_params.annual_increase_treatifdiag = Intervention_data_thiscountry.ContImp_TxifDx_annual_increase;
+                    treatment_rate_params.Treatmentrate_final = treatment_boundaries_vec(5); % 80% scenario from MJDV code - corresponds to about 0.15/yr for ETH/GMB.
+                    treatment_rate_params.prop_diagnosed_t0 = Polaris_diagnosis_coverage_map(ISO);
+                    treatment_rate_params.prop_treatifdiag_t0 = Polaris_treat_coverage_map(ISO);
+                    max_treatment_coverage = 0.45*0.7;
+                    %new_treatlink_prop = max(0.80,Polaris_treat_coverage_map(ISO));
+                    %new_diag_prop = max(0.70,Polaris_diagnosis_coverage_map(ISO));
+                    %treatment_rate_params.prop_wouldseektreat_tchange = new_diag_prop*new_treatlink_prop;
+                    treatment_rate_params.t_remove_treatment_barriers = T_INTERVENTION_START;
+                %% PLACEHOLDER
+                case I_TREAT_curev2
+                    treatment_rate_params.annual_increase_diagnosis = Intervention_data_thiscountry.ContImp_Dx_annual_increase;
+                    treatment_rate_params.annual_increase_treatifdiag = Intervention_data_thiscountry.ContImp_TxifDx_annual_increase;
+                    treatment_rate_params.Treatmentrate_final = treatment_boundaries_vec(5); % 80% scenario from MJDV code - corresponds to about 0.15/yr for ETH/GMB.
+                    treatment_rate_params.prop_diagnosed_t0 = Polaris_diagnosis_coverage_map(ISO);
+                    treatment_rate_params.prop_treatifdiag_t0 = Polaris_treat_coverage_map(ISO);
+                    max_treatment_coverage = 0.45*0.7;
+                    %new_treatlink_prop = max(0.80,Polaris_treat_coverage_map(ISO));
+                    %new_diag_prop = max(0.70,Polaris_diagnosis_coverage_map(ISO));
+                    %treatment_rate_params.prop_wouldseektreat_tchange = new_diag_prop*new_treatlink_prop;
+                    treatment_rate_params.t_remove_treatment_barriers = T_INTERVENTION_START;
                 case I_TREATlink45
                     treatment_rate_params.Treatmentrate_final = treatment_boundaries_vec(5); % 80% scenario from MJDV code - corresponds to about 0.15/yr for ETH/GMB.
                     treatment_rate_params.prop_diagnosed_t0 = Polaris_diagnosis_coverage_map(ISO);
@@ -1249,7 +1326,6 @@ function country_level_analyses(sensitivity_analysis,...
                     %%new_treatlink_prop = max(0.45,Polaris_treat_coverage_map(ISO));
                     %%treatment_rate_params.prop_wouldseektreat_tchange = Polaris_diagnosis_coverage_map(ISO)*new_treatlink_prop;
                     treatment_rate_params.t_remove_treatment_barriers = T_INTERVENTION_START;
-                    HAS_TREATMENT = 1;
                 case I_diag70percent
                     treatment_rate_params.Treatmentrate_final = treatment_boundaries_vec(5); % 80% scenario from MJDV code - corresponds to about 0.15/yr for ETH/GMB.
                     treatment_rate_params.prop_diagnosed_t0 = Polaris_diagnosis_coverage_map(ISO);
@@ -1261,7 +1337,6 @@ function country_level_analyses(sensitivity_analysis,...
                     %%new_treatlink_prop = max(0.80,Polaris_treat_coverage_map(ISO));
                     %%treatment_rate_params.prop_wouldseektreat_tchange = Polaris_diagnosis_coverage_map(ISO)*new_treatlink_prop;
                     treatment_rate_params.t_remove_treatment_barriers = T_INTERVENTION_START;
-                    HAS_TREATMENT = 1;
                 case I_TREAT_PLUS
                     treatment_rate_params.Treatmentrate_final = treatment_boundaries_vec(5); % 80% scenario from MJDV code - corresponds to about 0.15/yr for ETH/GMB.
                     treatment_rate_params.prop_diagnosed_t0 = Polaris_diagnosis_coverage_map(ISO);
@@ -1273,7 +1348,6 @@ function country_level_analyses(sensitivity_analysis,...
                     %%new_treatlink_prop = max(0.45,Polaris_treat_coverage_map(ISO));
                     %%treatment_rate_params.prop_wouldseektreat_tchange = Polaris_diagnosis_coverage_map(ISO)*new_treatlink_prop;
                     treatment_rate_params.t_remove_treatment_barriers = T_INTERVENTION_START;
-                    HAS_TREATMENT = 1;
                 % case I_diag70percent
                 %     treatment_rate_params.Treatmentrate_final = treatment_boundaries_vec(5); % 80% scenario from MJDV code - corresponds to about 0.15/yr for ETH/GMB.
                 %     treatment_rate_params.prop_diagnosed_t0 = Polaris_diagnosis_coverage_map(ISO);
@@ -1283,19 +1357,14 @@ function country_level_analyses(sensitivity_analysis,...
                 %     %%new_diag_prop = max(0.7,Polaris_diagnosis_coverage_map(ISO));
                 %     %%treatment_rate_params.prop_wouldseektreat_tchange = new_diag_prop*new_treatlink_prop;
                 %     treatment_rate_params.t_remove_treatment_barriers = T_INTERVENTION_START;
-                %     HAS_TREATMENT = 1;
 
                 % case I_TREAT_SQ           %% Use current rates of treatment uptake and failure.
                 %     %%params.PriorTDFTreatRate = stochas_params_mat(stochas_run_num,country_start_col+7);
                 %     treatment_rate_params.Treatmentrate_final = treatment_rate_params.Treatmentrate_2016;
-                %     HAS_TREATMENT = 1; % Treatment introduced in 2016 at rate from MJdV.
                 % case I_TREAT_WHOtarget
                 %     treatment_rate_params.Treatmentrate_final = treatment_boundaries_vec(5); % 80% scenario from MJDV code
-                %     HAS_TREATMENT = 1;
                 % case I_TREAT_40percent
-                %     treatment_rate_params.Treatmentrate_final = treatment_boundaries_vec(3); % 40% scenario from MJDV code
-                %     HAS_TREATMENT = 1;
-                
+                %     treatment_rate_params.Treatmentrate_final = treatment_boundaries_vec(3); % 40% scenario from MJDV code                
                 % case I_TREAT_INIT_POC_cr_ALT   %% Introduce PoC tests for HBcrAg and ALT - increase rate of treatment initiation in eligible groups.
                 %     treatment_rate_params.Treatmentrate_final = treatment_rate_params.Treatmentrate_2016;
                 % case I_TREAT_INIT_LA           %% Introduce long-acting treatment. SQ treatment failure rate is very low (0.001), so we take the "TDF treatment" group to be "On treatment, adherent and not going to drop out". LA treatment then just increases the proportion of people in this compartment (either by improving adherence, preventing dropout, or offering a more convenient/preffered option).
@@ -1397,11 +1466,11 @@ function country_level_analyses(sensitivity_analysis,...
                 theta,ECofactor,treatment_rate_params, treatment_start_year-dt, ...
                 HBsAg_treat_cov_all_ages, ...
                 params, PAP_VL_params, PAP_cov_params, ...
-                Global_intervention_params, ...
+                Global_intervention_params, Intervention_data_thiscountry, ...
                 p_ChronicCarriage,Prog_scenario,Transactions,......
                 scenario_BDcoverage, scenario_BDcoverage_fromMAP,...
                 scenario_BDcoverage_fromCPAD, scenario_HepB3coverage, ...
-                HAS_TREATMENT, max_treatment_coverage, ...
+                scenario_Treatment, max_treatment_coverage, ...
                 ISO, scenario_num, scenario_AddScreenIntervention, ...
                 num_year_1980_2100, life_expectancy, ...
                 stochas_run_str, sensitivity_analysis, basedir, store_results_as_text);

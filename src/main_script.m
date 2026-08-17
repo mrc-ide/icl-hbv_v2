@@ -108,9 +108,9 @@ if RUN_ON_CLUSTER==0
     
     %% All broken countries:
     %%countries_to_run = [6, 8, 17, 34, 38, 47, 50, 52, 56, 70, 92];  %%
-    countries_to_run = [1, 2];
+    %%countries_to_run = [1, 2];
 
-    %%countries_to_run = 6;
+    countries_to_run = 89;
 else
     fileID = fopen('countries_to_run.txt','r');
     formatSpec = '%i';

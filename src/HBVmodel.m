@@ -3,11 +3,11 @@ function output = HBVmodel(source_HBsAg,...
     theta,ECofactor, ...
     treatment_rate_params, treat_start_year,treat_coverage_in_2016, ...
     params, PAP_VL_params, PAP_cov_params, ...
-    Global_intervention_params, ...
+    Global_intervention_params, Intervention_data_thiscountry, ...
     p_ChronicCarriage,Prog,Transactions, ...
     scenario_BDcoverage, scenario_BDcoverage_fromMAP, ...
     scenario_BDcoverage_fromCPAD, scenario_HepB3coverage, ...
-    HAS_TREATMENT, max_treatment_coverage, ...
+    scenario_Treatment, max_treatment_coverage, ...
     ISO, scenario_num, scenario_AddScreenIntervention, ...
     num_year_1980_2100, life_expectancy, ...
     stochas_run_str, sensitivity_analysis, basedir, store_results_as_text)
@@ -568,9 +568,14 @@ female_multiplier = 0;
 male_multiplier = 0;
 
 
-moving_to_treatment_by_birthcohort_testing = zeros(size(X));
+%%moving_to_treatment_by_birthcohort_testing = zeros(size(X));
+moving_to_treatment_by_birthcohort_testing_per_timestep = zeros(size(X));
 moving_to_treatment_by_birthcohort_testing_this_timestep = zeros(size(X));
 
+moving_to_treatment_by_community_screening_per_timestep = zeros(size(X));
+moving_to_treatment_by_community_screening_this_timestep = zeros(size(X));
+
+%% Note that moving_to_treatment_by_ANC_testing_this_timestep is defined separately (as it's an ongoing intervention rather than a fixed-period one).
 
 for time = TimeSteps 
        
@@ -679,9 +684,9 @@ for time = TimeSteps
                     %% adding the new 95 yo dead people to an existing cumulative counter of people who are dead who would be 95+ now).
                     Prev_Deaths_1yr(k, ag, OutputEventNum-1) = state_prev_vec(i_HBVdeath);
 
-                    NumSAg_1yr(k, ag, OutputEventNum-1) = sum(state_prev_vec([i_sAgpos]));
+                    NumSAg_1yr(k, ag, OutputEventNum-1) = sum(state_prev_vec(i_sAgpos));
                 
-                    NumSAg_chronic_1yr(k, ag, OutputEventNum-1) = sum(state_prev_vec([i_sAgpos_chronic]));
+                    NumSAg_chronic_1yr(k, ag, OutputEventNum-1) = sum(state_prev_vec(i_sAgpos_chronic));
 
                     yld_1yr(k, ag, OutputEventNum-1) = sum( state_prev_vec .* params.dwvec' );
 
@@ -716,7 +721,7 @@ for time = TimeSteps
 														
                 if OutputEventNum > 1
                     % model results assigned to a particular year at the beginning of that year, after which they are zeroed
-                    NumSAg_5yr(k, ag, OutputEventNum-1) = sum(sum(sum(X([i_sAgpos], agegroups_5yr == ag, k, :))));
+                    NumSAg_5yr(k, ag, OutputEventNum-1) = sum(sum(sum(X(i_sAgpos, agegroups_5yr == ag, k, :))));
                 
                     if NumSAg_5yr(k, ag, OutputEventNum-1)>0
                         PrevEAg_of_SAg_5yr(k,ag,OutputEventNum-1) = sum(sum(sum(X(2:3, agegroups_5yr == ag, k, :)))) / NumSAg_5yr(k, ag, OutputEventNum-1);
@@ -897,7 +902,9 @@ for time = TimeSteps
     %% SERNIK
     birth_cohort_testing_start = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'Dx_T_birthcohort_start'),:).Value;
     birth_cohort_testing_end = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'Dx_T_birthcohort_end'),:).Value;
-    
+   
+
+
     %% Check if any additional screening needed:
     if(~strcmp(scenario_AddScreenIntervention,"No additional screening"))
         if strcmp(scenario_AddScreenIntervention,"Birth cohort screening")
@@ -905,23 +912,33 @@ for time = TimeSteps
                 %%case I_NO_COHORT_TEST
                 disp("Running birth cohort testing and treatment")
                 disp(time)
+                BirthCohort_extrayears = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'BirthCohort_extrayears'),:).Value;
+
+                BirthCohort_youngest_birth_year = Intervention_data_thiscountry.BirthCohortTest_year_first_BD + BirthCohort_extrayears;
                 %%case I_BIRTHCOHORT_SCREENING
                 if(time == birth_cohort_testing_start)
-                    i_cohortage_min = round((birth_cohort_testing_start-1992)/dt); % Individuals born before 1992
-                    i_cohortage_max = round(60/dt); % Individuals born before 1992
+                    i_cohortage_min = round((birth_cohort_testing_start-BirthCohort_youngest_birth_year)/dt); % Individuals born before 1992
+                    i_cohortage_max = num_age_steps; % All individuals born before 1992 (no upper age limit).
                     % Check I haven't accidentally made the min age>max age:
                     assert(i_cohortage_max>i_cohortage_min)
                     birth_cohort_coverage = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'Dx_birthcohort_coverage'),:).Value;
+                    
+                    duration_birth_cohort_testing = birth_cohort_testing_end-birth_cohort_testing_start;
+                    %% Check the duration of testing is OK:
+                    assert(duration_birth_cohort_testing>0 && duration_birth_cohort_testing<num_years_simul)
+                    
                     %% Note we should use next_X rather than X here:
-                    moving_to_treatment_by_birthcohort_testing_per_timestep(i_treateligible, i_cohortage_min:i_cohortage_max, :, :) = dt * birth_cohort_coverage * next_X(i_treateligible, i_cohortage_min:i_cohortage_max, :, :)/(birth_cohort_testing_end-birth_cohort_testing_start); 
+                    
+                    moving_to_treatment_by_birthcohort_testing_per_timestep(i_treateligible, i_cohortage_min:i_cohortage_max, :, :) = dt * birth_cohort_coverage * next_X(i_treateligible, i_cohortage_min:i_cohortage_max, :, :)/duration_birth_cohort_testing; 
                     disp("Eligible for cohort treatment")
                     disp(sum(sum(sum(sum(moving_to_treatment_by_birthcohort_testing_per_timestep,1),2),3),4))
+                    disp("At time")
+                    disp(time)
                 end
-                disp("At time")
-                disp(time)
                 
                 assert(time<=birth_cohort_testing_end);
-                i_birth_cohort_offset = round((time-birth_cohort_testing_start)/0.1);
+                %% This is the adjustment factor for the age index to account for the time that has passed since the birth cohort started.
+                i_birth_cohort_offset = round((time-birth_cohort_testing_start)/dt);
                 moving_to_treatment_by_birthcohort_testing_this_timestep(i_treateligible, (i_cohortage_min+i_birth_cohort_offset):i_cohortage_max, :, :) ...
                     = moving_to_treatment_by_birthcohort_testing_per_timestep(i_treateligible, i_cohortage_min:(i_cohortage_max-i_birth_cohort_offset), :, :);
                 %% Set the earlier age group elements to zero if needed:
@@ -943,8 +960,14 @@ for time = TimeSteps
                     disp("Running ANC screening")
                 end
                 %% This is the % of women undergoing ANC testing this timestep in each age group:
-                annual_ANC_test = [0,0,0,0.02,0.04,0.05,0.05,0.02,0.01,0,0,0,0,0,0,0,0,0,0,0]
-                ANC_testing_by_age = annual_ANC_test(agegroups_5yr)
+                annual_ANC_test = [0,0,0,0.02,0.04,0.05,0.05,0.02,0.01,0,0,0,0,0,0,0,0,0,0,0];
+
+                %% percentage of treatment-eligible women who undergo ANC testing and will accept treatment:
+                %% PLACEHOLDER - 0.05
+                annual_ANC_test_accepttreat = annual_ANC_test * 0.05;
+                
+                ANC_testing_by_age = annual_ANC_test_accepttreat(agegroups_5yr);
+                %% Percentage of people (by age and sex) getting ANC tested - men + women not going to ANC are zero.
                 ANC_testing = zeros(num_disease_states, num_age_steps, num_sexes, num_treat_blocks);
 
                 ANC_testing(i_ImmTol,:,i_female,i_seektreat) = ANC_testing_by_age;
@@ -956,74 +979,93 @@ for time = TimeSteps
                 ANC_testing(i_HCC,:,i_female,i_seektreat) = ANC_testing_by_age;
 
                 %% POWIETRZE
-                disp("Fix ANC testing by age")
                 %% Note we should use next_X rather than X here:
-                moving_to_treatment_by_ANC_testing_per_timestep = dt * ANC_testing .* next_X; 
-                disp("Eligible for ANC treatment")
-                disp(sum(sum(sum(sum(moving_to_treatment_by_ANC_testing_per_timestep,1),2),3),4))
-                disp("At time")
-                disp(time)
+                moving_to_treatment_by_ANC_testing_this_timestep = dt * ANC_testing .* next_X; 
+                %% This line caps the number of people moving at this timestep in a given compartment to be at most next_X in that compartment.
+                moving_to_treatment_by_ANC_testing_this_timestep(moving_to_treatment_by_ANC_testing_this_timestep>next_X) = next_X(moving_to_treatment_by_ANC_testing_this_timestep>next_X);
+               
                 
-                moving_to_treatment_by_birthcohort_testing_this_timestep(moving_to_treatment_by_birthcohort_testing_this_timestep>next_X) = next_X(moving_to_treatment_by_birthcohort_testing_this_timestep>next_X);
-                next_X(i_treateligible, :, :, :) = next_X(i_treateligible, :, :, :) - moving_to_treatment_by_birthcohort_testing_this_timestep(i_treateligible, :, :, :);
-                next_X(i_TDFtreat, :, :, :) = next_X(i_TDFtreat, :, :, :) + sum(moving_to_treatment_by_birthcohort_testing_this_timestep, 1);
+                if(time<2028)
+                    fprintf("Eligible for ANC treatment: %6.4f at time %6.4f\n",sum(sum(sum(sum(moving_to_treatment_by_ANC_testing_this_timestep,1),2),3),4), time)
+                end
+                %disp("Eligible for ANC treatment")
+                %disp(sum(sum(sum(sum(moving_to_treatment_by_ANC_testing_per_timestep,1),2),3),4))
+                %disp("At time")
+                %disp(time)
+                
+ 
+                next_X(i_treateligible, :, :, :) = next_X(i_treateligible, :, :, :) - moving_to_treatment_by_ANC_testing_this_timestep(i_treateligible, :, :, :);
+                next_X(i_TDFtreat, :, :, :) = next_X(i_TDFtreat, :, :, :) + sum(moving_to_treatment_by_ANC_testing_this_timestep, 1);
             end
         elseif (strcmp(scenario_AddScreenIntervention,"Community screening") || strcmp(scenario_AddScreenIntervention,"Perfect community screening"))
             if strcmp(scenario_AddScreenIntervention,"Community screening")
-                screening_coverage = 0.6;
+                community_screening_coverage = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'DX_community_screening_coverage'),:).Value;
             elseif strcmp(scenario_AddScreenIntervention,"Perfect community screening")
-                screening_coverage = 1.0;
+                community_screening_coverage = 1.0;
             else
                 disp("Error - Unknown screening scenario. Exiting")
                 return
             end
-            
+           
+            %% PLACEHOLDER - 0.05 (probability of starting treatment if screen +ve and eligible).
+            community_screening_prop_start_treat = community_screening_coverage*0.05;
+
             community_screening_start = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'Dx_T_community_screening_start'),:).Value;
             community_screening_end = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'Dx_T_community_screening_end'),:).Value;
+            community_screening_min_age = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'Dx_community_screening_min_age'),:).Value;
+            community_screening_max_age = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'Dx_community_screening_max_age'),:).Value;
+            i_screeningage_min = round(community_screening_min_age/dt); % Individuals born before 1992
+            i_screeningage_max = round(community_screening_max_age/dt); % All individuals born before 1992 (no upper age limit).
+            % Check I haven't accidentally made the min age>max age:
+            assert(i_screeningage_max>i_screeningage_min)
+            assert(i_screeningage_max<=num_age_steps)
             if (time >= community_screening_start && time <= community_screening_end)        
-                %%case I_NO_COHORT_TEST
-                disp("Running birth cohort testing and treatment")
-                disp(time)
-                %%case I_BIRTHCOHORT_SCREENING
+                %% At the beginning work out how many people need to move each timestep:
                 if(time == community_screening_start)
-                    i_cohortage_min = round((birth_cohort_testing_start-1992)/dt); % Individuals born before 1992
-                    i_cohortage_max = round(60/dt); % Individuals born before 1992
-                    % Check I haven't accidentally made the min age>max age:
-                    assert(i_cohortage_max>i_cohortage_min)
-                    birth_cohort_coverage = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'Dx_birthcohort_coverage'),:).Value;
+                    duration_community_screening = community_screening_end-community_screening_start;
+                    %% Check the duration of testing is OK:
+                    assert(duration_community_screening>0 && duration_community_screening<num_years_simul)
+                    
                     %% Note we should use next_X rather than X here:
-                    moving_to_treatment_by_birthcohort_testing_per_timestep(i_treateligible, i_cohortage_min:i_cohortage_max, :, :) = dt * birth_cohort_coverage * next_X(i_treateligible, i_cohortage_min:i_cohortage_max, :, :)/(birth_cohort_testing_end-birth_cohort_testing_start); 
+                    moving_to_treatment_by_community_screening_per_timestep(i_treateligible, i_screeningage_min:i_screeningage_max, :, :) = dt * community_screening_prop_start_treat * next_X(i_treateligible, i_screeningage_min:i_screeningage_max, :, :)/duration_community_screening; 
                     disp("Eligible for cohort treatment")
-                    disp(sum(sum(sum(sum(moving_to_treatment_by_birthcohort_testing_per_timestep,1),2),3),4))
+                    disp(sum(sum(sum(sum(moving_to_treatment_by_community_screening_per_timestep,1),2),3),4))
+                    disp("At time")
+                    disp(time)
                 end
-                disp("At time")
-                disp(time)
                 
-                assert(time<=birth_cohort_testing_end);
-                i_birth_cohort_offset = round((time-birth_cohort_testing_start)/0.1);
-                moving_to_treatment_by_birthcohort_testing_this_timestep(i_treateligible, (i_cohortage_min+i_birth_cohort_offset):i_cohortage_max, :, :) ...
-                    = moving_to_treatment_by_birthcohort_testing_per_timestep(i_treateligible, i_cohortage_min:(i_cohortage_max-i_birth_cohort_offset), :, :);
+                assert(time<=community_screening_end);
+                %% This is the adjustment factor for the age index to account for the time that has passed since the birth cohort started.
+                i_community_screening = round((time-community_screening_start)/dt);
+                i_max = min((i_screeningage_max+i_community_screening),num_age_steps);
+                %% For interventions with no maximum, this ensures we don't exceed the highest index:
+                i_trunc = max((i_screeningage_max+i_community_screening-i_max),0);
+                
+                %% Copy the number of people who need to be screened this timestep (taking into account the fact that they have aged):
+                moving_to_treatment_by_community_screening_this_timestep(i_treateligible, (i_screeningage_min+i_community_screening):i_max, :, :) ...
+                    = moving_to_treatment_by_community_screening_per_timestep(i_treateligible, i_screeningage_min:(i_screeningage_max-i_trunc), :, :);
+
                 %% Set the earlier age group elements to zero if needed:
-                if(i_birth_cohort_offset>0)
-                    moving_to_treatment_by_birthcohort_testing_this_timestep(i_treateligible, i_cohortage_min:(i_cohortage_min+i_birth_cohort_offset-1), :, :) ...
-                        = zeros(length(i_treateligible), i_birth_cohort_offset, num_sexes, num_treat_blocks);
+                if(i_community_screening>0)
+                    moving_to_treatment_by_community_screening_this_timestep(i_treateligible, i_screeningage_min:(i_screeningage_min+i_community_screening-1), :, :) ...
+                        = zeros(length(i_treateligible), i_community_screening, num_sexes, num_treat_blocks);
                 end
                 %% Ensure we never go below 0:
-                moving_to_treatment_by_birthcohort_testing_this_timestep(moving_to_treatment_by_birthcohort_testing_this_timestep>next_X) = next_X(moving_to_treatment_by_birthcohort_testing_this_timestep>next_X);
-                next_X(i_treateligible, :, :, :) = next_X(i_treateligible, :, :, :) - moving_to_treatment_by_birthcohort_testing_this_timestep(i_treateligible, :, :, :);
-                next_X(i_TDFtreat, :, :, :) = next_X(i_TDFtreat, :, :, :) + sum(moving_to_treatment_by_birthcohort_testing_this_timestep, 1);
+                %% Firstly, for any elements of moving_to_treatment_by_community_screening_this_timestep which are > than the corresponding element in next_X, set that to be the value in next_X:
+                moving_to_treatment_by_community_screening_this_timestep(moving_to_treatment_by_community_screening_this_timestep>next_X) = next_X(moving_to_treatment_by_community_screening_this_timestep>next_X);
+                %% Now move thos people to treatment:
+                next_X(i_treateligible, :, :, :) = next_X(i_treateligible, :, :, :) - moving_to_treatment_by_community_screening_this_timestep(i_treateligible, :, :, :);
+                next_X(i_TDFtreat, :, :, :) = next_X(i_TDFtreat, :, :, :) + sum(moving_to_treatment_by_community_screening_this_timestep, 1);
                 %%otherwise
                 %%    disp("Error: Unknown value for scenario_AddScreenIntervention. Exiting")
                 %%    return
-            end 
+            end
 
-        elseif 
-        end %% End of scenario_AddScreenIntervention "Birth cohort screening"
-
-    %%if (time >= birth_cohort_testing_start && time <= birth_cohort_testing_end)
+        end %% End of if statement looping through different screening options.
+    end   %% End of scenario_AddScreenIntervention!="No screening
 
     %% TREATMENT:
-    if (time >= treat_start_year && HAS_TREATMENT~=0)
+    if (time >= treat_start_year && scenario_Treatment>0)
     % 2016 must be the first year with nonzero treatment 
     % therefore start treating from 2015.9 onwards since prevalence is recorded at the top of the loop
 
@@ -1088,7 +1130,7 @@ for time = TimeSteps
             initiated_treatment = true;
         else
             assert(initiated_treatment) % ensure that, each time this code is encountered, treatment has already been initiated
-            
+            %% Treatment rate is the rate that people in the i_treateligible stratum start treatment.
             if (time<=treatment_rate_params.t_treatment_scaleup_start)
                 treatment_rate = treatment_rate_params.Treatmentrate_2016;
             elseif (time>=treatment_rate_params.t_treatment_scaleup_end)
