@@ -297,8 +297,27 @@ Snames = {
     'Non-severe acute', ...  % 14
     'Severe acute' ...  % 15
     }; % 1 x 15 cell array
-num_states = length(Snames);
-assert(num_states==15) % 15 disease states
+
+%% Indices for the natural history structure (note that in HBVmodel.m we copy these into individual vars e.g. i_Susc for speed).
+i_natural_hist = struct('Susc', 1,...
+    'ImmTol', 2,...     % 'HBV: Immune Tolerant' : HBeAg+ with very high HBV DNA (>1e6IU/ml), normal ALT
+    'ImmReact', 3,...     % 'HBV: Immune Reactive' :  HBeAg+ with high HBV DNA (>20000IU/ml), elevated ALT
+    'AsymptCarr', 4,...   % 'HBV: Asymptomatic Carrier': HBeAg- low/undetectable HBV DNA, normal ALT
+    'Chronic', 5,...      % 'HBV: Chronic Hep B': HBeAg-, moderate to high HBV DNA levels, fluctuating/persistently elevated ALT 
+    'CompCirr', 6,...     % 'HBV: Comp Cirrhosis',
+    'DecompCirr', 7,...   % 'HBV: Decomp Cirrhosis',
+    'HCC', 8,...          % 'HBV: Liver Cancer',
+    'Immune', 9,...       % 'HBV: Immune (Rec. or vacc.)',
+    'TDFtreat_LEGACY', 10,...    % 'HBV: TDF-Treatment', ... % 10    - NOT CURRENTLY USED (LEGACY CODE)
+    'HBVdeath', 11,...    % 'Prematurely dead due to HBV', ... % 11
+    'i3TCtreat_LEGACY', 12,...    % '3TC-Treatment', ... % 12  - NOT CURRENTLY USED (LEGACY CODE)
+    'i3TCfailed_LEGACY', 13,...   % 'Failed 3TC-Treatment', ...  % 13 - NOT CURRENTLY USED (LEGACY CODE)
+    'NonSevAcute', 14,... % 'Non-severe acute', ...  % 14
+    'SevereAcute', 15,... % 'Severe acute' ...  % 15
+    'n_nathist_states', 15); %% Number of modelled natural history states
+
+num_nathist_states = i_natural_hist.n_nathist_states;
+assert(num_nathist_states==15) % 15 disease states
 % i_Susc = 1;         % 'Susceptible', 
 % i_ImmTol = 2;       % 'HBV: Immune Tolerant',
 % i_ImmReact = 3;     % 'HBV: Immune Reactive',
@@ -337,37 +356,37 @@ CirrhosisRate_WomenCoFactor = 1;    %% Alters rate of transiton to state 6 (Comp
 
 % Progression parameters - note that some of these are further modified in country_level_analyses.m as follows:
 % Prog() gives basic (identical across age, gender and treatment) progression rates between disease states
-% We then use Prog() to populate Transactions(), which is then further modified according to age, gender and treatment. 
+% We then use Prog() to populate Transitions(), which is then further modified according to age, gender and treatment. 
 % See notes below for which entries in Prog() get modified.
-% Transactions() is what is actually used in the disease progression part of the model.
+% Transitions() is what is actually used in the disease progression part of the model.
 %% In HBVmodel.m we will use a copy of Prog that can be modified by scenario.
 %% Finally - note that certain transitions are dealt with separately:
 % Infection, starting treatment. 
-Prog = zeros(num_states, num_states); % Non-Age Specific Prog parameters stored as (from, to)
+Prog = zeros(num_nathist_states, num_nathist_states); % Non-Age Specific Prog parameters stored as (from, to)
 
 % Fill-in transitions from Immune Tolerant:
 Prog(2, 3) = 0.1;   % Immune tolerant to Immune reactive.  Note - this is adjusted by AgeSpecELossFunction in country_level_analyses.m 
-% Set in Transactions() - Immune Tolerant to HCC (2, 8): {AgeSpecificProgToCancer}   (in country_level_analyses.m)
+% Set in Transitions() - Immune Tolerant to HCC (2, 8): {AgeSpecificProgToCancer}   (in country_level_analyses.m)
 
 % Fill-in transitions from Immune Reactive:
 Prog(3, 4) = 0.05;  % Immune Reactive to Asymptomatic Carrier. Note - this is adjusted by AgeSpecELossFunction in country_level_analyses.m 
 Prog(3, 5) = 0.005; % Immune Reactive to Chronic Hep B. Note - this is adjusted by indicator_vec in country_level_analyses.m
 Prog(3, 6) = 0.028; % Immune Reactive to Comp Cirrhosis. Note - this is age factor in country_level_analyses.m
-% Set in Transactions() - Immune Reactive to HCC (3, 8):  {2 * AgeSpecificProgToCancer}   (in country_level_analyses.m)
+% Set in Transitions() - Immune Reactive to HCC (3, 8):  {2 * AgeSpecificProgToCancer}   (in country_level_analyses.m)
 
 % Fill-in constant transitions from Asymptomatic Carrier:
 Prog(4, 5) = 0.01;  % Asymptomatic Carrier to Chronic Hep B.
 Prog(4, 9) = 0.01;  % Asymptomatic Carrier to Immune (Rec. or vacc.). In country_level_analyses.m this is modified to include a sex-specific co-factor params.ClearanceRateWomenCoFactor
-% Set in Transactions() - Asymptomatic Carrier: to HCC (4, 8):  {0.5 * AgeSpecificProgToCancer}   (in country_level_analyses.m)
+% Set in Transitions() - Asymptomatic Carrier: to HCC (4, 8):  {0.5 * AgeSpecificProgToCancer}   (in country_level_analyses.m)
 
 % Fill-in transitions from Chronic Hep B:
 Prog(5, 6) = 0.04;  % Chronic Hep B to Comp Cirrhosis. Note - this is adjusted by age factor in country_level_analyses.m
-% Set in Transactions() - Chronic Hep B to HCC (5, 8):  {2 * AgeSpecificProgToCancer}   (in country_level_analyses.m)
+% Set in Transitions() - Chronic Hep B to HCC (5, 8):  {2 * AgeSpecificProgToCancer}   (in country_level_analyses.m)
 
 % Fill-in transitions from Compensated Cirrhosis:
 Prog(6, 7) = 0.04;  % Comp Cirrhosis to Decomp Cirrhosis.
 Prog(6, 11) = 0.04; % Comp Cirrhosis to HBV death.
-% Set in Transactions() - Compensated Cirrhosis to HCC (6, 8):  {13 * AgeSpecificProgToCancer}   (in country_level_analyses.m)
+% Set in Transitions() - Compensated Cirrhosis to HCC (6, 8):  {13 * AgeSpecificProgToCancer}   (in country_level_analyses.m)
 
 % Fill-in transitions from Decompensated Cirrhosis:
 Prog(7, 8) = 0.04;  % Decomp Cirrhosis to HCC.
@@ -391,7 +410,7 @@ Prog(13, 11) = 0.3;   % Failed 3TC-Treatment to HBV death.
 % Fill-in transition from Severe acute to death
 Prog(15, 11) = CFR_Acute * rate_6months;
 
-%% Other acute transitions (set in Transactions() in country_level_analyses.m):
+%% Other acute transitions (set in Transitions() in country_level_analyses.m):
 % Non-severe acute to Immune Tolerant:        {p_ChronicCarriage * rate_6months}
 % Non-severe acute to Immune (Rec. or vacc.): {(1 - p_ChronicCarriage) * rate_6months}
 % Severe acute to Immune Tolerant:            {p_ChronicCarriage * (1 - CFR_Acute) * rate_6months}
@@ -532,7 +551,7 @@ for sensitivity_analysis_num=1:num_sensitivity_analyses
             GHO_infacilitybirthproportion_map, ANC_coverage_map, ...
             Polaris_diagnosis_coverage_map, Polaris_treat_coverage_map, ...
             basedir,...
-            num_states,num_year_divisions,dt,ages,num_age_steps,start_year,num_years_simul,end_year,...
+            i_natural_hist,num_year_divisions,dt,ages,num_age_steps,start_year,num_years_simul,end_year,...
             theta,CFR_Acute,rate_6months,ECofactor,p_ChronicCarriage,life_expectancy,...
             Prog)
             %% Arguments moved into PAP_VL_params (with modifications by VL) Efficacy_Treatment_MTCT, p_VerticalTransmission_Tr_BirthDoseVacc, p_VerticalTransmission_Tr_BirthDose_MAP_CPAD,
