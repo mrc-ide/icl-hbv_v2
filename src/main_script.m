@@ -275,7 +275,7 @@ dt = 1/num_year_divisions; % time step
 ages = 0:dt:(100 - dt); % The age group at the beginning of each compartment; 1 x 1000 double; [0 0.1 0.2 ... 99.8 99.9]
 num_age_steps = length(ages); % Number of age-categories (assuming max age is 100 years (i.e. oldest person we see at the start of an iteration is aged 100-dt)
 
-%% Used in cost-effectiveness outputs (in :
+%% Used in cost-effectiveness outputs:
 life_expectancy = 85; % the approximate life-expectancy at birth for persons in Japan and the highest life-expectnacy in the world, which is often taken as the benchmark
 
 

@@ -8,10 +8,30 @@ function output = HBVmodel(source_HBsAg,...
     p_ChronicCarriage,Prog,Transitions, ...
     scenario_BDcoverage, scenario_BDcoverage_fromMAP, ...
     scenario_BDcoverage_fromCPAD, scenario_HepB3coverage, ...
-    scenario_Treatment, max_treatment_coverage, ...
+    scenario_Treatment, scenario_treat_elig, max_treatment_coverage, ...
     ISO, scenario_num, scenario_AddScreenIntervention, ...
     num_year_1980_2100, life_expectancy, ...
     stochas_run_str, sensitivity_analysis, basedir, store_results_as_text)
+
+
+DUMMY_VALUE = -99;  % Used in initialising arrays to a dummy value (-99 should be easy to spot).
+
+%% Establish basic simulation parameters
+agegroups_5yr = 1 + floor(ages / 5); % categorises the ages into age-groups of 5 year width; 1 x 1000 double; [1 1 ... 20 20], each number present 50 times
+agegroups_1yr = 1 + floor(ages); % categorises the ages into age-groups of 1 year width; 1 x 1000 double; [1 1 ... 100 100], each number present 10 times
+
+%% This is the number of 1 year age groups (100):
+num_1yr_age_gps = max(agegroups_1yr);
+
+%% markers for key age boundaries
+i6mo = find(ages >= 0.5, 1); 
+i1y = find(ages >= 1, 1);
+i5y = find(ages >= 5, 1);
+i15y = find(ages >= 15, 1);
+i30y = find(ages >= 30, 1); % age boundary for different treatment eligibility
+
+end_year = start_year + num_years_simul; % 2101
+TimeSteps = start_year:dt:end_year; % 1 x 2101 double; [1890 1890.1 1890.2 ... 2099.8 2099.9 2100 2100.1 ... 2100.8 2100.9 2101]
 
 
 % X-stocks are (infection_state, age, sex(1=women, 2=men), accessible*)   {*accessible
@@ -51,49 +71,105 @@ i_3TCfailed = i_natural_hist.i3TCfailed_LEGACY; % 'Failed 3TC-Treatment', ...  %
 i_NonSevAcute = i_natural_hist.NonSevAcute; % 'Non-severe acute', ...  % 14
 i_SevereAcute = i_natural_hist.SevereAcute; % 'Severe acute' ...  % 15
 %% ALPHA - update these counters to make sure they don't include i_TDFtreat = 10.
-i_alive = setdiff(1:num_disease_states,i_HBVdeath);
+i_alive = setdiff(1:num_disease_states, i_HBVdeath);
 i_acute = [i_NonSevAcute, i_SevereAcute];
 i_eAgpos_chronic = [i_ImmTol, i_ImmReact];  %% Immune Tolerant, Immune Reactive, Non-severe + severe acute.
 
-i_eAgpos = [i_eAgpos_chronic, i_acute];  %% Immune Tolerant, Immune Reactive, Non-severe + severe acute.
+i_eAgpos = sort([i_eAgpos_chronic, i_acute]);  %% Immune Tolerant, Immune Reactive, Non-severe + severe acute.
 
 %% Asymptomatic carrier, Chronic, Comp+Decom Cirr, HCC, failed 3TC. Represents the infectious (but less infectious than eAg+) stages
-i_sAgpos_notEagpos_notreat = [4:8 13];     
+i_sAgpos_notEagpos_notreat = [i_AsymptCarr i_Chronic i_CompCirr i_DecompCirr i_HCC i_3TCfailed];
 
-i_treateligible = [3 5 6 7]; %% Immune Reactive, Chronic, Comp+Decomp Cirr
-i_sAgpos = [2:8 10 12:15];   %% Includes 10 (TDFtreat) and 12 (3TCtreat) states
-i_sAgpos_chronic = [2:8 10 12:13]; 
+%% ALPHA - FIX ME
+i_treateligible = [i_ImmReact i_Chronic i_CompCirr i_DecompCirr]; %% Immune Reactive, Chronic, Comp+Decomp Cirr
+i_treat_legacy = [i_TDFtreat i_3TCtreat];  %% These are legacy states (likely to be repurposed for e.g. cure)
 
+%% Includes 10 (TDFtreat) and 12 (3TCtreat) states
+i_sAgpos_chronic = sort([i_sAgpos_notEagpos_notreat, i_eAgpos_chronic, i_treat_legacy]);
+i_sAgpos = sort([i_sAgpos_chronic, i_acute]);
 
-i_eAgpos_treatelig_under30 = [3];  %% Under 30, immune reactive is eligible but not immune tolerant.
-i_eAgpos_treat_inelig_under30 = [2 14:15];
-i_eAgpos_treatelig_30plus  = [2 3];  %% Only acute is ineligible when aged 30+.
-i_eAgpos_treat_inelig_30plus = i_acute; 
+%i_sAgpos = [2:8 10 12:15];   %% Includes 10 (TDFtreat) and 12 (3TCtreat) states
+%i_sAgpos_chronic = [2:8 10 12:13]; 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Here we sort out the natural history states that are eligble for treatment in the current scenario:
+% i_eAgpos_treatelig_under30 = i_ImmReact;  %% Under 30, immune reactive is eligible but not immune tolerant.
+% i_eAgpos_treat_inelig_under30 = [i_ImmTol, i_acute];
+% i_eAgpos_treatelig_30plus  = [i_ImmTol i_ImmReact];  %% Only acute is ineligible when aged 30+.
+% i_eAgpos_treat_inelig_30plus = i_acute; 
 %% sAg+ (not eAg+) states: 
-i_sAgpos_not_eAgpos_treatelig = [5 6 7];
-i_sAgpos_not_eAgpos_treat_inelig = [4 8]; % Just asymptomatic (4) and HCC (8). Exclude the TDF treatment, 3TC treatment/failed treatment compartments.
+
+%% Make sure these line up with the eligibility in get_treatment_eligible_ageindices.m:
+if(strcmp(scenario_treat_elig,"Current treatment"))
+    i_sAgpos_not_eAgpos_treatelig = [i_Chronic i_CompCirr i_DecompCirr];
+    i_sAgpos_not_eAgpos_treat_inelig = [i_AsymptCarr i_HCC]; % Just asymptomatic (4) and HCC (8). Exclude the TDF treatment, 3TC treatment/failed treatment compartments.
+    i_eAgpos_treatelig_under30 = i_ImmReact;  %% Under 30, immune reactive is eligible but not immune tolerant.
+    i_eAgpos_treat_inelig_under30 = [i_ImmTol, i_acute];
+    i_eAgpos_treatelig_30plus  = [i_ImmTol i_ImmReact];  %% Only acute is ineligible when aged 30+.
+    i_eAgpos_treat_inelig_30plus = i_acute; 
+elseif(strcmp(scenario_treat_elig,"Universal treatment"))
+    i_sAgpos_not_eAgpos_treatelig = [i_Chronic i_CompCirr i_DecompCirr i_AsymptCarr];
+    i_sAgpos_not_eAgpos_treat_inelig = i_HCC; % Just  HCC (8). 
+    i_eAgpos_treatelig_under30 = [i_ImmTol, i_ImmReact];  %% Under 30, immune reactive is eligible but not immune tolerant.
+    i_eAgpos_treat_inelig_under30 = i_acute;
+    i_eAgpos_treatelig_30plus  = [i_ImmTol i_ImmReact];  %% Only acute is ineligible when aged 30+.
+    i_eAgpos_treat_inelig_30plus = i_acute; 
+else
+    disp("Error - unknown value for scenario_treat_elig in HBVmodel.m. Exiting")
+    return
+end
+
+%% Now check the above are consistent with the eligibility criteria in get_treatment_eligible_ageindices() 
+%% - that is used to modify the natural history progression when on treatment
+
+temp_ImmTol = get_treatment_eligible_ageindices(scenario_treat_elig, i_ImmTol, i_natural_hist, ages);
+temp_ImmReact = get_treatment_eligible_ageindices(scenario_treat_elig, i_ImmReact, i_natural_hist, ages);
+temp_AsymptCarr = get_treatment_eligible_ageindices(scenario_treat_elig, i_AsymptCarr, i_natural_hist, ages);
+temp_Chronic = get_treatment_eligible_ageindices(scenario_treat_elig, i_Chronic, i_natural_hist, ages);
+temp_CompCirr = get_treatment_eligible_ageindices(scenario_treat_elig, i_CompCirr, i_natural_hist, ages);
+temp_DecompCirr = get_treatment_eligible_ageindices(scenario_treat_elig, i_DecompCirr, i_natural_hist, ages);
+temp_HCC = get_treatment_eligible_ageindices(scenario_treat_elig, i_HCC, i_natural_hist, ages);
+if(strcmp(scenario_treat_elig,"Current treatment"))
+    if (~isequal(temp_ImmTol,i30y:num_age_steps) || ~isequal(temp_ImmReact,1:num_age_steps) || ...
+        ~isempty(temp_AsymptCarr) || ...
+        ~isequal(temp_Chronic,1:num_age_steps) || ~isequal(temp_CompCirr,1:num_age_steps) || ...
+        ~isequal(temp_DecompCirr,1:num_age_steps) || ~isempty(temp_HCC))
+        disp("Error - one or more of the treatment eligibility criteria (Current treatment) don't match. Exiting")
+        return
+    end
+elseif(strcmp(scenario_treat_elig,"Universal treatment"))
+    if (~isequal(temp_ImmTol,1:num_age_steps) || ~isequal(temp_ImmReact,1:num_age_steps) || ...
+        ~isequal(temp_AsymptCarr,1:num_age_steps) || ...
+        ~isequal(temp_Chronic,1:num_age_steps) || ~isequal(temp_CompCirr,1:num_age_steps) || ...
+        ~isequal(temp_DecompCirr,1:num_age_steps) || ~isempty(temp_HCC))
+        disp("Error - one or more of the treatment eligibility criteria (Universal treatment) don't match. Exiting")
+        return
+    end
+else
+    disp("Error - unknown value for scenario_treat_elig in HBVmodel.m when cross-checking eligibility criteria. Exiting")
+    return
+end
+
+%% Set effectiveness of treatemnt in reducing transmission (different for long-acting treatment):
+if(scenario_Treatment==I_TREAT_LA)
+    RRtrans_effective_treatment = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'RRtrans_effective_LAtreatment'),:).Value;
+    RRtrans_nonadherent_treatment = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'RRtrans_nonadherent_LAtreatment'),:).Value;
+else %% Current treatment:
+    RRtrans_effective_treatment = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'RRtrans_effective_TDFtreatment'),:).Value;
+    RRtrans_nonadherent_treatment = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'RRtrans_nonadherent_TDFtreatment'),:).Value;
+end
+
 
 %% Note that params.dwvec is an external vector that (*SHOULD*) mimic the natural history states of the model. So we need to check that here:
 %% There are three non-zero DALY weights (for *alive* states - the DALYs from death are dealt with separately in make_daly_mat.m).
 %% **NEVER CHANGE THE 7,8,11,15 BELOW TO VARIABLES - THEY HAVE TO BE (MAGIC) NUMBERS***
 assert(i_DecompCirr==7 && i_HCC==8 && i_SevereAcute==15)
 assert(i_HBVdeath==11)
+if ~isequal(find(params.dwvec>0),[7,8,15])
+    disp("Error - params.dwvec has been modified so that non-zero indices no longer correspond to 7,8,15. Exiting")
+    return
+end
 
-
-DUMMY_VALUE = -99;  % Used in initialising arrays to a dummy value (-99 should be easy to spot).
-
-%% Establish basic simulation parameters
-agegroups_5yr = 1 + floor(ages / 5); % categorises the ages into age-groups of 5 year width; 1 x 1000 double; [1 1 ... 20 20], each number present 50 times
-agegroups_1yr = 1 + floor(ages); % categorises the ages into age-groups of 1 year width; 1 x 1000 double; [1 1 ... 100 100], each number present 10 times
-					
-i6mo = find(ages >= 0.5, 1); % markers for key age boundaries
-i1y = find(ages >= 1, 1);
-i5y = find(ages >= 5, 1);
-i15y = find(ages >= 15, 1);
-i30y = find(ages >= 30, 1); % age boundary for different treatment eligibility
-
-end_year = start_year + num_years_simul; % 2101
-TimeSteps = start_year:dt:end_year; % 1 x 2101 double; [1890 1890.1 1890.2 ... 2099.8 2099.9 2100 2100.1 ... 2100.8 2100.9 2101]
 
 
 %% Establish intervention parameters
@@ -265,8 +341,6 @@ p_VertTrans_HbEAg_Treat_MAP  = PAP_VL_params.pRatio_VertTrans_Treat_MAP * params
 p_VertTrans_HbEAg_Treat_CPAD = PAP_VL_params.pRatio_VertTrans_Treat_CPAD * params.p_VerticalTransmission_HbEAg_NoIntv;
 
 
-RRtrans_effective_treatment = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'RRtrans_effective_treatment'),:).Value;
-RRtrans_nonadherent_treatment = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'RRtrans_nonadherent_treatment'),:).Value;
     
 %% Allow treatment for EAg- SAg+ individuals if needed (not currently used):
 %%p_VertTrans_HbSAg_Treat      = PAP_VL_params.pRatio_VertTrans_Treat * params.p_VerticalTransmission_HbSAg_NoIntv;
@@ -394,23 +468,24 @@ beta_5plus = params.beta_5plus;
 % ----- Infection-relate parameters -----
 
 %% The following would make the horiontal transmission probability time-dependent (decreasing by some fraction beta_scaler.
-ReducInTransmission = params.ReducInTransmission;              % Fractional reduction in transmission. Currently set to 0
-YearReducInTransmission = params.YearReducInTransmission;      % Turning point year for reduction. Currently set to 2100
-DurReducInTransmission = 15;                                  % Time taken to complete change - MP: note that this is not actually that. 
-%% MP: beta_scaler seems to be legacy code. Currently ReducInTransmission is 0. Otherwise (even with YearReducInTransmission=2100)
+%% However it is currently set (by the parameters) to be unused legacy code.
+CalendarTimeReducInTransmission = params.ReducInTransmission;              % Fractional reduction in transmission. Currently set to 0
+YearCalendarReducInTransmission = params.YearReducInTransmission;      % Turning point year for reduction. Currently set to 2100
+DurCalendarTimeReducInTransmission = 15;                                  % Time taken to complete change - MP: note that this is not actually that. 
+%% MP: beta_scaler seems to be legacy code. Currently CalendarTimeReducInTransmission is 0. Otherwise (even with YearCalendarReducInTransmission=2100)
 %% we still get some reduction in beta, and quite a large reduction after 2080 (reaching 50% reduction in 2100).
 
 %% Check the number of timesteps per year (num_year_divisions) is an integer (and not infinity/non-integer/NaN):
 assert(mod(num_year_divisions, 1)==0)
-beta_scaler = ReducInTransmission ./ (1 + exp( (TimeSteps - (YearReducInTransmission)) ./ (DurReducInTransmission / num_year_divisions) ));
+beta_scaler = CalendarTimeReducInTransmission ./ (1 + exp( (TimeSteps - (YearCalendarReducInTransmission)) ./ (DurCalendarTimeReducInTransmission / num_year_divisions) ));
 
-beta_U5_SAg = beta_U5 * (1 - ReducInTransmission) + beta_U5 * zeros(size(beta_scaler));  % NOT TIME DEPENDENT as no beta_scaler.
+beta_U5_SAg = beta_U5 * (1 - CalendarTimeReducInTransmission) + beta_U5 * zeros(size(beta_scaler));  % NOT TIME DEPENDENT as no beta_scaler.
 beta_U5_EAg = min(1.0, beta_U5_SAg * ECofactor); % probabilities have to be capped at 1.
 
-beta_1to15_SAg = beta_1to15 * (1 - ReducInTransmission) + beta_1to15 * beta_scaler;  % TIME DEPENDENT as beta_scaler is.
+beta_1to15_SAg = beta_1to15 * (1 - CalendarTimeReducInTransmission) + beta_1to15 * beta_scaler;  % TIME DEPENDENT as beta_scaler is.
 beta_1to15_EAg = min(1.0, beta_1to15_SAg * ECofactor); % probabilities have to be capped at 1.
 
-beta_5plus_SAg = beta_5plus * (1 - ReducInTransmission) + beta_5plus * beta_scaler;  % TIME DEPENDENT as beta_scaler is.
+beta_5plus_SAg = beta_5plus * (1 - CalendarTimeReducInTransmission) + beta_5plus * beta_scaler;  % TIME DEPENDENT as beta_scaler is.
 beta_5plus_EAg = min(1.0, beta_5plus_SAg * ECofactor); % probabilities have to be capped at 1.
 
 
@@ -448,9 +523,11 @@ if strcmp(source_HBsAg,'Cui')
        StartPrev_byAgeGroups(last_non_nan_pos:end,:) = repmat(StartPrev_byAgeGroups(last_non_nan_pos,:),size(nan_positions,1)-last_non_nan_pos+1,1);
     end
     %% MP: Magic numbers 3 1
-    StartPrev_byAgeGroups = [StartPrev_byAgeGroups(1:end-1,:); repmat(StartPrev_byAgeGroups(end,:),3,1)];
     % params.HBsAg_prevs_middle_year_1 is a 18 x 2 double of age group by gender
     % params.HBsAg_prevs_middle_year_1 age groups: 0--4 5--9 10--14 15--19 20--24 25--29 30--34 35--39 40--44 45--49 50--54 55--59 60--64 65--69 70--74 75--79 80--84 85+
+    % So the "3" is because we replicate the 85+ prevalence (so in the
+    % model it is the prevalence in 85-89, 90-94, 95-99)
+    StartPrev_byAgeGroups = [StartPrev_byAgeGroups(1:end-1,:); repmat(StartPrev_byAgeGroups(end,:),3,1)];
     %% Magic number 20 - probably length(unique(agegroups_5yr))
     assert(isequal(size(StartPrev_byAgeGroups),[20 num_sexes]))
 
@@ -461,7 +538,7 @@ if strcmp(source_HBsAg,'Cui')
 elseif strcmp(source_HBsAg,'CDA')
     %% MP: Magic numbers 99.9, 6, 1, 2
     StartPrev_byAgeGroups = [repmat(params.country_HBsAg_prevalences_by_ages_mid_1_young_old(1),num_year_divisions*(5.9-0.0)+1,2); ...
-        repmat(params.country_HBsAg_prevalences_by_ages_mid_1_young_old(2),num_year_divisions*(99.9-6.0)+1,2)];
+        repmat(params.country_HBsAg_prevalences_by_ages_mid_1_young_old(2),num_year_divisions*(99.9-6.0)+1, num_sexes)];
     % apply prevalence in 5-year-olds to 0 to 6 year olds; apply prevalence in all ages to 6 to 99 year olds
     assert(isequal(size(StartPrev_byAgeGroups),[num_age_steps num_sexes]))
 
@@ -471,10 +548,10 @@ elseif strcmp(source_HBsAg,'WHO')
     under_5_pos_vec_len = length(find(ages<=5.0));
     over_5_pos_vec_len = length(find(ages>5.0));
     assert(under_5_pos_vec_len+over_5_pos_vec_len==num_age_steps)
-    %% MP: Magic numbers 1, 2, 2, 2
+    %% MP: Magic numbers 1, 2 (these correspond to the U5 prevalence and the >5 prevalences in the data).
     StartPrev_byAgeGroups = [ ...
-        repmat(params.country_HBsAg_prevalences_by_ages_prevacc_young_old(1),under_5_pos_vec_len,2); ...
-        repmat(params.country_HBsAg_prevalences_by_ages_prevacc_young_old(2),over_5_pos_vec_len,2) ...
+        repmat(params.country_HBsAg_prevalences_by_ages_prevacc_young_old(1),under_5_pos_vec_len,num_sexes); ...
+        repmat(params.country_HBsAg_prevalences_by_ages_prevacc_young_old(2),over_5_pos_vec_len,num_sexes) ...
         ];
     assert(isequal(size(StartPrev_byAgeGroups),[num_age_steps num_sexes]))
 
@@ -533,7 +610,6 @@ assert(isequal(size(Prog),size(zeros(num_disease_states, num_disease_states))));
 % prepare storage containers, for outputs once per year
 % breakdowns by age/sex
 
-%% TAM: mini-chunk
 [NumSAg_5yr, PrevEAg_of_SAg_5yr] = deal(-99 * ones(2, max(agegroups_5yr), (num_years_simul+1))); 
 
 %% Note that this excludes Vertical transmission
@@ -570,11 +646,11 @@ if(store_results_as_text==1)
     %%X_to_print = DUMMY_VALUE * ones(max(agegroups_5yr)*ncol_X_to_print, num_years_simul + 1);
 end
 
-%% Mini TAM: 
 %% Get HepB3:
-%% Infection stage susceptible (so x1), Age gp - age 6m (so x1), by sex (so x2). All newborns are in the "undiagnosed" (so x1) stage:
+%% Infection stage susceptible (so x1), Age gp - age 6m (so x1), by sex (so x2), by treatment stratum:
 %% ALPHA (DONE) - changed for new treatment structure. Previously was transfer_to_HepB3vacc = zeros(1, 1, num_sexes, 2);
 %% transfer_to_HepB3vacc is the proportion of infants getting HepB3 who become immune.
+
 transfer_to_HepB3vacc = zeros(1, 1, num_sexes, num_treat_blocks);
 
 
@@ -626,11 +702,10 @@ moving_to_diagnosed_by_birthcohort_testing_this_timestep = zeros(size(X));
 moving_to_diagnosed_by_community_screening_per_timestep = zeros(size(X));
 moving_to_diagnosed_by_community_screening_this_timestep = zeros(size(X));
 
-%% Note that moving_to_diagnosed_by_ANC_testing_this_timestep is defined separately (as it's an ongoing intervention rather than a fixed-period one).
+%% Note that moving_to_diagnosed_by_ANC_testing_this_timestep is defined separately 
+%% (as it's an ongoing intervention rather than a fixed-period one).
 
 for time = TimeSteps 
-       
-    
     % Update mortality and fertility rates
     mu = zeros(num_disease_states, num_age_steps, num_sexes, num_treat_blocks);
     % The "1"s below represent the one gender we are considering at a time
@@ -644,8 +719,8 @@ for time = TimeSteps
     % params.fert is a 1000 x (num_years_simul+1) matrix; ages in 0.1 year jumps versus 212 years
     %% MP: Magic number 1:10:end
     fert = params.fert(1:10:end, OutputEventNum);
-    %% MP: Magic numbers 100 1
-    assert(isequal(size(fert), [100 1]))
+    %% MP: Magic number 1 - in the previous step we converted fert to a num_1yr_age_gps (100) vector (the 1 is just because it is treating it as a 100x1 matrix):
+    assert(isequal(size(fert), [num_1yr_age_gps 1]))
     %% MP: Magic number 1
     fert = repmat(fert',num_year_divisions,1);
     fert = fert(:);  % Reshape fert into a 1D vector from a matrix
@@ -657,7 +732,6 @@ for time = TimeSteps
     assert(isscalar(net_migration))
     net_migration = repmat(net_migration, [num_disease_states num_age_steps num_sexes num_treat_blocks]);
 
-
     
     % Compute Outputs once per year
     if rem(time, 1) == 0 % only saves variables in this "for" loop every 10 time steps (or once a year, since dt=0.1)
@@ -668,7 +742,7 @@ for time = TimeSteps
         if (time >= 1950)
             base_year_montagu = 1949; %% So 1950 corresponds to index 1.
             n_years_montagu_rescaling = end_year - base_year_montagu; %% 152 years.
-            %% Sum over first (natural history) and 4th (treatment) strata:
+            %% Sum over first (natural history) and 4th (treatment) strata - so this is the current population divided by age and sex:
             ModelPop = squeeze(sum(sum(X(i_alive,:,:,:), 1), 4));
             assert(isequal(size(ModelPop),[num_age_steps num_sexes]))
             % sum over disease state of alive people and treatment; ModelPop is 1000 x 2 i.e. age groups versus gender
@@ -676,12 +750,12 @@ for time = TimeSteps
             % params.total_pop_female is a 101 x 152 matrix of n_years_montagu_rescaling years (1950 to 2101 inclusive) for 101 age groups (0--0, 1--1, 2--2,..., 98--98, 99--99, 100--100)
             assert(isequal(size(params.total_pop_male),[101 n_years_montagu_rescaling]))
             col_index = time - base_year_montagu;
-            %% MP: magic numbers 1:100 represent indexes in params.total_pop for ages 0-99
-            MontaguPopFemale = params.total_pop_female(1:100,col_index);
+            %% MP: magic numbers 1:num_1yr_age_gps represent indexes in params.total_pop for ages 0-99
+            MontaguPopFemale = params.total_pop_female(1:num_1yr_age_gps,col_index);
             % only want ages 0--99
-            MontaguPopMale = params.total_pop_male(1:100,col_index);
+            MontaguPopMale = params.total_pop_male(1:num_1yr_age_gps,col_index);
             MontaguPop = [MontaguPopFemale MontaguPopMale];
-            assert(isequal(size(MontaguPop),[100 num_sexes]))    %% MP: Magic number 100 is number of 1-year age gps 0-99.
+            assert(isequal(size(MontaguPop),[num_1yr_age_gps num_sexes]))    %% MP: num_1yr_age_gps is number of 1-year age gps 0-99.
             MontaguPopExpand = MontaguPop(agegroups_1yr, :) * dt;
             % agegroups_1yr is a 1 x 1000 double; [1 1 ... 100 100], each number present 10 times
             % expanding MontaguPop from 1 year age steps to 0.1 year age steps
@@ -692,11 +766,13 @@ for time = TimeSteps
             ScalerMat(isinf(ScalerMat)) = 0;
             pop_scaler = repmat(reshape(ScalerMat, [1 num_age_steps num_sexes]), [num_disease_states 1 1 num_treat_blocks]);
             % MontaguPopExpand is sizes of the current year's population over 0.1 year age steps; a 1000 x 2 matrix of ages versus gender
-            % add an extra dimension and duplicate it for each disease state and treatment method
+            % add an extra dimension and duplicate it for each disease
+            % state and treatment stratum
             X = X .* pop_scaler;
             if(time==2025)
             %disp([min(ScalerMat),max(ScalerMat)])
                 disp("Uncomment the line below to show scalarmat")
+                disp("***FIX Prev_TDF_treat_1yr***")
                 %%disp("Scalarmat here:")
                 %%disp(ScalerMat)
             end
@@ -709,7 +785,7 @@ for time = TimeSteps
 
         for k = 1:num_sexes % genders
 
-            for ag = 1:max(agegroups_1yr) % 1:100
+            for ag = 1:num_1yr_age_gps % 1:100
  
                 if OutputEventNum > 1
                 
@@ -717,19 +793,22 @@ for time = TimeSteps
                     state_prev_vec = squeeze(sum(sum(X(:, agegroups_1yr == ag, k, :), 2), 4)); % k is gender
                     assert(isequal(size(state_prev_vec),[num_disease_states 1]))
 
-                    Tot_Pop_1yr(k, ag, OutputEventNum-1) = sum(state_prev_vec(i_alive));
-                
+                    Tot_Pop_1yr(k, ag, OutputEventNum-1) = sum(state_prev_vec(i_alive));                
                     Prev_Immune_Reactive_1yr(k, ag, OutputEventNum-1) = state_prev_vec(i_ImmReact);
-                
                     Prev_Chronic_Hep_B_1yr(k, ag, OutputEventNum-1) = state_prev_vec(i_Chronic);
-
                     Prev_Comp_Cirr_1yr(k, ag, OutputEventNum-1) = state_prev_vec(i_CompCirr);
-
                     Prev_Decomp_Cirr_1yr(k, ag, OutputEventNum-1) = state_prev_vec(i_DecompCirr);
-
                     Prev_Liver_Cancer_1yr(k, ag, OutputEventNum-1) = state_prev_vec(i_HCC);
-                
-                    Prev_TDF_treat_1yr(k, ag, OutputEventNum-1) = state_prev_vec(i_TDFtreat);
+                    
+                    %% ALPHA - Prev_TDF_treat_1yr is now the sum over groups in care (note that this will depend on eligibility):
+                    if(ag<30)
+                        i_treatelig_thisage = sort([i_eAgpos_treatelig_under30,i_sAgpos_not_eAgpos_treatelig]);
+                    else
+                        i_treatelig_thisage = sort([i_eAgpos_treatelig_30plus,i_sAgpos_not_eAgpos_treatelig]);
+                    end
+                    %%i_treatelig_thisage = get_treatment_eligible_nathistindices(scenario_treat_elig, ag, i_natural_hist, ages);
+                    Prev_TDF_treat_1yr(k, ag, OutputEventNum-1) = squeeze(sum(sum(sum(X(i_treatelig_thisage, agegroups_1yr == ag, k, [i_appropriate_management,i_incare_nonadherent]), 1), 2), 4));
+                    %%Prev_TDF_treat_1yr(k, ag, OutputEventNum-1) = state_prev_vec(i_TDFtreat);
 
                     %% MP TODO: Maybe remove this as the HBV deaths compartment has the same "edge of cliff" thing
                     %% where people aged 99 drop off the model once they turn 100 (so anyone who died age 99 is no longer counted).
@@ -737,10 +816,9 @@ for time = TimeSteps
                     %% It might be possible to patch it a bit (say truncate at age 95 to reduce the ScalerMat issue, then cumulatively count deaths
                     %% adding the new 95 yo dead people to an existing cumulative counter of people who are dead who would be 95+ now).
                     Prev_Deaths_1yr(k, ag, OutputEventNum-1) = state_prev_vec(i_HBVdeath);
-
                     NumSAg_1yr(k, ag, OutputEventNum-1) = sum(state_prev_vec(i_sAgpos));
-                
                     NumSAg_chronic_1yr(k, ag, OutputEventNum-1) = sum(state_prev_vec(i_sAgpos_chronic));
+
                     %% params.dwvec is a length-15 vector (so contains states). For now this is OK (I've added an assert statement which will hopefully stop me making unwanted changes to the state variable indices). 
                     %% "yld" = "(disability-adjusted life-)years living with disease. Deaths (yll_spread) is calculated in make_daly_mat.m using Prev_Deaths_1yr.
                     yld_1yr(k, ag, OutputEventNum-1) = sum( state_prev_vec .* params.dwvec' );
@@ -748,17 +826,11 @@ for time = TimeSteps
                     %% MP: Magic numbers: sum over second (age) and 4th (treatment states):
                     %% The first index in NewChronicCarriage() has to be 1 (it does not represent susceptibles!) - NewChronicCarriage ...= deal(zeros(1, num_age_steps, num_sexes, num_treat_blocks));
                     Incid_chronic_all_1yr_approx(k,ag,OutputEventNum-1) = sum(sum(NewChronicCarriage(1, agegroups_1yr == ag, k, :), 2), 4);
-
                     Incid_Deaths_1yr_approx(k, ag, OutputEventNum-1) = sum(state_prev_vec .* Prog(:, i_HBVdeath));
 
-
-                    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                    %% TAM: PAP mini-chunk 1
                     Prev_HCC_1yr(k, ag, OutputEventNum-1) = state_prev_vec(i_HCC);
                     NumEAg_chronic_1yr(k, ag, OutputEventNum-1) = sum(state_prev_vec(i_eAgpos_chronic));
                     NumEAg_chronic_acute_1yr(k, ag, OutputEventNum-1) = sum(state_prev_vec(i_eAgpos));
-                    %% TAM: End of PAP mini-chunk 1
-                    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
                 end
                 
             end % end agegroups_1yr for loop
@@ -776,7 +848,7 @@ for time = TimeSteps
             for ag = 1:max(agegroups_5yr) % 1:20
 														
                 if OutputEventNum > 1
-                    % model results assigned to a particular year at the beginning of that year, after which they are zeroed
+                    % model results assigned to a particular year at the beginning of that year, after which they are zero'd
                     NumSAg_5yr(k, ag, OutputEventNum-1) = sum(sum(sum(X(i_sAgpos, agegroups_5yr == ag, k, :))));
                 
                     if NumSAg_5yr(k, ag, OutputEventNum-1)>0
@@ -809,7 +881,7 @@ for time = TimeSteps
 
 
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        %% TAM: PAP mini-chunk 2
+        %% PAP mini-chunk 2
         if OutputEventNum > 1
             %% Sum over all dimensions (2,3,4) except natural history:
             state_prev_vec = squeeze(sum(sum(sum(X,2),3),4)); % 15 x 1
@@ -921,7 +993,7 @@ for time = TimeSteps
     n_child_1y_15y = sum(sum(sum(sum(X(i_alive, i1y:(i15y - 1), :, :)))));
     n_pop_5y_andabove = sum(sum(sum(sum(X(i_alive, i5y:end, :, :)))));
     
-    %% Children 1-5:    
+    %% Children 1-5:
     FOI(1, i1y:(i5y - 1), :, :) = ...
         ... %% In care (either optimally or non-optimally) but ineligible for treatment:
         + beta_U5_SAg(i_dt) * sum(sum(sum(sum(X(i_sAgpos_not_eAgpos_treat_inelig, i1y:(i5y - 1), :, [i_appropriate_management i_incare_nonadherent]))))) / n_child_1y_5y ...
@@ -977,8 +1049,8 @@ for time = TimeSteps
     
 
     % Disease Progression
-    %% ALPHA-5. Note - this lacks flexibility to allow different treatment levels to have different progression rates.
-    %% Solution - make different progression matrices Transitions.Values (but *MAKE THEM TREATMENT STRATUM AND AGE-SPECIFIC* - allow individuals >=30 to have different criteria)
+    %% ALPHA-5. 
+    %% There are now different progression matrices Transitions.Values (*TREATMENT STRATUM AND AGE-SPECIFIC* - as treatment eligibility is currently age-specific)
     next_X = X;
     for tr = 1:length(Transitions.From)
         %%transaction_vals = Transitions.Values{tr};
@@ -991,9 +1063,9 @@ for time = TimeSteps
 
 
 
-    % Check - no lamivudine treatment any more so right now these *must* be
-    % zero. Note that
-    assert(squeeze(sum(sum(sum(sum(X([i_3TCtreat i_3TCfailed], :, :, 1),1),2),3),4))==0)
+    % Check - no lamivudine treatment any more (and TDF treatment is now dealt with separately) so right now these *must* be
+    % zero.
+    assert(squeeze(sum(sum(sum(sum(X([i_TDFtreat i_3TCtreat i_3TCfailed], :, :, 1),1),2),3),4))==0)
 
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1020,12 +1092,13 @@ for time = TimeSteps
                     % Check I haven't accidentally made the min age>max age:
                     assert(i_cohortage_max>i_cohortage_min)
                     birth_cohort_coverage = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'Dx_birthcohort_coverage'),:).Value;
-                    
+                    %% Duration of birth cohort testing intervention (in years):
                     duration_birth_cohort_testing = birth_cohort_testing_end-birth_cohort_testing_start;
                     %% Check the duration of testing is OK:
                     assert(duration_birth_cohort_testing>0 && duration_birth_cohort_testing<num_years_simul)
                     
                     %% Note we should use next_X rather than X here:
+                    %% ALPHA - FIX ME
                     
                     moving_to_diagnosed_by_birthcohort_testing_per_timestep(i_treateligible, i_cohortage_min:i_cohortage_max, :, :) ...
                         = dt * birth_cohort_coverage * next_X(i_treateligible, i_cohortage_min:i_cohortage_max, :, :)/duration_birth_cohort_testing; 
@@ -1181,7 +1254,7 @@ for time = TimeSteps
                 %% Note - prev_pop is whole pop, so that treat_coverage_in_2016 is coverage in the whole population of sAg+.
                 total_num_to_move_to_treat = treat_coverage_in_2016 * prev_pop;
                 %% Eligible pop is only among those who would seek treatment:
-
+                %%i_get_treatment_eligible_nathistindices(scenario_treat_elig, *THIS_AGE*, i_natural_hist, ages);
                 eligible_pop = squeeze(sum(sum(sum(X(i_treateligible, :, :, i_seektreat),1),2),3)); 
                 
                 %% For low coverages it is possible to have 0 eligible but >0 coverage (due to rounding) so only care if >1%:
@@ -1249,7 +1322,7 @@ for time = TimeSteps
                 %% Check if the proportion currently seeking treatment is already above the threshold:
                 prop_currently_seek_treat = sum(sum(sum(sum(next_X(:, :, :, i_seektreat),1),2),3),4)/sum(sum(sum(sum(next_X(:, :, :, :),1),2),3),4);
                 assert(prop_currently_seek_treat>=0 && prop_currently_seek_treat<=1)
-                disp("Current treatment")
+                disp(scenario_treat_elig)
                 disp(time)
                 disp(prop_currently_seek_treat)
                 if(prop_currently_seek_treat<max_treatment_coverage)
@@ -1616,19 +1689,19 @@ for time = TimeSteps
 end % end "time = TimeSteps" for loop
 
 output.Time = Time; % 1 x (num_years_simul + 1)
-output.Tot_Pop_1yr = Tot_Pop_1yr; % 2 x 100 x (num_years_simul + 1)
+output.Tot_Pop_1yr = Tot_Pop_1yr; % 2 x num_1yr_age_gps x (num_years_simul + 1)
 output.num_births_1yr = num_births_1yr; % 1 x (num_years_simul + 1)
-output.Incid_chronic_all_1yr_approx = Incid_chronic_all_1yr_approx; % 2 x 100 x (num_years_simul + 1)
-output.Prev_Immune_Reactive_1yr = Prev_Immune_Reactive_1yr; % 2 x 100 x (num_years_simul + 1)
-output.Prev_Chronic_Hep_B_1yr = Prev_Chronic_Hep_B_1yr; % 2 x 100 x (num_years_simul + 1)
-output.Prev_Comp_Cirr_1yr = Prev_Comp_Cirr_1yr; % 2 x 100 x (num_years_simul + 1)
-output.Prev_Decomp_Cirr_1yr = Prev_Decomp_Cirr_1yr; % 2 x 100 x (num_years_simul + 1)
-output.Prev_TDF_treat_1yr = Prev_TDF_treat_1yr; % 2 x 100 x (num_years_simul + 1)
-output.NumSAg_1yr = NumSAg_1yr; % 2 x 100 x (num_years_simul + 1)
-output.NumSAg_chronic_1yr = NumSAg_chronic_1yr; % 2 x 100 x (num_years_simul + 1)
-output.yld_1yr = yld_1yr; % 2 x 100 x (num_years_simul + 1)
-output.Incid_Deaths_1yr_approx = Incid_Deaths_1yr_approx; % 2 x 100 x (num_years_simul + 1)
-output.Prev_Deaths_1yr = Prev_Deaths_1yr; % 2 x 100 x (num_years_simul + 1)
+output.Incid_chronic_all_1yr_approx = Incid_chronic_all_1yr_approx; % 2 x num_1yr_age_gps x (num_years_simul + 1)
+output.Prev_Immune_Reactive_1yr = Prev_Immune_Reactive_1yr; % 2 x num_1yr_age_gps x (num_years_simul + 1)
+output.Prev_Chronic_Hep_B_1yr = Prev_Chronic_Hep_B_1yr; % 2 x num_1yr_age_gps x (num_years_simul + 1)
+output.Prev_Comp_Cirr_1yr = Prev_Comp_Cirr_1yr; % 2 x num_1yr_age_gps x (num_years_simul + 1)
+output.Prev_Decomp_Cirr_1yr = Prev_Decomp_Cirr_1yr; % 2 x num_1yr_age_gps x (num_years_simul + 1)
+output.Prev_TDF_treat_1yr = Prev_TDF_treat_1yr; % 2 x num_1yr_age_gps x (num_years_simul + 1)
+output.NumSAg_1yr = NumSAg_1yr; % 2 x num_1yr_age_gps x (num_years_simul + 1)
+output.NumSAg_chronic_1yr = NumSAg_chronic_1yr; % 2 x num_1yr_age_gps x (num_years_simul + 1)
+output.yld_1yr = yld_1yr; % 2 x num_1yr_age_gps x (num_years_simul + 1)
+output.Incid_Deaths_1yr_approx = Incid_Deaths_1yr_approx; % 2 x num_1yr_age_gps x (num_years_simul + 1)
+output.Prev_Deaths_1yr = Prev_Deaths_1yr; % 2 x num_1yr_age_gps x (num_years_simul + 1)
 
 
 
@@ -1644,7 +1717,7 @@ i_PAPoutputs_end   = find(Time >= t_PAPoutputs_end, 1);
 output.PrevEAg = PrevEAg_of_SAg_5yr(:,:,i_PAPoutputs_start:i_PAPoutputs_end); % 2 x 20 x num_years_output
 %% Note that this excludes Vertical transmission
 output.NewChronicInfectionRate = Incid_chronic_all_5yr_approx_no_VertTrans(:,:,i_PAPoutputs_start:i_PAPoutputs_end); % 2 x 20 x num_years_output
-%%output.Tot_Pop_1yr = Tot_Pop_1yr(:,:,i_PAPoutputs_start:i_PAPoutputs_end); % 2 x 100 x num_years_output
+%%output.Tot_Pop_1yr = Tot_Pop_1yr(:,:,i_PAPoutputs_start:i_PAPoutputs_end); % 2 x num_1yr_age_gps x num_years_output
 output.NewChronicInfectionRate_NeonatesOnly = Incid_babies_chronic_1yr_approx(i_PAPoutputs_start:i_PAPoutputs_end); % 1 x num_years_output
 output.NumDecompCirr = NumDecompCirr(i_PAPoutputs_start:i_PAPoutputs_end); % 1 x num_years_output
 
@@ -1659,12 +1732,12 @@ assert(max(abs(...
     squeeze(sum(sum(Prev_Liver_Cancer_1yr(:,:,i_PAPoutputs_start:i_PAPoutputs_validation_end),1),2)) - ...
     NumLiverCancer(i_PAPoutputs_start:i_PAPoutputs_validation_end)'...
     )) < 1e-8); % squeeze(sum(sum(Prev_Liver_Cancer_1yr,1),2)) is a num_years_output x 1 matrix
-%%output.NumSAg_1yr = NumSAg_1yr(:,:,i_PAPoutputs_start:i_PAPoutputs_end); % 2 x 100 x num_years_output
-output.NumEAg_chronic_1yr = NumEAg_chronic_1yr(:,:,i_PAPoutputs_start:i_PAPoutputs_end); % 2 x 100 x num_years_output
-output.NumEAg_chronic_acute_1yr = NumEAg_chronic_acute_1yr(:,:,i_PAPoutputs_start:i_PAPoutputs_end); % 2 x 100 x num_years_output
-%%output.yld_1yr = yld_1yr(:,:,i_PAPoutputs_start:i_PAPoutputs_end); % 2 x 100 x num_years_output
-%%output.Incid_Deaths_1yr_approx = Incid_Deaths_1yr_approx(:,:,i_PAPoutputs_start:i_PAPoutputs_end); % 2 x 100 x num_years_output
-%%output.Prev_Deaths_1yr = Prev_Deaths_1yr(:,:,i_PAPoutputs_start:i_PAPoutputs_end); % 2 x 100 x num_years_output
+%%output.NumSAg_1yr = NumSAg_1yr(:,:,i_PAPoutputs_start:i_PAPoutputs_end); % 2 x num_1yr_age_gps x num_years_output
+output.NumEAg_chronic_1yr = NumEAg_chronic_1yr(:,:,i_PAPoutputs_start:i_PAPoutputs_end); % 2 x num_1yr_age_gps x num_years_output
+output.NumEAg_chronic_acute_1yr = NumEAg_chronic_acute_1yr(:,:,i_PAPoutputs_start:i_PAPoutputs_end); % 2 x num_1yr_age_gps x num_years_output
+%%output.yld_1yr = yld_1yr(:,:,i_PAPoutputs_start:i_PAPoutputs_end); % 2 x num_1yr_age_gps x num_years_output
+%%output.Incid_Deaths_1yr_approx = Incid_Deaths_1yr_approx(:,:,i_PAPoutputs_start:i_PAPoutputs_end); % 2 x num_1yr_age_gps x num_years_output
+%%output.Prev_Deaths_1yr = Prev_Deaths_1yr(:,:,i_PAPoutputs_start:i_PAPoutputs_end); % 2 x num_1yr_age_gps x num_years_output
 output.num_births_toHbEAgWomenHVL_1yr_approx = num_births_toHbEAgWomenHVL_1yr_approx(i_PAPoutputs_start:i_PAPoutputs_end); % 1 x num_years_output
 output.num_births_toHbEAgWomenLVL_1yr_approx = num_births_toHbEAgWomenLVL_1yr_approx(i_PAPoutputs_start:i_PAPoutputs_end); % 1 x num_years_output
 output.num_births_toHbSAgWomenHVL_1yr_approx = num_births_toHbSAgWomenHVL_1yr_approx(i_PAPoutputs_start:i_PAPoutputs_end); % 1 x num_years_output
@@ -1932,8 +2005,9 @@ function output_labels=construct_header(agegroups, num_disease_states, num_sexes
     D_labels = strings(1, num_disease_states); for i = 1:num_disease_states; D_labels(i) = "D" + string(i); end
     
     n_age_groups = max(agegroups);
-    %% "100" because maximum age is (100-dt) (ages run from 0.0-(100-dt)).
-    age_width = 100/max(agegroups);
+    
+    
+    age_width = 1;  %% We are outputting in 1 year age groups.
     age_labels = strings(1, n_age_groups); 
     for i = 1:n_age_groups
         age_min = string((i-1)*age_width);

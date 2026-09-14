@@ -17,6 +17,7 @@ function country_level_analyses(sensitivity_analysis,...
        error('No input')
     end
 
+    
 
     i_sexes = struct('F', 1, 'M', 2, 'n_sexes',2);
     
@@ -39,11 +40,15 @@ function country_level_analyses(sensitivity_analysis,...
     T_INTERVENTION_START_BD = 2026.0;
     T_INTERVENTION_END_BD  = 2031.0;
 
-    RRprogress_effective_treatment_nonCC = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'RRprogress_effective_treatment_nonCC'),:).Value;
-    RRprogress_effective_treatment_CC = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'RRprogress_effective_treatment_CC'),:).Value;
-    RRprogress_nonadherent_treatment_nonCC = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'RRprogress_nonadherent_treatment_nonCC'),:).Value;
-    RRprogress_nonadherent_treatment_CC = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'RRprogress_nonadherent_treatment_CC'),:).Value;
+    RRprogress_effective_TDFtreatment_nonCC = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'RRprogress_effective_TDFtreatment_nonCC'),:).Value;
+    RRprogress_effective_TDFtreatment_CC = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'RRprogress_effective_TDFtreatment_CC'),:).Value;
+    RRprogress_nonadherent_TDFtreatment_nonCC = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'RRprogress_nonadherent_TDFtreatment_nonCC'),:).Value;
+    RRprogress_nonadherent_TDFtreatment_CC = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'RRprogress_nonadherent_TDFtreatment_CC'),:).Value;
     
+    RRprogress_effective_LAtreatment_nonCC = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'RRprogress_effective_LAtreatment_nonCC'),:).Value;
+    RRprogress_effective_LAtreatment_CC = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'RRprogress_effective_LAtreatment_CC'),:).Value;
+    RRprogress_nonadherent_LAtreatment_nonCC = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'RRprogress_nonadherent_LAtreatment_nonCC'),:).Value;
+    RRprogress_nonadherent_LAtreatment_CC = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'RRprogress_nonadherent_LAtreatment_CC'),:).Value;
 
 
 
@@ -204,7 +209,6 @@ function country_level_analyses(sensitivity_analysis,...
                 
                 % %% This is a vector containing the age indices people can be on treatment for the given starting natural history state:
                 % treat_eligibility_ageindices = get_treatment_eligible_ageindices(ages, transactions_from(tr), i_natural_hist);
-                % 
                 % %% Different relative rate multiplier when on treatment (vs not) for CC/death versus other disease progressions:
                 % if(transactions_to(tr)==i_natural_hist.HCC || transactions_to(tr)==i_natural_hist.HBVdeath)
                 %     thisRR_effective_treatment = RRprogress_effective_treatment_CC;
@@ -225,13 +229,12 @@ function country_level_analyses(sensitivity_analysis,...
                 %     temparray(:,treat_eligibility_ageindices,:,i_care.appropriate_management) = thisRR_effective_treatment*temparray(:,treat_eligibility_ageindices,:,i_care.appropriate_management);
                 %     temparray(:,treat_eligibility_ageindices,:,i_care.incare_nonadherent) = thisRR_nonadherent_treatment*temparray(:,treat_eligibility_ageindices,:,i_care.incare_nonadherent);
                 % end
-                
 
                 % For each to-from pair, form a 1 x num_age_steps x 2 x 2 double containing the progression parameter for that to-from transition
                 % Arrange this sequence of matrices in a cell array called Transitions.Values, which is contained in Transitions
                 Transitions.From(tr) = transactions_from(tr);
                 Transitions.To(tr) = transactions_to(tr);
-                Transitions.Values(tr) = {temparray}; 
+                Transitions.Values_withouttreat_withouttreat(tr) = {temparray}; 
             end
 
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -242,19 +245,19 @@ function country_level_analyses(sensitivity_analysis,...
             %% None of these vary by treatment (because not on treatment if acute)
             Transitions.From(length(Transitions.From) + 1) = i_natural_hist.NonSevAcute;
             Transitions.To(length(Transitions.To) + 1) = i_natural_hist.ImmTol;
-            Transitions.Values(length(Transitions.Values) + 1) = {p_ChronicCarriage * rate_6months};
+            Transitions.Values_withouttreat(length(Transitions.Values_withouttreat) + 1) = {p_ChronicCarriage * rate_6months};
 
             Transitions.From(length(Transitions.From) + 1) = i_natural_hist.NonSevAcute;
             Transitions.To(length(Transitions.To) + 1) = i_natural_hist.Immune;
-            Transitions.Values(length(Transitions.Values) + 1) = {(1 - p_ChronicCarriage) * rate_6months};
+            Transitions.Values_withouttreat(length(Transitions.Values_withouttreat) + 1) = {(1 - p_ChronicCarriage) * rate_6months};
 
             Transitions.From(length(Transitions.From) + 1) = i_natural_hist.SevereAcute;
             Transitions.To(length(Transitions.To) + 1) = i_natural_hist.ImmTol;
-            Transitions.Values(length(Transitions.Values) + 1) = {p_ChronicCarriage * (1 - CFR_Acute) * rate_6months};
+            Transitions.Values_withouttreat(length(Transitions.Values_withouttreat) + 1) = {p_ChronicCarriage * (1 - CFR_Acute) * rate_6months};
 
             Transitions.From(length(Transitions.From) + 1) = i_natural_hist.SevereAcute;
             Transitions.To(length(Transitions.To) + 1) = i_natural_hist.Immune;
-            Transitions.Values(length(Transitions.Values) + 1) = {(1 - p_ChronicCarriage) * (1 - CFR_Acute) * rate_6months};
+            Transitions.Values_withouttreat(length(Transitions.Values_withouttreat) + 1) = {(1 - p_ChronicCarriage) * (1 - CFR_Acute) * rate_6months};
 
             % Add age-specific progression immune tolerant -> immune reactive -> asymptomatic (2,3) and (3,4)
             AgeSpecELossFunction=params.SpeedUpELoss_F*exp(-params.SpeedUpELoss_Beta*ages);
@@ -264,14 +267,14 @@ function country_level_analyses(sensitivity_analysis,...
             Transitions.To(length(Transitions.To)+1)     = i_natural_hist.ImmReact;
             %% Now make care-stratum specific (+age+sex) progression rate:
             temparray = repmat(Prog_scenario(i_natural_hist.ImmTol,i_natural_hist.ImmReact)*AgeSpecELossFunction,[1, 1, i_sexes.n_sexes, i_care.n_care_blocks]);
-            Transitions.Values(length(Transitions.Values)+1) = {temparray};
+            Transitions.Values_withouttreat(length(Transitions.Values_withouttreat)+1) = {temparray};
 
             %% Immune Reactive >- Asymptomatic (age-specific):
             Transitions.From(length(Transitions.From)+1) = i_natural_hist.ImmReact;
             Transitions.To(length(Transitions.To)+1) = i_natural_hist.AsymptCarr;
             %% Now make care-stratum specific (+age+sex) progression rate:
             temparray = repmat(Prog_scenario(i_natural_hist.ImmReact,i_natural_hist.AsymptCarr)*AgeSpecELossFunction,[1, 1, i_sexes.n_sexes, i_care.n_care_blocks]);
-            Transitions.Values(length(Transitions.Values)+1) = {temparray};
+            Transitions.Values_withouttreat(length(Transitions.Values_withouttreat)+1) = {temparray};
 
             % Modify immune reactive to chronic (3,5)  to an age-specific progression
             shortcut_rate_age = 20;
@@ -280,14 +283,14 @@ function country_level_analyses(sensitivity_analysis,...
             %%indicator_vec = [zeros(1,shortcut_rate_age*10) ones(1,num_age_steps - shortcut_rate_age*10)];
             tmp_pos = find((Transitions.From == i_natural_hist.ImmReact) & (Transitions.To == i_natural_hist.Chronic));
             assert(isscalar(tmp_pos))
-            tmp_mat = Transitions.Values(tmp_pos);
+            tmp_mat = Transitions.Values_withouttreat(tmp_pos);
             tmp_mat = tmp_mat{1};
             assert(min(min(min(min(tmp_mat))))==max(max(max(max(tmp_mat)))))
 
             tmp_mat(:,1:i_shortcut_rate_age,:,:) = 0;
-            %%Transitions.Values(tmp_pos) = {repmat(Prog_scenario(i_natural_hist.ImmReact, i_natural_hist.Chronic)*indicator_vec,...
+            %%Transitions.Values_withouttreat(tmp_pos) = {repmat(Prog_scenario(i_natural_hist.ImmReact, i_natural_hist.Chronic)*indicator_vec,...
             %%    [1, 1, i_sexes.n_sexes, i_care.n_care_blocks])}; % 1 x num_age_steps x 2 x 2 double giving progression rates for this to-from pair
-            Transitions.Values(tmp_pos) = {tmp_mat};
+            Transitions.Values_withouttreat(tmp_pos) = {tmp_mat};
 
             trans_rate_age = 25; % generic setting - at this age the rate of transition from chronic Hep B to comp cirrhosis is minimised (it's 0).
             trans_rate_by_age = (params.cirrh_rate_coeff*(ages - trans_rate_age)).^2; 
@@ -298,7 +301,7 @@ function country_level_analyses(sensitivity_analysis,...
             trans_rate_by_age_chronic_to_compcirr = Prog_scenario(i_natural_hist.Chronic,i_natural_hist.CompCirr)*trans_rate_by_age;
             tmp_pos = find((Transitions.From == i_natural_hist.Chronic) & (Transitions.To == i_natural_hist.CompCirr));
             assert(isscalar(tmp_pos))
-            tmp_mat = Transitions.Values(tmp_pos);
+            tmp_mat = Transitions.Values_withouttreat(tmp_pos);
             tmp_mat = tmp_mat{1};
             assert(min(min(min(min(tmp_mat))))==max(max(max(max(tmp_mat)))))
             tmp_mat = repmat(trans_rate_by_age_chronic_to_compcirr,[1, 1, i_sexes.n_sexes, i_care.n_care_blocks]); % 1 x num_age_steps x 2 x 2 double giving progression rates for this to-from pair
@@ -306,13 +309,13 @@ function country_level_analyses(sensitivity_analysis,...
             tmp_mat(:,:,i_sexes.M,:) = tmp_mat(:,:,i_sexes.M,:)*params.CirrhosisRate_MenCoFactor;
             %% Cap value at 5:
             tmp_mat = min(5, tmp_mat);
-            Transitions.Values(tmp_pos) = {tmp_mat};
+            Transitions.Values_withouttreat(tmp_pos) = {tmp_mat};
 
             % Modify Immune Reactive to Comp Cirrhosis (3,6) to an age-specific progression
             trans_rate_by_age_immreact_to_compcirr = Prog_scenario(i_natural_hist.ImmReact, i_natural_hist.CompCirr)*trans_rate_by_age;
             tmp_pos = find((Transitions.From == i_natural_hist.ImmReact) & (Transitions.To == i_natural_hist.CompCirr));
             assert(isscalar(tmp_pos))
-            tmp_mat = Transitions.Values(tmp_pos);
+            tmp_mat = Transitions.Values_withouttreat(tmp_pos);
             tmp_mat = tmp_mat{1};
             assert(min(min(min(min(tmp_mat))))==max(max(max(max(tmp_mat)))))
             tmp_mat = repmat(trans_rate_by_age_immreact_to_compcirr,[1, 1, i_sexes.n_sexes, i_care.n_care_blocks]); % 1 x num_age_steps x 2 x 2 double giving progression rates for this to-from pair
@@ -320,15 +323,15 @@ function country_level_analyses(sensitivity_analysis,...
             tmp_mat(:,:,i_sexes.M,:) = tmp_mat(:,:,i_sexes.M,:)*params.CirrhosisRate_MenCoFactor;
             %% Again cap at max value 5:
             tmp_mat = min(5, tmp_mat);
-            Transitions.Values(tmp_pos) = {tmp_mat};
+            Transitions.Values_withouttreat(tmp_pos) = {tmp_mat};
 
 
             % Add sex-specific co-factor to clearance (asympt -> immune) (4, 9)
             tmp_pos = find((Transitions.From == i_natural_hist.AsymptCarr) & (Transitions.To == i_natural_hist.Immune));
             assert(isscalar(tmp_pos))
-            tmp = Transitions.Values{tmp_pos}; % 1 x num_age_steps x 2 x 2 double giving progression rates for this to-from pair
+            tmp = Transitions.Values_withouttreat{tmp_pos}; % 1 x num_age_steps x 2 x 2 double giving progression rates for this to-from pair
             tmp(:, :, i_sexes.F, :) = tmp(:, :, i_sexes.F, :) * params.ClearanceRateWomenCoFactor;
-            Transitions.Values(tmp_pos) = {tmp};
+            Transitions.Values_withouttreat(tmp_pos) = {tmp};
 
 
             % Add age-specific progresion to HCC (2, 3, 4, 5, 6)-->8
@@ -345,57 +348,25 @@ function country_level_analyses(sensitivity_analysis,...
 
             Transitions.From(length(Transitions.From) + 1) = i_natural_hist.ImmTol;
             Transitions.To(length(Transitions.To) + 1) = i_natural_hist.HCC;
-            Transitions.Values(length(Transitions.Values) + 1) = {AgeSpecificProgToCancer};
+            Transitions.Values_withouttreat(length(Transitions.Values_withouttreat) + 1) = {AgeSpecificProgToCancer};
 
             Transitions.From(length(Transitions.From) + 1) = i_natural_hist.ImmReact;
             Transitions.To(length(Transitions.To) + 1) = i_natural_hist.HCC;
-            Transitions.Values(length(Transitions.Values) + 1) = {2 * AgeSpecificProgToCancer};
+            Transitions.Values_withouttreat(length(Transitions.Values_withouttreat) + 1) = {2 * AgeSpecificProgToCancer};
 
             Transitions.From(length(Transitions.From) + 1) = i_natural_hist.AsymptCarr;
             Transitions.To(length(Transitions.To) + 1) = i_natural_hist.HCC;
-            Transitions.Values(length(Transitions.Values) + 1) = {0.5 * AgeSpecificProgToCancer};
+            Transitions.Values_withouttreat(length(Transitions.Values_withouttreat) + 1) = {0.5 * AgeSpecificProgToCancer};
 
             Transitions.From(length(Transitions.From) + 1) = i_natural_hist.Chronic;
             Transitions.To(length(Transitions.To) + 1) = i_natural_hist.HCC;
-            Transitions.Values(length(Transitions.Values) + 1) = {2 * AgeSpecificProgToCancer};
+            Transitions.Values_withouttreat(length(Transitions.Values_withouttreat) + 1) = {2 * AgeSpecificProgToCancer};
 
             Transitions.From(length(Transitions.From) + 1) = i_natural_hist.CompCirr;
             Transitions.To(length(Transitions.To) + 1) = i_natural_hist.HCC;
-            Transitions.Values(length(Transitions.Values) + 1) = {13 * AgeSpecificProgToCancer};
+            Transitions.Values_withouttreat(length(Transitions.Values_withouttreat) + 1) = {13 * AgeSpecificProgToCancer};
 
 
-            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-            %% Now alter Transitions to account for treatment - this is the least bad way I can see to do this.
-            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-            for i_transition = 1:length(Transitions.From)
-                start_state = Transitions.From(i_transition);
-                end_state = Transitions.To(i_transition);
-                %% This is the transition matrix (unmodified by treatment):
-                temparray = Transitions.Values(i_transition);
-                temparray = temparray{1};
-                treat_eligibility_ageindices = get_treatment_eligible_ageindices(ages, start_state, i_natural_hist);
-                %% Now modify the rate of progression of temparray for any age groups that can be in treatment:
-                if(~isempty(treat_eligibility_ageindices))  %% Checks if any age groups can be in treatment for this natural history state
-                    %% Different relative rate multiplier when on treatment (vs not) for CC/death versus other disease progressions:
-                    if(end_state==i_natural_hist.HCC || end_state==i_natural_hist.HBVdeath)
-                        thisRR_effective_treatment = RRprogress_effective_treatment_CC;
-                        thisRR_nonadherent_treatment = RRprogress_nonadherent_treatment_CC;
-                    elseif(start_state==i_natural_hist.ImmReact || start_state==i_natural_hist.Chronic ...
-                            || start_state==i_natural_hist.CompCirr || start_state==i_natural_hist.DecompCirr)
-                        %% These are the "non-CC" transitions:
-                        thisRR_effective_treatment = RRprogress_effective_treatment_nonCC;
-                        thisRR_nonadherent_treatment = RRprogress_nonadherent_treatment_nonCC;
-                    else
-                        %% No effect (because not on treatment):
-                        thisRR_effective_treatment = 1;
-                        thisRR_nonadherent_treatment = 1;
-                    end 
-                    temparray(:,treat_eligibility_ageindices,:,i_care.appropriate_management) = thisRR_effective_treatment*temparray(:,treat_eligibility_ageindices,:,i_care.appropriate_management);
-                    temparray(:,treat_eligibility_ageindices,:,i_care.incare_nonadherent) = thisRR_nonadherent_treatment*temparray(:,treat_eligibility_ageindices,:,i_care.incare_nonadherent);
-                    %% Store the updated matrix:
-                    Transitions.Values(i_transition) = {temparray};
-                end
-            end  %% End for loop.
     
 
             years_vec_01yr = start_year:dt:end_year;
@@ -1123,6 +1094,43 @@ function country_level_analyses(sensitivity_analysis,...
                     return
             end
         
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            %% Now get time trends of PAP coverage (divided into those with/without BD, and by whether EAg+/SAg+ and high/low VL): 
+            % Coverage of PAP among those with BD
+            %% TAM cov_BirthDoseAndTDF_EAgHighVL_itt
+            PAP_cov_params.scenario_PAPcoverage_BDandPAP_EAgHighVL = PAP_coverage_scaleup(start_year, PAP_cov_params.Past_TScaleup_PAP_start, PAP_cov_params.Past_TScaleup_PAP_end,...
+                PAP_cov_params.Intervention_TScaleup_PAP_start, PAP_cov_params.Intervention_TScaleup_PAP_end, end_year,...
+                PAP_cov_params.current_cov_BDandPAP_EAgHighVL, PAP_cov_params.max_cov_BDandPAP_EAgHighVL, dt);
+
+            PAP_cov_params.scenario_PAPcoverage_BDandPAP_EAgLowVL = PAP_coverage_scaleup(start_year, PAP_cov_params.Past_TScaleup_PAP_start, PAP_cov_params.Past_TScaleup_PAP_end,...
+                PAP_cov_params.Intervention_TScaleup_PAP_start, PAP_cov_params.Intervention_TScaleup_PAP_end, end_year,...
+                PAP_cov_params.current_cov_BDandPAP_EAgLowVL, PAP_cov_params.max_cov_BDandPAP_EAgLowVL, dt);
+            
+            PAP_cov_params.scenario_PAPcoverage_BDandPAP_SAgHighVL = PAP_coverage_scaleup(start_year, PAP_cov_params.Past_TScaleup_PAP_start, PAP_cov_params.Past_TScaleup_PAP_end,...
+                PAP_cov_params.Intervention_TScaleup_PAP_start, PAP_cov_params.Intervention_TScaleup_PAP_end, end_year,...
+                PAP_cov_params.current_cov_BDandPAP_SAgHighVL, PAP_cov_params.max_cov_BDandPAP_SAgHighVL, dt);
+    
+            PAP_cov_params.scenario_PAPcoverage_BDandPAP_SAgLowVL = PAP_coverage_scaleup(start_year, PAP_cov_params.Past_TScaleup_PAP_start, PAP_cov_params.Past_TScaleup_PAP_end,...
+                PAP_cov_params.Intervention_TScaleup_PAP_start, PAP_cov_params.Intervention_TScaleup_PAP_end, end_year,...
+                PAP_cov_params.current_cov_BDandPAP_SAgLowVL, PAP_cov_params.max_cov_BDandPAP_SAgLowVL, dt);
+
+            % Coverage of PAP among those not with BD
+            PAP_cov_params.scenario_PAPcoverage_PAPonly_EAgHighVL = PAP_coverage_scaleup(start_year, PAP_cov_params.Past_TScaleup_PAP_start, PAP_cov_params.Past_TScaleup_PAP_end,...
+                PAP_cov_params.Intervention_TScaleup_PAP_start, PAP_cov_params.Intervention_TScaleup_PAP_end, end_year,...
+                PAP_cov_params.current_cov_PAPonly_EAgHighVL, PAP_cov_params.max_cov_PAPonly_EAgHighVL, dt);
+
+            PAP_cov_params.scenario_PAPcoverage_PAPonly_EAgLowVL = PAP_coverage_scaleup(start_year, PAP_cov_params.Past_TScaleup_PAP_start, PAP_cov_params.Past_TScaleup_PAP_end,...
+                PAP_cov_params.Intervention_TScaleup_PAP_start, PAP_cov_params.Intervention_TScaleup_PAP_end, end_year,...
+                PAP_cov_params.current_cov_PAPonly_EAgLowVL, PAP_cov_params.max_cov_PAPonly_EAgLowVL, dt);
+            
+            PAP_cov_params.scenario_PAPcoverage_PAPonly_SAgHighVL = PAP_coverage_scaleup(start_year, PAP_cov_params.Past_TScaleup_PAP_start, PAP_cov_params.Past_TScaleup_PAP_end,...
+                PAP_cov_params.Intervention_TScaleup_PAP_start, PAP_cov_params.Intervention_TScaleup_PAP_end, end_year,...
+                PAP_cov_params.current_cov_PAPonly_SAgHighVL, PAP_cov_params.max_cov_PAPonly_SAgHighVL, dt);
+    
+            PAP_cov_params.scenario_PAPcoverage_PAPonly_SAgLowVL = PAP_coverage_scaleup(start_year, PAP_cov_params.Past_TScaleup_PAP_start, PAP_cov_params.Past_TScaleup_PAP_end,...
+                PAP_cov_params.Intervention_TScaleup_PAP_start, PAP_cov_params.Intervention_TScaleup_PAP_end, end_year,...
+                PAP_cov_params.current_cov_PAPonly_SAgLowVL, PAP_cov_params.max_cov_PAPonly_SAgLowVL, dt);
+
 
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             %% Diagnosis and treatment:
@@ -1140,6 +1148,7 @@ function country_level_analyses(sensitivity_analysis,...
                     %%'prop_wouldseektreat_tchange',0.5);
             switch scenario_Treatment
                 case I_TREAT_SQ           %% Use current rates of treatment uptake and failure.
+                    scenario_treat_elig = "Current treatment";
                     %%params.PriorTDFTreatRate = stochas_params_mat(stochas_run_num,country_start_col+7);
                     treatment_rate_params.Treatmentrate_final = treatment_rate_params.Treatmentrate_2016;
                     treatment_rate_params.prop_diagnosed_t0 = Polaris_diagnosis_coverage_map(ISO);
@@ -1155,6 +1164,7 @@ function country_level_analyses(sensitivity_analysis,...
                 %     treatment_rate_params.prop_wouldseektreat_tchange = 0;
                 %     treatment_rate_params.t_remove_treatment_barriers = 9999; % Dummy value at time beyond any simulation.
                 case I_TREAT_continuedimprovement
+                    scenario_treat_elig = "Current treatment";
                     treatment_rate_params.annual_increase_diagnosis = Intervention_data_thiscountry.ContImp_Dx_annual_increase;
                     treatment_rate_params.annual_increase_treatifdiag = Intervention_data_thiscountry.ContImp_TxifDx_annual_increase;
                     treatment_rate_params.Treatmentrate_final = treatment_boundaries_vec(5); % 80% scenario from MJDV code - corresponds to about 0.15/yr for ETH/GMB.
@@ -1166,6 +1176,7 @@ function country_level_analyses(sensitivity_analysis,...
                     %treatment_rate_params.prop_wouldseektreat_tchange = new_diag_prop*new_treatlink_prop;
                     treatment_rate_params.t_remove_treatment_barriers = T_INTERVENTION_START;
                 case I_TREAT_IFscreeing
+                    scenario_treat_elig = "Current treatment";
                     %% PLACEHOLDER
                     %prop_accessing_healthcare_F = [0,0,0,0.02,0.02,0.02,0.03,0.03,0.03,0.04,0.04,0.05,0.1,0.2,0.4,0.4,0.5,0.5,0.5,0.5];
                     %prop_accessing_healthcare_M = [0,0,0,0.02,0.02,0.02,0.03,0.03,0.03,0.04,0.04,0.05,0.1,0.2,0.4,0.4,0.5,0.5,0.5,0.5];
@@ -1185,6 +1196,7 @@ function country_level_analyses(sensitivity_analysis,...
 
                 %% PLACEHOLDER:
                 case I_TREAT_IntegratedServices
+                    scenario_treat_elig = "Current treatment";
                     treatment_rate_params.annual_increase_diagnosis = Intervention_data_thiscountry.ContImp_Dx_annual_increase;
                     treatment_rate_params.annual_increase_treatifdiag = Intervention_data_thiscountry.ContImp_TxifDx_annual_increase;
                     treatment_rate_params.Treatmentrate_final = treatment_boundaries_vec(5); % 80% scenario from MJDV code - corresponds to about 0.15/yr for ETH/GMB.
@@ -1197,6 +1209,7 @@ function country_level_analyses(sensitivity_analysis,...
                     treatment_rate_params.t_remove_treatment_barriers = T_INTERVENTION_START;
                 %% PLACEHOLDER:
                 case I_TREAT_PoCeligibility
+                    scenario_treat_elig = "Current treatment";
                     treatment_rate_params.annual_increase_diagnosis = Intervention_data_thiscountry.ContImp_Dx_annual_increase;
                     treatment_rate_params.annual_increase_treatifdiag = Intervention_data_thiscountry.ContImp_TxifDx_annual_increase;
                     treatment_rate_params.Treatmentrate_final = treatment_boundaries_vec(5); % 80% scenario from MJDV code - corresponds to about 0.15/yr for ETH/GMB.
@@ -1209,6 +1222,7 @@ function country_level_analyses(sensitivity_analysis,...
                     treatment_rate_params.t_remove_treatment_barriers = T_INTERVENTION_START;
                 %% PLACEHOLDER:
                 case I_TREAT_universal
+                    scenario_treat_elig = "Universal treatment";
                     treatment_rate_params.annual_increase_diagnosis = Intervention_data_thiscountry.ContImp_Dx_annual_increase;
                     treatment_rate_params.annual_increase_treatifdiag = Intervention_data_thiscountry.ContImp_TxifDx_annual_increase;
                     treatment_rate_params.Treatmentrate_final = treatment_boundaries_vec(5); % 80% scenario from MJDV code - corresponds to about 0.15/yr for ETH/GMB.
@@ -1221,6 +1235,7 @@ function country_level_analyses(sensitivity_analysis,...
                     treatment_rate_params.t_remove_treatment_barriers = T_INTERVENTION_START;
                 %% PLACEHOLDER:
                 case I_TREAT_LA
+                    scenario_treat_elig = "Current treatment";
                     treatment_rate_params.annual_increase_diagnosis = Intervention_data_thiscountry.ContImp_Dx_annual_increase;
                     treatment_rate_params.annual_increase_treatifdiag = Intervention_data_thiscountry.ContImp_TxifDx_annual_increase;
                     treatment_rate_params.Treatmentrate_final = treatment_boundaries_vec(5); % 80% scenario from MJDV code - corresponds to about 0.15/yr for ETH/GMB.
@@ -1232,6 +1247,7 @@ function country_level_analyses(sensitivity_analysis,...
                     %treatment_rate_params.prop_wouldseektreat_tchange = new_diag_prop*new_treatlink_prop;
                     treatment_rate_params.t_remove_treatment_barriers = T_INTERVENTION_START;
                 case I_TREAT_decentralised
+                    scenario_treat_elig = "Current treatment";
                     %% TO DO - DECIDE IF THERE SHOULD BE AN (IMMEDIATE?) INCREASE IN THOSE CURRENTLY ON TREATMENT BY THE SAME MULTIPLIER.
                     %% Proportion of country that is rural:
                     prop_rural = Intervention_data_thiscountry.Decentralisation_prop_rural;
@@ -1248,6 +1264,7 @@ function country_level_analyses(sensitivity_analysis,...
                     treatment_rate_params.t_remove_treatment_barriers = T_INTERVENTION_START;
                 %% PLACEHOLDER
                 case I_TREAT_cureBepi
+                    scenario_treat_elig = "Current treatment";
                     treatment_rate_params.annual_increase_diagnosis = Intervention_data_thiscountry.ContImp_Dx_annual_increase;
                     treatment_rate_params.annual_increase_treatifdiag = Intervention_data_thiscountry.ContImp_TxifDx_annual_increase;
                     treatment_rate_params.Treatmentrate_final = treatment_boundaries_vec(5); % 80% scenario from MJDV code - corresponds to about 0.15/yr for ETH/GMB.
@@ -1260,6 +1277,7 @@ function country_level_analyses(sensitivity_analysis,...
                     treatment_rate_params.t_remove_treatment_barriers = T_INTERVENTION_START;
                 %% PLACEHOLDER
                 case I_TREAT_curev2
+                    scenario_treat_elig = "Current treatment";
                     treatment_rate_params.annual_increase_diagnosis = Intervention_data_thiscountry.ContImp_Dx_annual_increase;
                     treatment_rate_params.annual_increase_treatifdiag = Intervention_data_thiscountry.ContImp_TxifDx_annual_increase;
                     treatment_rate_params.Treatmentrate_final = treatment_boundaries_vec(5); % 80% scenario from MJDV code - corresponds to about 0.15/yr for ETH/GMB.
@@ -1271,6 +1289,7 @@ function country_level_analyses(sensitivity_analysis,...
                     %treatment_rate_params.prop_wouldseektreat_tchange = new_diag_prop*new_treatlink_prop;
                     treatment_rate_params.t_remove_treatment_barriers = T_INTERVENTION_START;
                 case I_TREATlink45
+                    scenario_treat_elig = "Current treatment";
                     treatment_rate_params.Treatmentrate_final = treatment_boundaries_vec(5); % 80% scenario from MJDV code - corresponds to about 0.15/yr for ETH/GMB.
                     treatment_rate_params.prop_diagnosed_t0 = Polaris_diagnosis_coverage_map(ISO);
                     treatment_rate_params.prop_treatifdiag_t0 = Polaris_treat_coverage_map(ISO);
@@ -1282,6 +1301,7 @@ function country_level_analyses(sensitivity_analysis,...
                     %%treatment_rate_params.prop_wouldseektreat_tchange = Polaris_diagnosis_coverage_map(ISO)*new_treatlink_prop;
                     treatment_rate_params.t_remove_treatment_barriers = T_INTERVENTION_START;
                 case I_diag70percent
+                    scenario_treat_elig = "Current treatment";
                     treatment_rate_params.Treatmentrate_final = treatment_boundaries_vec(5); % 80% scenario from MJDV code - corresponds to about 0.15/yr for ETH/GMB.
                     treatment_rate_params.prop_diagnosed_t0 = Polaris_diagnosis_coverage_map(ISO);
                     treatment_rate_params.prop_treatifdiag_t0 = Polaris_treat_coverage_map(ISO);
@@ -1293,6 +1313,7 @@ function country_level_analyses(sensitivity_analysis,...
                     %%treatment_rate_params.prop_wouldseektreat_tchange = Polaris_diagnosis_coverage_map(ISO)*new_treatlink_prop;
                     treatment_rate_params.t_remove_treatment_barriers = T_INTERVENTION_START;
                 case I_TREAT_PLUS
+                    scenario_treat_elig = "Current treatment";
                     treatment_rate_params.Treatmentrate_final = treatment_boundaries_vec(5); % 80% scenario from MJDV code - corresponds to about 0.15/yr for ETH/GMB.
                     treatment_rate_params.prop_diagnosed_t0 = Polaris_diagnosis_coverage_map(ISO);
                     treatment_rate_params.prop_treatifdiag_t0 = Polaris_treat_coverage_map(ISO);
@@ -1360,46 +1381,62 @@ function country_level_analyses(sensitivity_analysis,...
             % end
 
 
-            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-            %% Now get time trends of PAP coverage (divided into those with/without BD, and by whether EAg+/SAg+ and high/low VL): 
-            % Coverage of PAP among those with BD
-            %% TAM cov_BirthDoseAndTDF_EAgHighVL_itt
-            start_year_simul = 1890;
-            last_year_run = end_year;
-            PAP_cov_params.scenario_PAPcoverage_BDandPAP_EAgHighVL = PAP_coverage_scaleup(start_year_simul, PAP_cov_params.Past_TScaleup_PAP_start, PAP_cov_params.Past_TScaleup_PAP_end,...
-                PAP_cov_params.Intervention_TScaleup_PAP_start, PAP_cov_params.Intervention_TScaleup_PAP_end, last_year_run,...
-                PAP_cov_params.current_cov_BDandPAP_EAgHighVL, PAP_cov_params.max_cov_BDandPAP_EAgHighVL, dt);
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            %% Now alter Transitions to account for treatment - this is the least bad way I can see to do this.
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-            PAP_cov_params.scenario_PAPcoverage_BDandPAP_EAgLowVL = PAP_coverage_scaleup(start_year_simul, PAP_cov_params.Past_TScaleup_PAP_start, PAP_cov_params.Past_TScaleup_PAP_end,...
-                PAP_cov_params.Intervention_TScaleup_PAP_start, PAP_cov_params.Intervention_TScaleup_PAP_end, last_year_run,...
-                PAP_cov_params.current_cov_BDandPAP_EAgLowVL, PAP_cov_params.max_cov_BDandPAP_EAgLowVL, dt);
-            
+            if(scenario_Treatment==I_TREAT_SQ || scenario_Treatment==I_TREAT_continuedimprovement || ...
+                    scenario_Treatment==I_TREAT_IFscreeing || scenario_Treatment==I_TREAT_IntegratedServices || ...
+                    scenario_Treatment==I_TREAT_PoCeligibility || scenario_Treatment==I_TREAT_universal || ...
+                    scenario_Treatment==I_TREAT_decentralised || ...
+                    scenario_Treatment==I_TREAT_cureBepi || scenario_Treatment==I_TREAT_curev2)
+                %% Tenofovir-based treatment:
+                RRprogress_effective_treatment_nonCC = RRprogress_effective_TDFtreatment_nonCC;
+                RRprogress_effective_treatment_CC = RRprogress_effective_TDFtreatment_CC;
+                RRprogress_nonadherent_treatment_nonCC = RRprogress_nonadherent_TDFtreatment_nonCC;
+                RRprogress_nonadherent_treatment_CC = RRprogress_nonadherent_TDFtreatment_CC;
+            elseif(scenario_Treatment==I_TREAT_LA)
+                %% Tenofovir-based treatment:
+                RRprogress_effective_treatment_nonCC = RRprogress_effective_LAtreatment_nonCC;
+                RRprogress_effective_treatment_CC = RRprogress_effective_LAtreatment_CC;
+                RRprogress_nonadherent_treatment_nonCC = RRprogress_nonadherent_LAtreatment_nonCC;
+                RRprogress_nonadherent_treatment_CC = RRprogress_nonadherent_LAtreatment_CC;
+            else
+                disp("Error - unknown treatment scenario. Exiting")
+                return
+            end
 
-            PAP_cov_params.scenario_PAPcoverage_BDandPAP_SAgHighVL = PAP_coverage_scaleup(start_year_simul, PAP_cov_params.Past_TScaleup_PAP_start, PAP_cov_params.Past_TScaleup_PAP_end,...
-                PAP_cov_params.Intervention_TScaleup_PAP_start, PAP_cov_params.Intervention_TScaleup_PAP_end, last_year_run,...
-                PAP_cov_params.current_cov_BDandPAP_SAgHighVL, PAP_cov_params.max_cov_BDandPAP_SAgHighVL, dt);
-    
-            PAP_cov_params.scenario_PAPcoverage_BDandPAP_SAgLowVL = PAP_coverage_scaleup(start_year_simul, PAP_cov_params.Past_TScaleup_PAP_start, PAP_cov_params.Past_TScaleup_PAP_end,...
-                PAP_cov_params.Intervention_TScaleup_PAP_start, PAP_cov_params.Intervention_TScaleup_PAP_end, last_year_run,...
-                PAP_cov_params.current_cov_BDandPAP_SAgLowVL, PAP_cov_params.max_cov_BDandPAP_SAgLowVL, dt);
+            for i_transition = 1:length(Transitions.From)
+                start_state = Transitions.From(i_transition);
+                end_state = Transitions.To(i_transition);
+                %% This is the transition matrix (unmodified by treatment):
+                temparray = Transitions.Values_withouttreat(i_transition);
+                temparray = temparray{1};
+                treat_eligibility_ageindices = get_treatment_eligible_ageindices(scenario_treat_elig, start_state, i_natural_hist, ages);
+                %% Now modify the rate of progression of temparray for any age groups that can be in treatment:
+                if(~isempty(treat_eligibility_ageindices))  %% Checks if any age groups can be in treatment for this natural history state
+                    %% Different relative rate multiplier when on treatment (vs not) for CC/death versus other disease progressions:
+                    if(end_state==i_natural_hist.HCC || end_state==i_natural_hist.HBVdeath)
+                        thisRR_effective_treatment = RRprogress_effective_treatment_CC;
+                        thisRR_nonadherent_treatment = RRprogress_nonadherent_treatment_CC;
+                    elseif(start_state==i_natural_hist.ImmReact || start_state==i_natural_hist.Chronic ...
+                            || start_state==i_natural_hist.CompCirr || start_state==i_natural_hist.DecompCirr)
+                        %% These are the "non-CC" transitions:
+                        thisRR_effective_treatment = RRprogress_effective_treatment_nonCC;
+                        thisRR_nonadherent_treatment = RRprogress_nonadherent_treatment_nonCC;
+                    else
+                        %% No effect (because not on treatment):
+                        thisRR_effective_treatment = 1;
+                        thisRR_nonadherent_treatment = 1;
+                    end 
+                    temparray(:,treat_eligibility_ageindices,:,i_care.appropriate_management) = thisRR_effective_treatment*temparray(:,treat_eligibility_ageindices,:,i_care.appropriate_management);
+                    temparray(:,treat_eligibility_ageindices,:,i_care.incare_nonadherent) = thisRR_nonadherent_treatment*temparray(:,treat_eligibility_ageindices,:,i_care.incare_nonadherent);
+                    %% Store the updated matrix (Values is the one with treatment included):
+                    Transitions.Values(i_transition) = {temparray};
+                end
+            end  %% End for loop.
 
-            % Coverage of PAP among those not with BD
-            PAP_cov_params.scenario_PAPcoverage_PAPonly_EAgHighVL = PAP_coverage_scaleup(start_year_simul, PAP_cov_params.Past_TScaleup_PAP_start, PAP_cov_params.Past_TScaleup_PAP_end,...
-                PAP_cov_params.Intervention_TScaleup_PAP_start, PAP_cov_params.Intervention_TScaleup_PAP_end, last_year_run,...
-                PAP_cov_params.current_cov_PAPonly_EAgHighVL, PAP_cov_params.max_cov_PAPonly_EAgHighVL, dt);
 
-            PAP_cov_params.scenario_PAPcoverage_PAPonly_EAgLowVL = PAP_coverage_scaleup(start_year_simul, PAP_cov_params.Past_TScaleup_PAP_start, PAP_cov_params.Past_TScaleup_PAP_end,...
-                PAP_cov_params.Intervention_TScaleup_PAP_start, PAP_cov_params.Intervention_TScaleup_PAP_end, last_year_run,...
-                PAP_cov_params.current_cov_PAPonly_EAgLowVL, PAP_cov_params.max_cov_PAPonly_EAgLowVL, dt);
-            
-
-            PAP_cov_params.scenario_PAPcoverage_PAPonly_SAgHighVL = PAP_coverage_scaleup(start_year_simul, PAP_cov_params.Past_TScaleup_PAP_start, PAP_cov_params.Past_TScaleup_PAP_end,...
-                PAP_cov_params.Intervention_TScaleup_PAP_start, PAP_cov_params.Intervention_TScaleup_PAP_end, last_year_run,...
-                PAP_cov_params.current_cov_PAPonly_SAgHighVL, PAP_cov_params.max_cov_PAPonly_SAgHighVL, dt);
-    
-            PAP_cov_params.scenario_PAPcoverage_PAPonly_SAgLowVL = PAP_coverage_scaleup(start_year_simul, PAP_cov_params.Past_TScaleup_PAP_start, PAP_cov_params.Past_TScaleup_PAP_end,...
-                PAP_cov_params.Intervention_TScaleup_PAP_start, PAP_cov_params.Intervention_TScaleup_PAP_end, last_year_run,...
-                PAP_cov_params.current_cov_PAPonly_SAgLowVL, PAP_cov_params.max_cov_PAPonly_SAgLowVL, dt);
 
 
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1426,7 +1463,7 @@ function country_level_analyses(sensitivity_analysis,...
                 p_ChronicCarriage,Prog_scenario,Transitions,......
                 scenario_BDcoverage, scenario_BDcoverage_fromMAP,...
                 scenario_BDcoverage_fromCPAD, scenario_HepB3coverage, ...
-                scenario_Treatment, max_treatment_coverage, ...
+                scenario_Treatment, scenario_treat_elig, max_treatment_coverage, ...
                 ISO, scenario_num, scenario_AddScreenIntervention, ...
                 num_year_1980_2100, life_expectancy, ...
                 stochas_run_str, sensitivity_analysis, basedir, store_results_as_text);
