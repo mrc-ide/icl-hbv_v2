@@ -118,6 +118,17 @@ else
     disp("Error - unknown value for scenario_treat_elig in HBVmodel.m. Exiting")
     return
 end
+i_treatelig_under30 = sort([i_sAgpos_not_eAgpos_treatelig i_eAgpos_treatelig_under30]);
+%%i_treat_inelig_under30 = sort([i_sAgpos_not_eAgpos_treat_inelig i_eAgpos_treat_inelig_under30]);
+i_treatelig_30plus = sort([i_sAgpos_not_eAgpos_treatelig i_eAgpos_treatelig_30plus]);
+%%i_treat_inelig_30plus = sort([i_sAgpos_not_eAgpos_treat_inelig i_eAgpos_treat_inelig_30plus]);
+ 
+    
+    
+    
+    
+    
+
 
 %% Now check the above are consistent with the eligibility criteria in get_treatment_eligible_ageindices() 
 %% - that is used to modify the natural history progression when on treatment
@@ -159,6 +170,17 @@ else %% Current treatment:
     RRtrans_nonadherent_treatment = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'RRtrans_nonadherent_TDFtreatment'),:).Value;
 end
 
+%if(scenario_Treatment==I_TREAT_LA)
+prop_adhere_treatment = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'prop_adhere_current'),:).Value;
+prop_nonadhere_treatment = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'prop_nonadhere_current'),:).Value;
+
+
+
+% else %% Current treatment:
+%     RRtrans_effective_treatment = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'RRtrans_effective_TDFtreatment'),:).Value;
+%     RRtrans_nonadherent_treatment = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'RRtrans_nonadherent_TDFtreatment'),:).Value;
+% end
+
 
 %% Note that params.dwvec is an external vector that (*SHOULD*) mimic the natural history states of the model. So we need to check that here:
 %% There are three non-zero DALY weights (for *alive* states - the DALYs from death are dealt with separately in make_daly_mat.m).
@@ -191,14 +213,13 @@ end
 %% mustBeBetween(p_VerticalTransmission_HbSAg_BD, 0, 1)
 %% mustBeBetween(p_VerticalTransmission_HbSAg_BirthDose_MAP_CPAD, 0, 1)
 % probability of transmission from an HBeAg+ mother to her baby after the baby is given BD vaccination
-%%% KAWA:
 %%%p_VerticalTransmission_HbEAg_BD = p_VerticalTransmission_HbEAg_NoBD * (1 - params.Efficacy_BirthDoseVacc_HbEAg); 
 %%%p_VerticalTransmission_HbEAg_BirthDose_MAP_CPAD = p_VerticalTransmission_HbEAg_NoBD * (1 - efficacy_MAP_CPAD_HbEAg); 
 %%%p_VerticalTransmission_Tr_NoBD = p_VerticalTransmission_HbEAg_NoBD * (1 - Efficacy_Treatment_MTCT); % probability of transmission from an HBeAg+ mother on treatment to her baby without intervention
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% TAM: PAP chunk 1:
+%% PAP chunk 1:
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % % PAP in addition to Birth dose (Fraction of those who have BD that also get PAP)
 % cov_BirthDoseAndTDF_EAgHighVL = 0;
@@ -402,7 +423,6 @@ assert(safe_greater_or_equal_to(p_VertTrans_HbEAgLowVL_PAP,     p_VertTrans_HbSA
 
     %% MP: PAP coverage is now done on a scenario-by-scenario basis in country_level_analyses.m
     % %% If no PAP, then set these to zero:
-    %% TAM delete me.
     %% Now replaced with e.g. PAP_cov_params.scenario_PAPcoverage_BDandPAP_EAgHighVL
     % % Coverage of PAP among those with BD
     % [cov_BirthDoseAndTDF_EAgHighVL_itt, ...
@@ -411,7 +431,6 @@ assert(safe_greater_or_equal_to(p_VertTrans_HbEAgLowVL_PAP,     p_VertTrans_HbSA
     %     cov_BirthDoseAndTDF_SAgLowVL_itt] = ...
     %     deal(zeros(size(TimeSteps)));
 
-    %% TAM - delete me.
     % % Coverage of PAP among those not with BD
     %% Now e.g. PAP_cov_params.scenario_PAPcoverage_PAPonly_EAgHighVL
     % [cov_TDFOnly_EAgHighVL_itt, ...
@@ -444,7 +463,7 @@ assert(safe_greater_or_equal_to(p_VertTrans_HbEAgLowVL_PAP,     p_VertTrans_HbSA
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% TAM: End of PAP chunk 1
+%% End of PAP chunk 1
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
@@ -664,7 +683,7 @@ transfer_to_HepB3vacc = zeros(1, 1, num_sexes, num_treat_blocks);
 
 
 % single output per year
-%% TAM: extra PAP-model-specific outputs included here:
+%% PAP - extra PAP-model-specific outputs included here:
 [Time, RateInfantVacc, RateBirthDoseVacc, RatePeripartumTreatment, ...
     num_births_1yr, NumDecompCirr, NumLiverCancer, ...
     PregnantWomenNeedToScreen, HBVPregnantWomenNeedToEvaluate] = deal(DUMMY_VALUE * ones(1, num_years_simul+1));
@@ -683,6 +702,8 @@ i_dt = 1; % i_dt increase every time i.e. every 0.1 years; goes from 1 to 2101 (
 OutputEventNum = 1; % OutputEventNum increase every year; goes from 1 to 212
 %% ALPHA-2 - DONE. Renamed from "moving_to_treatment" to "moving_to_diagnosed".
 moving_to_diagnosed = zeros(size(X));
+
+
 initiated_treatment = false;
 num_babies = 0;
 
@@ -802,9 +823,9 @@ for time = TimeSteps
                     
                     %% ALPHA - Prev_TDF_treat_1yr is now the sum over groups in care (note that this will depend on eligibility):
                     if(ag<30)
-                        i_treatelig_thisage = sort([i_eAgpos_treatelig_under30,i_sAgpos_not_eAgpos_treatelig]);
+                        i_treatelig_thisage = i_treatelig_under30;
                     else
-                        i_treatelig_thisage = sort([i_eAgpos_treatelig_30plus,i_sAgpos_not_eAgpos_treatelig]);
+                        i_treatelig_thisage = i_treatelig_30plus;
                     end
                     %%i_treatelig_thisage = get_treatment_eligible_nathistindices(scenario_treat_elig, ag, i_natural_hist, ages);
                     Prev_TDF_treat_1yr(k, ag, OutputEventNum-1) = squeeze(sum(sum(sum(X(i_treatelig_thisage, agegroups_1yr == ag, k, [i_appropriate_management,i_incare_nonadherent]), 1), 2), 4));
@@ -1031,7 +1052,7 @@ for time = TimeSteps
         beta_5plus_SAg(i_dt) * sum(sum(sum(sum(X(i_sAgpos_not_eAgpos_treat_inelig, i5y:end, :, [i_appropriate_management, i_incare_nonadherent]))))) / n_pop_5y_andabove ...
         ... %% eAg positive eligibility differs by age group (>=30 immune tolerant are eligible):
         + beta_5plus_EAg(i_dt) * sum(sum(sum(sum(X(i_eAgpos_treat_inelig_under30, i5y:(i30y-1), :, [i_appropriate_management, i_incare_nonadherent]))))) / n_pop_5y_andabove ...
-        + beta_5plus_EAg(i_dt) * sum(sum(sum(sum(X(i_eAgpos_treat_inelig_30plus, i30y:end, :, [i_appropriate_management, i_incare_nonadherent]))))) / n_pop_5y_andabove ...
+        + beta_5plus_EAg(i_dt) * sum(sum(sum(sum(X(i_eAgpos_treat_inelig_30plus, i30y:num_age_steps, :, [i_appropriate_management, i_incare_nonadherent]))))) / n_pop_5y_andabove ...
         ... %% Undiagnosed or out of care. Note that here we use i_eAgpos to mean all eAg+ (chronic+acute) because we don't need to split by age:
         + beta_5plus_SAg(i_dt) * sum(sum(sum(sum(X([i_sAgpos_not_eAgpos_treatelig i_sAgpos_not_eAgpos_treat_inelig], i5y:end, :, [i_undiagnosed, i_outofcare]))))) / n_pop_5y_andabove ...
         + beta_5plus_EAg(i_dt) * sum(sum(sum(sum(X(i_eAgpos, i5y:end, :, [i_undiagnosed, i_outofcare]))))) / n_pop_5y_andabove ...   
@@ -1039,12 +1060,12 @@ for time = TimeSteps
         + RRtrans_effective_treatment * beta_5plus_SAg(i_dt) * sum(sum(sum(sum(X(i_sAgpos_not_eAgpos_treatelig, i5y:end, :, i_appropriate_management))))) / n_pop_5y_andabove ...
         ... %% eAg positive eligibility differs by age group (>=30 immune tolerant are eligible):
         + RRtrans_effective_treatment * beta_5plus_EAg(i_dt) * sum(sum(sum(sum(X(i_eAgpos_treatelig_under30, i5y:(i30y-1), :, i_appropriate_management))))) / n_pop_5y_andabove ...   
-        + RRtrans_effective_treatment * beta_5plus_EAg(i_dt) * sum(sum(sum(sum(X(i_eAgpos_treatelig_30plus, i30y:end, :, i_appropriate_management))))) / n_pop_5y_andabove ...   
+        + RRtrans_effective_treatment * beta_5plus_EAg(i_dt) * sum(sum(sum(sum(X(i_eAgpos_treatelig_30plus, i30y:num_age_steps, :, i_appropriate_management))))) / n_pop_5y_andabove ...   
         ... %% On treatment but imperfectly:
         + RRtrans_nonadherent_treatment * beta_5plus_SAg(i_dt) * sum(sum(sum(sum(X(i_sAgpos_not_eAgpos_treatelig, i5y:end, :, i_incare_nonadherent))))) / n_pop_5y_andabove ...
         ... %% eAg positive eligibility differs by age group (>=30 immune tolerant are eligible):
         + RRtrans_nonadherent_treatment * beta_5plus_EAg(i_dt) * sum(sum(sum(sum(X(i_eAgpos_treatelig_under30, i5y:(i30y-1), :, i_incare_nonadherent))))) / n_pop_5y_andabove ...   
-        + RRtrans_nonadherent_treatment * beta_5plus_EAg(i_dt) * sum(sum(sum(sum(X(i_eAgpos_treatelig_30plus, i30y:end, :, i_incare_nonadherent))))) / n_pop_5y_andabove;
+        + RRtrans_nonadherent_treatment * beta_5plus_EAg(i_dt) * sum(sum(sum(sum(X(i_eAgpos_treatelig_30plus, i30y:num_age_steps, :, i_incare_nonadherent))))) / n_pop_5y_andabove;
 
     
 
@@ -1086,46 +1107,83 @@ for time = TimeSteps
 
                 BirthCohort_youngest_birth_year = Intervention_data_thiscountry.BirthCohortTest_year_first_BD + BirthCohort_extrayears;
                 %%case I_BIRTHCOHORT_SCREENING
+                %% Here we set up the number of people to test at each timestep for birth cohort testing:
                 if(time == birth_cohort_testing_start)
-                    i_cohortage_min = round((birth_cohort_testing_start-BirthCohort_youngest_birth_year)/dt); % Individuals born before 1992
+                    % This is the index corresponding to the minumum age.
+                    % Note that we add 1 as an offset (as age 0 <-> index=1).
+                    i_cohortage_min = round((birth_cohort_testing_start-BirthCohort_youngest_birth_year)/dt) + 1; 
                     i_cohortage_max = num_age_steps; % All individuals born before 1992 (no upper age limit).
                     % Check I haven't accidentally made the min age>max age:
                     assert(i_cohortage_max>i_cohortage_min)
+                    %% This is the diagnosis coverage we want to achieve in the birth cohort as a whole:
                     birth_cohort_coverage = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'Dx_birthcohort_coverage'),:).Value;
-                    %% Duration of birth cohort testing intervention (in years):
+                    %% Duration of birth cohort testing intervention (in years - note we multiply ):
                     duration_birth_cohort_testing = birth_cohort_testing_end-birth_cohort_testing_start;
                     %% Check the duration of testing is OK:
                     assert(duration_birth_cohort_testing>0 && duration_birth_cohort_testing<num_years_simul)
                     
                     %% Note we should use next_X rather than X here:
-                    %% ALPHA - FIX ME
                     
-                    moving_to_diagnosed_by_birthcohort_testing_per_timestep(i_treateligible, i_cohortage_min:i_cohortage_max, :, :) ...
-                        = dt * birth_cohort_coverage * next_X(i_treateligible, i_cohortage_min:i_cohortage_max, :, :)/duration_birth_cohort_testing; 
+                    %% Note - the commented code below can be used if we want to set a treatment coverage target rather than a diagnosis target.
+                    %% To use - replace N_currentDx_in_birth_cohort with N_current_treatment_in_birth_cohort; with N_treateligible_in_birth_cohort.
+                    % if(i_cohortage_min<i30y)
+                    %     N_current_treatment_in_birth_cohort = squeeze(sum(sum(sum(sum(next_X(i_treatelig_under30, i_cohortage_min:(i30y-1), :, [i_appropriate_management i_incare_nonadherent]) ...
+                    %         + next_X(i_treatelig_30plus, i30y:i_cohortage_max, :, [i_appropriate_management i_incare_nonadherent]))))));
+                    %     N_treateligible_in_birth_cohort = squeeze(sum(sum(sum(sum(next_X(i_treatelig_under30, i_cohortage_min:(i30y-1), :, :) ...
+                    %         + next_X(i_treatelig_30plus, i30y:i_cohortage_max, :, :))))));
+                    % else
+                    %    %% Only age30+ in cohort, so eligibility is the same for all:
+                    %     N_current_treatment_in_birth_cohort = squeeze(sum(sum(sum(sum(next_X(i_treatelig_30plus, i_cohortage_min:i_cohortage_max, :, [i_appropriate_management i_incare_nonadherent]))))));
+                    %      N_treateligible_in_birth_cohort = squeeze(sum(sum(sum(sum(next_X(i_treatelig_30plus, i_cohortage_min:i_cohortage_max, :, :))))));
+                    % end
+
+                    %% Diagnosis if sAG positive chronic infection:
+                    N_currentDx_in_birth_cohort = squeeze(sum(sum(sum(sum(next_X(i_sAgpos_chronic, i_cohortage_min:i_cohortage_max, :, [i_appropriate_management i_incare_nonadherent i_outofcare]))))));
+                    N_sAgpos_in_birth_cohort = squeeze(sum(sum(sum(sum(next_X(i_sAgpos_chronic, i_cohortage_min:i_cohortage_max, :, :))))));
+
+                    assert(N_currentDx_in_birth_cohort>=0)
+                    assert(N_sAgpos_in_birth_cohort>0)
+                    assert(N_sAgpos_in_birth_cohort>=N_currentDx_in_birth_cohort)
+                    
+                    %% This is the percentage point increase required (among those not currently on treatment) to reach coverage target.
+                    proportion_notcurrentlyDx_toDx = ((N_sAgpos_in_birth_cohort*birth_cohort_coverage) - N_currentDx_in_birth_cohort) / ...
+                        (N_sAgpos_in_birth_cohort - N_currentDx_in_birth_cohort);
+                    assert(proportion_notcurrentlyDx_toDx>0)
+                    
+                    %% Note that "diagnosis" here means either diagnosing undiagnosed, or finding those out of care and potentially supporting them into care (the cascade is leaky so they may still not reenter care).
+                    moving_to_diagnosed_by_birthcohort_testing_per_timestep(i_sAgpos_chronic, i_cohortage_min:i_cohortage_max, :, [i_undiagnosed i_outofcare]) ...
+                        = dt * proportion_notcurrentlyDx_toDx * next_X(i_sAgpos_chronic, i_cohortage_min:i_cohortage_max, :, [i_undiagnosed i_outofcare])/duration_birth_cohort_testing;                         
                     disp("Eligible for cohort treatment")
-                    disp(sum(sum(sum(sum(moving_to_diagnosed_by_birthcohort_testing_per_timestep,1),2),3),4))
+                    disp(squeeze(sum(sum(sum(sum(moving_to_diagnosed_by_birthcohort_testing_per_timestep,1),2),3),4)))
                     disp("At time")
                     disp(time)
                 end
                 
-                assert(time<=birth_cohort_testing_end);
+                %% These are the steps carried out every timestep while the birth cohort testing is happening:
+
                 %% This is the adjustment factor for the age index to account for the time that has passed since the birth cohort started.
                 i_birth_cohort_offset = round((time-birth_cohort_testing_start)/dt);
-                moving_to_diagnosed_by_birthcohort_testing_this_timestep(i_treateligible, (i_cohortage_min+i_birth_cohort_offset):i_cohortage_max, :, :) ...
-                    = moving_to_diagnosed_by_birthcohort_testing_per_timestep(i_treateligible, i_cohortage_min:(i_cohortage_max-i_birth_cohort_offset), :, :);
+                moving_to_diagnosed_by_birthcohort_testing_this_timestep(:, (i_cohortage_min+i_birth_cohort_offset):i_cohortage_max, :, :) ...
+                    = moving_to_diagnosed_by_birthcohort_testing_per_timestep(:, i_cohortage_min:(i_cohortage_max-i_birth_cohort_offset), :, :);
                 %% Set the earlier age group elements to zero if needed:
                 if(i_birth_cohort_offset>0)
-                    moving_to_diagnosed_by_birthcohort_testing_this_timestep(i_treateligible, i_cohortage_min:(i_cohortage_min+i_birth_cohort_offset-1), :, :) ...
-                        = zeros(length(i_treateligible), i_birth_cohort_offset, num_sexes, num_treat_blocks);
+                    moving_to_diagnosed_by_birthcohort_testing_this_timestep(:, i_cohortage_min:(i_cohortage_min+i_birth_cohort_offset-1), :, :) ...
+                        = zeros(num_disease_states, i_birth_cohort_offset, num_sexes, num_treat_blocks);
                 end
-                %% Ensure we never go below 0:
+                %% Cap the number of people to move from a given compartment to be at most the number of people in that compartment right now:
                 moving_to_diagnosed_by_birthcohort_testing_this_timestep(moving_to_diagnosed_by_birthcohort_testing_this_timestep>next_X) = next_X(moving_to_diagnosed_by_birthcohort_testing_this_timestep>next_X);
-                next_X(i_treateligible, :, :, :) = next_X(i_treateligible, :, :, :) - moving_to_diagnosed_by_birthcohort_testing_this_timestep(i_treateligible, :, :, :);
-                next_X(i_TDFtreat, :, :, :) = next_X(i_TDFtreat, :, :, :) + sum(moving_to_diagnosed_by_birthcohort_testing_this_timestep, 1);
+
+                %% Now move people:
+                moving_to_diagnosed_by_birthcohort_testing_this_timestep_by_nathist_age_sex = sum(moving_to_diagnosed_by_birthcohort_testing_this_timestep, 4);
+                next_X(:, :, :, [i_undiagnosed i_outofcare]) = next_X(:, :, :, [i_undiagnosed i_outofcare]) - moving_to_diagnosed_by_birthcohort_testing_this_timestep(:, :, :, [i_undiagnosed i_outofcare]);
+                next_X(:, :, :, i_appropriate_management) = next_X(:, :, :, i_appropriate_management) + prop_adhere_treatment*moving_to_diagnosed_by_birthcohort_testing_this_timestep_by_nathist_age_sex;
+                next_X(:, :, :, i_incare_nonadherent) = next_X(:, :, :, i_incare_nonadherent) + prop_nonadhere_treatment*moving_to_diagnosed_by_birthcohort_testing_this_timestep_by_nathist_age_sex;
+                next_X(:, :, :, i_outofcare) = next_X(:, :, :, i_outofcare) + (1-prop_adhere_treatment-prop_nonadhere_treatment)*moving_to_diagnosed_by_birthcohort_testing_this_timestep_by_nathist_age_sex;
                 %%otherwise
                 %%    disp("Error: Unknown value for scenario_AddScreenIntervention. Exiting")
                 %%    return
                 %% ALPHA-7 - make sure I count the number of tests done. And branch diagnoses into the 3 categories.
+                ntests = sum(sum(sum(moving_to_diagnosed_by_birthcohort_testing_this_timestep_by_nathist_age_sex)));
             end 
         elseif strcmp(scenario_AddScreenIntervention,"ANC screening")
             if (time >= 2027)
@@ -1140,25 +1198,35 @@ for time = TimeSteps
                 %% PLACEHOLDER - 0.05
                 annual_ANC_test_accepttreat = annual_ANC_test * 0.05;
                 
+
                 ANC_testing_by_age = annual_ANC_test_accepttreat(agegroups_5yr);
                 %% Percentage of people (by age and sex) getting ANC tested - men + women not going to ANC are zero.
                 ANC_testing = zeros(num_disease_states, num_age_steps, num_sexes, num_treat_blocks);
 
-                ANC_testing(i_ImmTol,:,i_female,i_seektreat) = ANC_testing_by_age;
-                ANC_testing(i_ImmReact,:,i_female,i_seektreat) = ANC_testing_by_age;
-                ANC_testing(i_AsymptCarr,:,i_female,i_seektreat) = ANC_testing_by_age;
-                ANC_testing(i_Chronic,:,i_female,i_seektreat) = ANC_testing_by_age;
-                ANC_testing(i_CompCirr,:,i_female,i_seektreat) = ANC_testing_by_age;
-                ANC_testing(i_DecompCirr,:,i_female,i_seektreat) = ANC_testing_by_age;
-                ANC_testing(i_HCC,:,i_female,i_seektreat) = ANC_testing_by_age;
+                %% Testing over chronic stages:
+                ANC_testing(i_ImmTol, : ,i_female, i_undiagnosed) = ANC_testing_by_age;
+                ANC_testing(i_ImmReact,:,i_female,i_undiagnosed) = ANC_testing_by_age;
+                ANC_testing(i_AsymptCarr,:,i_female,i_undiagnosed) = ANC_testing_by_age;
+                ANC_testing(i_Chronic,:,i_female,i_undiagnosed) = ANC_testing_by_age;
+                ANC_testing(i_CompCirr,:,i_female,i_undiagnosed) = ANC_testing_by_age;
+                ANC_testing(i_DecompCirr,:,i_female,i_undiagnosed) = ANC_testing_by_age;
+                ANC_testing(i_HCC,:,i_female,i_undiagnosed) = ANC_testing_by_age;
+                %% Assume ANC testing also reaches those previously diagnosed but out of care:
+                ANC_testing(i_ImmTol, : ,i_female, i_outofcare) = ANC_testing_by_age;
+                ANC_testing(i_ImmReact,:,i_female,i_outofcare) = ANC_testing_by_age;
+                ANC_testing(i_AsymptCarr,:,i_female,i_outofcare) = ANC_testing_by_age;
+                ANC_testing(i_Chronic,:,i_female,i_outofcare) = ANC_testing_by_age;
+                ANC_testing(i_CompCirr,:,i_female,i_outofcare) = ANC_testing_by_age;
+                ANC_testing(i_DecompCirr,:,i_female,i_outofcare) = ANC_testing_by_age;
+                ANC_testing(i_HCC,:,i_female,i_outofcare) = ANC_testing_by_age;
+
 
                 %% POWIETRZE
                 %% Note we should use next_X rather than X here:
                 moving_to_diagnosed_by_ANC_testing_this_timestep = dt * ANC_testing .* next_X; 
                 %% This line caps the number of people moving at this timestep in a given compartment to be at most next_X in that compartment.
                 moving_to_diagnosed_by_ANC_testing_this_timestep(moving_to_diagnosed_by_ANC_testing_this_timestep>next_X) = next_X(moving_to_diagnosed_by_ANC_testing_this_timestep>next_X);
-               
-                
+                               
                 if(time<2028)
                     fprintf("Eligible for ANC treatment: %6.4f at time %6.4f\n",sum(sum(sum(sum(moving_to_diagnosed_by_ANC_testing_this_timestep,1),2),3),4), time)
                 end
@@ -1166,10 +1234,13 @@ for time = TimeSteps
                 %disp(sum(sum(sum(sum(moving_to_diagnosed_by_ANC_testing_per_timestep,1),2),3),4))
                 %disp("At time")
                 %disp(time)
-                
- 
-                next_X(i_treateligible, :, :, :) = next_X(i_treateligible, :, :, :) - moving_to_diagnosed_by_ANC_testing_this_timestep(i_treateligible, :, :, :);
-                next_X(i_TDFtreat, :, :, :) = next_X(i_TDFtreat, :, :, :) + sum(moving_to_diagnosed_by_ANC_testing_this_timestep, 1);
+                fprintf("Eligible for ANC treatment %d at time %d",sum(sum(sum(sum(moving_to_diagnosed_by_ANC_testing_per_timestep,1),2),3),4),time)
+
+                sum_moving_to_diagnosed_by_ANC_testing_this_timestep = sum(moving_to_diagnosed_by_ANC_testing_this_timestep, 4);
+                next_X(:, :, :, [i_undiagnosed i_outofcare]) = next_X(:, :, :, [i_undiagnosed i_outofcare]) - moving_to_diagnosed_by_ANC_testing_this_timestep(:, :, :, [i_undiagnosed i_outofcare]);
+                next_X(:, :, :, i_appropriate_management) = next_X(:, :, :, i_appropriate_management) + prop_adhere_treatment*sum_moving_to_diagnosed_by_ANC_testing_this_timestep;
+                next_X(:, :, :, i_incare_nonadherent) = next_X(:, :, :, i_incare_nonadherent) + prop_nonadhere_treatment*sum_moving_to_diagnosed_by_ANC_testing_this_timestep;
+                next_X(:, :, :, i_outofcare) = next_X(:, :, :, i_outofcare) + (1-prop_adhere_treatment-prop_nonadhere_treatment)*sum_moving_to_diagnosed_by_ANC_testing_this_timestep;
             end
         elseif (strcmp(scenario_AddScreenIntervention,"Community screening") || strcmp(scenario_AddScreenIntervention,"Perfect community screening"))
             if strcmp(scenario_AddScreenIntervention,"Community screening")
@@ -1181,9 +1252,6 @@ for time = TimeSteps
                 return
             end
            
-            %% PLACEHOLDER - 0.05 (probability of starting treatment if screen +ve and eligible).
-            %% ALPHA-9 - this will be changed into the proportions going into each of the 3 care outcomes.
-            community_screening_prop_start_treat = community_screening_coverage*0.05;
 
             community_screening_start = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'Dx_T_community_screening_start'),:).Value;
             community_screening_end = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'Dx_T_community_screening_end'),:).Value;
@@ -1194,6 +1262,7 @@ for time = TimeSteps
             % Check I haven't accidentally made the min age>max age:
             assert(i_screeningage_max>i_screeningage_min)
             assert(i_screeningage_max<=num_age_steps)
+            
             if (time >= community_screening_start && time <= community_screening_end)        
                 %% At the beginning work out how many people need to move each timestep:
                 if(time == community_screening_start)
@@ -1201,10 +1270,37 @@ for time = TimeSteps
                     %% Check the duration of testing is OK:
                     assert(duration_community_screening>0 && duration_community_screening<num_years_simul)
                     
+                    %% Use this code if the target for community screening is % on treatment rather than % diagnosed.
+                    % if(i_screeningage_min<i30y)
+                    %     N_current_treatment_by_community_screening = squeeze(sum(sum(sum(sum(next_X(i_treatelig_under30, i_screeningage_min:(i30y-1), :, [i_appropriate_management i_incare_nonadherent]) ...
+                    %         + next_X(i_treatelig_30plus, i30y:i_screeningage_max, :, [i_appropriate_management i_incare_nonadherent]))))));
+                    %     N_treateligible_by_community_screening = squeeze(sum(sum(sum(sum(next_X(i_treatelig_under30, i_screeningage_min:(i30y-1), :, :) ...
+                    %         + next_X(i_treatelig_30plus, i30y:i_screeningage_max, :, :))))));
+                    % else
+                    %     %% Only age30+ in cohort, so eligibility is the same for all:
+                    %     N_current_treatment_by_community_screening = squeeze(sum(sum(sum(sum(next_X(i_treatelig_30plus, i_screeningage_min:i_screeningage_max, :, [i_appropriate_management i_incare_nonadherent]))))));
+                    %     N_treateligible_by_community_screening = squeeze(sum(sum(sum(sum(next_X(i_treatelig_30plus, i_screeningage_min:i_screeningage_max, :, :))))));
+                    % end
+
+                    N_currentDx_in_community_screening = squeeze(sum(sum(sum(sum(next_X(i_sAgpos_chronic, i_screeningage_min:i_screeningage_max, :, [i_appropriate_management i_incare_nonadherent i_outofcare]))))));
+                    N_sAgpos_in_community_screening = squeeze(sum(sum(sum(sum(next_X(i_sAgpos_chronic, i_screeningage_min:i_screeningage_max, :, :))))));
+                    
+                    assert(N_currentDx_in_community_screening>=0)
+                    assert(N_sAgpos_in_community_screening>0)
+                    assert(N_sAgpos_in_community_screening>=N_currentDx_in_community_screening)
+
+                    %% This is the percentage point increase required (among those not currently diagnosed) to reach coverage target.
+                    proportion_notcurrentlyDx_toDx = ((N_sAgpos_in_community_screening*community_screening_coverage) - N_currentDx_in_community_screening) / ...
+                        (N_sAgpos_in_community_screening - N_currentDx_in_community_screening);
+                    assert(proportion_notcurrentlyDx_toDx>0)
+                    
+                    %% Note that "diagnosis" here means either diagnosing undiagnosed, or finding those out of care and potentially supporting them into care (the cascade is leaky so they may still not reenter care).
                     %% Note we should use next_X rather than X here:
-                    moving_to_diagnosed_by_community_screening_per_timestep(i_treateligible, i_screeningage_min:i_screeningage_max, :, :) = dt * community_screening_prop_start_treat * next_X(i_treateligible, i_screeningage_min:i_screeningage_max, :, :)/duration_community_screening; 
-                    disp("Eligible for cohort treatment")
-                    disp(sum(sum(sum(sum(moving_to_diagnosed_by_community_screening_per_timestep,1),2),3),4))
+                    moving_to_diagnosed_by_community_screening_per_timestep(i_sAgpos_chronic, i_screeningage_min:i_screeningage_max, :, [i_undiagnosed i_outofcare]) ...
+                        = dt * proportion_notcurrentlyDx_toDx * next_X(i_sAgpos_chronic, i_screeningage_min:i_screeningage_max, :, [i_undiagnosed i_outofcare])/duration_community_screening;
+
+                    disp("Community screening eligibles")
+                    disp(squeeze(sum(sum(sum(sum(moving_to_diagnosed_by_community_screening_per_timestep,1),2),3),4)))
                     disp("At time")
                     disp(time)
                 end
@@ -1217,66 +1313,97 @@ for time = TimeSteps
                 i_trunc = max((i_screeningage_max+i_community_screening-i_max),0);
                 
                 %% Copy the number of people who need to be screened this timestep (taking into account the fact that they have aged):
-                moving_to_diagnosed_by_community_screening_this_timestep(i_treateligible, (i_screeningage_min+i_community_screening):i_max, :, :) ...
-                    = moving_to_diagnosed_by_community_screening_per_timestep(i_treateligible, i_screeningage_min:(i_screeningage_max-i_trunc), :, :);
+                moving_to_diagnosed_by_community_screening_this_timestep(:, (i_screeningage_min+i_community_screening):i_max, :, :) ...
+                    = moving_to_diagnosed_by_community_screening_per_timestep(:, i_screeningage_min:(i_screeningage_max-i_trunc), :, :);
+
 
                 %% Set the earlier age group elements to zero if needed:
                 if(i_community_screening>0)
-                    moving_to_diagnosed_by_community_screening_this_timestep(i_treateligible, i_screeningage_min:(i_screeningage_min+i_community_screening-1), :, :) ...
-                        = zeros(length(i_treateligible), i_community_screening, num_sexes, num_treat_blocks);
+                    moving_to_diagnosed_by_community_screening_this_timestep(:, i_screeningage_min:(i_screeningage_min+i_community_screening-1), :, :) ...
+                        = zeros(num_disease_states, i_community_screening, num_sexes, num_treat_blocks);
                 end
                 %% Ensure we never go below 0:
                 %% Firstly, for any elements of moving_to_diagnosed_by_community_screening_this_timestep which are > than the corresponding element in next_X, set that to be the value in next_X:
                 moving_to_diagnosed_by_community_screening_this_timestep(moving_to_diagnosed_by_community_screening_this_timestep>next_X) = next_X(moving_to_diagnosed_by_community_screening_this_timestep>next_X);
-                %% Now move thos people to treatment:
-                next_X(i_treateligible, :, :, :) = next_X(i_treateligible, :, :, :) - moving_to_diagnosed_by_community_screening_this_timestep(i_treateligible, :, :, :);
-                next_X(i_TDFtreat, :, :, :) = next_X(i_TDFtreat, :, :, :) + sum(moving_to_diagnosed_by_community_screening_this_timestep, 1);
+
+                
+                %% Now move people:
+                moving_to_diagnosed_by_community_screening_this_timestep_by_nathist_age_sex = sum(moving_to_diagnosed_by_community_screening_this_timestep, 4);
+                next_X(:, :, :, [i_undiagnosed i_outofcare]) = next_X(:, :, :, [i_undiagnosed i_outofcare]) - moving_to_diagnosed_by_community_screening_this_timestep(:, :, :, [i_undiagnosed i_outofcare]);
+                next_X(:, :, :, i_appropriate_management) = next_X(:, :, :, i_appropriate_management) + prop_adhere_treatment*moving_to_diagnosed_by_community_screening_this_timestep_by_nathist_age_sex;
+                next_X(:, :, :, i_incare_nonadherent) = next_X(:, :, :, i_incare_nonadherent) + prop_nonadhere_treatment*moving_to_diagnosed_by_community_screening_this_timestep_by_nathist_age_sex;
+                next_X(:, :, :, i_outofcare) = next_X(:, :, :, i_outofcare) + (1-prop_adhere_treatment-prop_nonadhere_treatment)*moving_to_diagnosed_by_community_screening_this_timestep_by_nathist_age_sex;
+
                 %%otherwise
                 %%    disp("Error: Unknown value for scenario_AddScreenIntervention. Exiting")
                 %%    return
-            end
+
+            end %% End of community screening
 
         end %% End of if statement looping through different screening options.
     end   %% End of scenario_AddScreenIntervention!="No screening
 
     %% TREATMENT:
-    %% ALPHA-10 - BIG CHANGE!
     if (time >= treat_start_year && scenario_Treatment>0)
     % 2016 must be the first year with nonzero treatment 
     % therefore start treating from 2015.9 onwards since prevalence is recorded at the top of the loop
 
         if ~initiated_treatment
-            num_in_treatment = sum(sum(sum(sum(X(i_TDFtreat, :, :, :),1),2),3),4);
+            %% Count up the number of people on treatment in 2016 and check this is zero:
+            num_in_treatment = sum(sum(sum(sum(X(i_treatelig_under30, 1:(i30y-1), :, [i_appropriate_management i_incare_nonadherent]),1),2),3),4) + ...
+                                    sum(sum(sum(sum(X(i_treatelig_30plus, i30y:num_age_steps, :, [i_appropriate_management i_incare_nonadherent]),1),2),3),4);
             assert(num_in_treatment==0) % no one is in treatment
+
+            %% If data says treatment coverage is >0 in 2016, work out how many people need to be on treatment (and transfer them).
+            %% Note that the denom for treat_coverage_in_2016 is all sAgpos (including acute!):
+            %% in the MJdV code the line is prev_pop = sum(sum(sum(sum(X([2:8 10 12:15], :, :, :),1),2),3),4); - so includes TDF treatment (10) and acute (14:15)
             if(treat_coverage_in_2016>0)
-                prev_pop = sum(sum(sum(sum(X(i_sAgpos, :, :, :),1),2),3),4); %% Whole pop of sAg+ (including those who don't seek treatment)
+                prev_pop = sum(sum(sum(sum(X(i_sAgpos, :, :, :),1),2),3),4); %% Whole pop of sAg+ (including those not on treatment/never diagnosed)
     
                 %% Note - prev_pop is whole pop, so that treat_coverage_in_2016 is coverage in the whole population of sAg+.
                 total_num_to_move_to_treat = treat_coverage_in_2016 * prev_pop;
-                %% Eligible pop is only among those who would seek treatment:
-                %%i_get_treatment_eligible_nathistindices(scenario_treat_elig, *THIS_AGE*, i_natural_hist, ages);
-                eligible_pop = squeeze(sum(sum(sum(X(i_treateligible, :, :, i_seektreat),1),2),3)); 
+
+                %% Eligible pop is undiagnosed (in 2016 this should be everyone as we haven't modelled testing pre-2016):
+                eligible_pop = squeeze(sum(sum(sum(X(i_treatelig_under30, 1:(i30y-1), :, i_undiagnosed),1),2),3)) + ...
+                                    squeeze(sum(sum(sum(X(i_treatelig_30plus, i30y:num_age_steps, :, i_undiagnosed),1),2),3)); 
                 
                 %% For low coverages it is possible to have 0 eligible but >0 coverage (due to rounding) so only care if >1%:
-                
-                
-                if(treat_coverage_in_2016>=0.01)
-                    if((total_num_to_move_to_treat>eligible_pop) && (total_num_to_move_to_treat<(6*eligible_pop)))
-                        total_num_to_move_to_treat = eligible_pop;
-                    end
+                % if(treat_coverage_in_2016>=0.01)
+                %     if((total_num_to_move_to_treat>eligible_pop) && (total_num_to_move_to_treat<(6*eligible_pop)))
+                %         total_num_to_move_to_treat = eligible_pop;
+                %     end
 
                 assert(total_num_to_move_to_treat<=eligible_pop)
-                end
+                % end
+
+                %% Scaling_num is an adjustment for the fact that not everyone who is sAg+ (and chronic) is eligible:
                 if(eligible_pop>0)
                     scaling_num = total_num_to_move_to_treat / eligible_pop;
                 else
                     scaling_num = 0;
                 end
 
-                n_to_move_treatment_start_year = min(next_X(i_treateligible,:,:,i_seektreat), X(i_treateligible,:,:,i_seektreat) * scaling_num);
+                %% Number of people who get moved to treatment when treatment first starts (in 2016) to match data on coverage at that time:
+                n_to_move_treatment_start_year = zeros(size(X));              
+
+                % n_to_move_treatment_start_year = min(next_X(i_treateligible,:,:,i_seektreat), X(i_treateligible,:,:,i_seektreat) * scaling_num);
                 %%next_X(i_treateligible,:,:,i_seektreat)=next_X(i_treateligible,:,:,i_seektreat) - X(i_treateligible,:,:,i_seektreat) * scaling_num;
-                next_X(i_treateligible,:,:,i_seektreat)=next_X(i_treateligible,:,:,i_seektreat) - n_to_move_treatment_start_year;
-    
+                % next_X(i_treateligible,:,:,i_seektreat)=next_X(i_treateligible,:,:,i_seektreat) - n_to_move_treatment_start_year;
+
+                %% Calculate the number of people who need to move, and then
+                n_to_move_treatment_start_year(i_treatelig_under30, 1:(i30y-1), :, i_undiagnosed) = X(i_treatelig_under30, 1:(i30y-1), :, i_undiagnosed) * scaling_num;
+                n_to_move_treatment_start_year(i_treatelig_30plus, i30y:num_age_steps, :, i_undiagnosed) = X(i_treatelig_30plus, i30y:num_age_steps, :, i_undiagnosed) * scaling_num;
+                %% Previous version: n_to_move_treatment_start_year = X(i_treateligible,:,:,i_seektreat) * scaling_num;
+
+
+                %% This is the probability of becoming adherent when starting treatment (rather than non-adherent).
+                %% Because the coverage is the proportion of people on treatment in 2016 we aren't allowing people to drop out of care here.
+                ptemp = prop_adhere_treatment/(prop_adhere_treatment+prop_nonadhere_treatment);
+                %% Remove people from undiagnosed to either appropriate_management (adheres to treatment) or incare_noadherent (doesn't adhere)
+                next_X(:,:,:,i_undiagnosed) = next_X(:,:,:,i_undiagnosed) - n_to_move_treatment_start_year(:,:,:,i_undiagnosed);
+                next_X(:,:,:,i_appropriate_management) = next_X(:,:,:,i_appropriate_management) + ptemp*n_to_move_treatment_start_year(:,:,:,i_undiagnosed);
+                next_X(:,:,:,i_incare_nonadherent)     = next_X(:,:,:,i_incare_nonadherent) + (1-ptemp)*n_to_move_treatment_start_year(:,:,:,i_undiagnosed);
+
                 
                 % Every compartment in the eligible-for-treatment states in next_X must have a number subtracted from it 
                 % such that the total number subtracted from the eligible-for-treatment states is in_treatment_2016
@@ -1285,21 +1412,17 @@ for time = TimeSteps
 
                 %next_X(i_TDFtreat,:,:,i_seektreat) = next_X(i_TDFtreat,:,:,i_seektreat) + sum(X(i_treateligible,:,:,i_seektreat) * scaling_num,1);
 
-                next_X(i_TDFtreat,:,:,i_seektreat) = next_X(i_TDFtreat,:,:,i_seektreat) + sum(n_to_move_treatment_start_year(:,:,:,1),1);
-    
-                num_in_treatment = sum(sum(sum(sum(next_X(i_TDFtreat, :, :, :),1),2),3),4);
-    
-                %% Since we just checked that the number in natural history state i_TDFtreat was zero before treatemnt started in the smulation, this represents the number of people starting treatment at this timestep.
+                num_in_treatment = sum(sum(sum(sum(next_X(i_treatelig_under30, 1:(i30y-1), : , [i_appropriate_management i_incare_nonadherent]),1),2),3),4) ...
+                    + sum(sum(sum(sum(next_X(i_treatelig_30plus, i30y:num_age_steps, :, [i_appropriate_management i_incare_nonadherent]),1),2),3),4);
+
+                %% This represents the number of people starting treatment at this timestep (as noone is on treatment in the model before 2016).
                 number_starting_treatment_to_print = num_in_treatment;
                 
-                %% eligible_pop includes those on treatment and those who do not seek treatment here:
-                eligible_pop = sum(sum(sum(sum(X([i_treateligible, i_TDFtreat], :, :, :),1),2),3),4); 
-                
-                
-                %% For low coverages it is possible to have 0 eligible but >0 coverage (due to rounding) so only care if >1%:
-                if(treat_coverage_in_2016>=0.015)
-                    assert(num_in_treatment/eligible_pop >= treat_coverage_in_2016)
-                end
+                %% Now just double-check everything again:
+                eligible_pop = squeeze(sum(sum(sum(X(i_treatelig_under30, 1:(i30y-1), :, :),1),2),3)) + ...
+                                    squeeze(sum(sum(sum(X(i_treatelig_30plus, i30y:num_age_steps, :, :),1),2),3)); 
+                assert(num_in_treatment/eligible_pop >= treat_coverage_in_2016)
+
                 % treatment coverage amongst treatment-eligible people will be greater than treatment coverage amongst HBsAg+ people, except if treatment coverage is 0
                 %%treat_coverage_2016 = num_in_treatment / eligible_pop; %% MP: CHECK WITH SHEVANTHI - THIS IS CURRENTLY DEAD CODE.
             end
@@ -1314,52 +1437,37 @@ for time = TimeSteps
             else
                 treatment_rate = treatment_rate_params.Treatmentrate_2016 + (treatment_rate_params.Treatmentrate_final - treatment_rate_params.Treatmentrate_2016) * (time-treatment_rate_params.t_treatment_scaleup_start)/(treatment_rate_params.t_treatment_scaleup_end - treatment_rate_params.t_treatment_scaleup_start);
             end
+            assert(isscalar(treatment_rate))
             assert(treatment_rate>=0)
             
             %% LECZENIE:
             %% Determine if we are now increasing the number of people who would seek treatment if necessary (by removing barriers to testing/treatment e.g. through decentralisation, integration):
-            if(time>=treatment_rate_params.t_remove_treatment_barriers)
-                %% Check if the proportion currently seeking treatment is already above the threshold:
-                prop_currently_seek_treat = sum(sum(sum(sum(next_X(:, :, :, i_seektreat),1),2),3),4)/sum(sum(sum(sum(next_X(:, :, :, :),1),2),3),4);
-                assert(prop_currently_seek_treat>=0 && prop_currently_seek_treat<=1)
-                disp(scenario_treat_elig)
-                disp(time)
-                disp(prop_currently_seek_treat)
-                if(prop_currently_seek_treat<max_treatment_coverage)
-                    prop_inc_seek_treatment = dt*(treatment_rate_params.annual_increase_diagnosis*treatment_rate_params.annual_increase_treatifdiag);
-                    %min(0.7, treatment_rate_params.prop_wouldseektreat_tchange - ...
-                    %    treatment_rate_params.prop_wouldseektreat_t0 + (time-treatment_rate_params.t_remove_treatment_barriers)*treatment_rate_params.rate_increase_seektreat);
-                
-                
-                    assert(prop_inc_seek_treatment>=0 && prop_inc_seek_treatment<=1)
-                    N_inc_seek_treatment = prop_inc_seek_treatment * next_X(:, :, :, i_notseektreat);
-                    if(prop_inc_seek_treatment>0)
-                        disp("Boosting treatment by")
-                        disp(prop_inc_seek_treatment)
-                        next_X(:, :, :, i_notseektreat) = next_X(:, :, :, i_notseektreat) - N_inc_seek_treatment;
-                        next_X(:, :, :, i_seektreat)    = next_X(:, :, :, i_seektreat)    + N_inc_seek_treatment;
-                    end
-                end
-            end
+            % if(time>=treatment_rate_params.t_remove_treatment_barriers)
+            %     %% Check if the proportion currently seeking treatment is already above the threshold:
+            %     prop_currently_seek_treat = sum(sum(sum(sum(next_X(:, :, :, i_seektreat),1),2),3),4)/sum(sum(sum(sum(next_X(:, :, :, :),1),2),3),4);
+            %     disp(scenario_treat_elig)
+            %     % if(prop_currently_seek_treat<max_treatment_coverage)
+            %         prop_inc_seek_treatment = dt*(treatment_rate_params.annual_increase_diagnosis*treatment_rate_params.annual_increase_treatifdiag);
+            % end
 
+            moving_to_diagnosed(i_treatelig_under30, 1:(i30y-1), :, i_undiagnosed) = treatment_rate * X(i_treatelig_under30, 1:(i30y-1), :, i_undiagnosed);
+            moving_to_diagnosed(i_treatelig_30plus, i30y:num_age_steps, :, i_undiagnosed) = treatment_rate * X(i_treatelig_30plus, i30y:num_age_steps, :, i_undiagnosed);
 
-
-
-            moving_to_diagnosed(i_treateligible, :, :, i_seektreat) = X(i_treateligible, :, :, i_seektreat) .* treatment_rate;
-            next_X(i_treateligible, :, :, i_seektreat) = next_X(i_treateligible, :, :, i_seektreat) + dt * ( -moving_to_diagnosed(i_treateligible, :, :, i_seektreat) );
-            next_X(i_TDFtreat, :, :, i_seektreat) = next_X(i_TDFtreat, :, :, i_seektreat) + dt * ( +sum(moving_to_diagnosed(:, :, :, i_seektreat), 1) );
-            assert(max(moving_to_diagnosed(:))>=0)
-
-             number_starting_treatment_to_print = squeeze(sum(sum(sum(sum(moving_to_diagnosed, 1), 2), 3), 4));
+            next_X(:, :, :, i_undiagnosed)         = next_X(:, :, :, i_undiagnosed) - dt * moving_to_diagnosed(:, :, :, i_undiagnosed);
+            next_X(:,:,:,i_appropriate_management) = next_X(:,:,:,i_appropriate_management) + dt * prop_adhere_treatment * moving_to_diagnosed(:,:,:,i_undiagnosed);
+            next_X(:,:,:,i_incare_nonadherent)     = next_X(:,:,:,i_incare_nonadherent) + dt * prop_nonadhere_treatment * moving_to_diagnosed(:,:,:,i_undiagnosed);
+            next_X(:,:,:,i_outofcare)              = next_X(:,:,:,i_outofcare) + dt * (1-prop_adhere_treatment-prop_nonadhere_treatment) * moving_to_diagnosed(:,:,:,i_undiagnosed);
+            
+            number_starting_treatment_to_print = squeeze(sum(sum(sum(sum(moving_to_diagnosed, 1), 2), 3), 4));
             assert(isscalar(number_starting_treatment_to_print))
 
         end
     end % end treatment if statement
-    
 
     
-    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % Infection process
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     NewInfections = X(i_Susc, :, :, :) .* FOI;
     % number of susceptibles times FOI i.e. number of new infections within population, excluding babies (since FOI is 0 for babies)
     % 1 x num_age_steps x 2 x 2 double i.e. 1 x 1000 x 2 x 2 double
@@ -1369,9 +1477,9 @@ for time = TimeSteps
     
     % Transition dependent on a state that does not have a number and is therefore not in Prog or Transitions
     % multiply by dt, since FOI is an annual rate
-    next_X(i_Susc, :, :, :) = next_X(i_Susc, :, :, :) + dt * ( -NewInfections );
-    next_X(i_NonSevAcute, :, :, :) = next_X(i_NonSevAcute, :, :, :) + dt * ( +NonsevereAcute );
-    next_X(i_SevereAcute, :, :, :) = next_X(i_SevereAcute, :, :, :) + dt * ( +SevereAcute );
+    next_X(i_Susc, :, :, :) = next_X(i_Susc, :, :, :) - dt * NewInfections;
+    next_X(i_NonSevAcute, :, :, :) = next_X(i_NonSevAcute, :, :, :) + dt * NonsevereAcute;
+    next_X(i_SevereAcute, :, :, :) = next_X(i_SevereAcute, :, :, :) + dt * SevereAcute;
     
     
     % Infant vaccination HepB3:
@@ -1400,14 +1508,12 @@ for time = TimeSteps
     % Update Stocks
     X = next_X;
     
-    % Now age everyone (second index is the age index with 1=newborn in this
-    % timestep).
+    % Now age everyone by one timestep (second index is the age index with 1=newborn in this timestep).
     X(:, 2:num_age_steps, :, :) = X(:, 1:(num_age_steps - 1), :, :);
     X(:, 1, :, :) = 0; % set number of new babies (the age index "1") to 0 (babies will be born next)
     
     
 
-    %% KAWA/TAM 2:
     % fill-out with new births in this time-step:
     %% MP: Magic numbers 1 and 4 mean sum over the listed natural history states and treatment states
     births_toNonInfectiousWomen = sum( fert' .* sum(sum(X([i_Susc i_Immune], :, i_female, :), 1), 4) ); % Susecptible, Immune
@@ -1417,12 +1523,26 @@ for time = TimeSteps
     %% In the PAP model these are incorporated in births_toNonInfectiousWomen. 
     %% As treatment will reduce VL we don't bother stratifying by high/low VL here:
     %% ALPHA-11 - change to strata of treatment (by eligibility!):
-    births_toTrWomen = sum(fert' .* sum(sum(X([i_TDFtreat i_3TCtreat], :, i_female, :), 1), 4)); % Women on Treatment
     
-    births_toHbEAgWomenHighVL = PAP_VL_params.FracEPosHighVL    * sum(fert' .* sum(sum(X(i_eAgpos, :, i_female, :), 1), 4)); %Immune Tolerant, Immune Reactive, Acute
-    births_toHbEAgWomenLowVL = (1-PAP_VL_params.FracEPosHighVL) * sum(fert' .* sum(sum(X(i_eAgpos, :, i_female, :), 1), 4)); %Immune Tolerant, Immune Reactive, Acute
-    births_toHbSAgWomenHighVL = PAP_VL_params.FracSPosHighVL    * sum(fert' .* sum(sum(X(i_sAgpos_notEagpos_notreat, :, i_female, :), 1), 4)); %All other stages (other infected women not on treatment)
-    births_toHbSAgWomenLowVL = (1-PAP_VL_params.FracSPosHighVL) * sum(fert' .* sum(sum(X(i_sAgpos_notEagpos_notreat, :, i_female, :), 1), 4)); %All other stages (other infected women not on treatment)
+    % params.fert is a 1000 x (num_years_simul+1) matrix; ages in 0.1 year jumps versus 212 years
+    %% fert = params.fert(1:10:end, OutputEventNum);
+
+    %%births_toTrWomen = sum(fert' .* sum(sum(X([i_TDFtreat i_3TCtreat], :, i_female, :), 1), 4)); % Women on Treatment
+    % Women on Treatment - split into under 30 and 30+:
+    births_toTrWomen = sum(fert(1:(i30y-1))' .* sum(sum(X(i_treatelig_under30, 1:(i30y-1), i_female, [i_appropriate_management i_incare_nonadherent]), 1), 4)) ...
+        + sum(fert(i30y:num_age_steps)' .* sum(sum(X(i_treatelig_30plus, i30y:num_age_steps, i_female, [i_appropriate_management i_incare_nonadherent]), 1), 4));
+    
+    n_births_toHbEAgWomen_not_on_treatment = sum(fert' .* sum(sum(X(i_eAgpos, :, i_female, [i_undiagnosed i_outofcare]), 1), 4)) ...
+        + sum(fert(1:(i30y-1))' .* sum(sum(X(i_eAgpos_treat_inelig_under30, 1:(i30y-1), i_female, [i_appropriate_management i_incare_nonadherent]), 1), 4)) ...
+        + sum(fert(i30y:num_age_steps)' .* sum(sum(X(i_eAgpos_treat_inelig_30plus, i30y:num_age_steps, i_female, [i_appropriate_management i_incare_nonadherent]), 1), 4));
+    
+    n_births_toHbsAg_not_eAg_women_not_on_treatment = sum(fert' .* sum(sum(X(i_sAgpos_not_eAgpos_treatelig, :, i_female, [i_undiagnosed i_outofcare]), 1), 4)) ...
+        + sum(fert' .* sum(sum(X(i_sAgpos_not_eAgpos_treat_inelig, :, i_female, :), 1), 4));
+    
+    births_toHbEAgWomenHighVL = PAP_VL_params.FracEPosHighVL    * n_births_toHbEAgWomen_not_on_treatment;
+    births_toHbEAgWomenLowVL = (1-PAP_VL_params.FracEPosHighVL) * n_births_toHbEAgWomen_not_on_treatment; 
+    births_toHbSAgWomenHighVL = PAP_VL_params.FracSPosHighVL    * n_births_toHbsAg_not_eAg_women_not_on_treatment;
+    births_toHbSAgWomenLowVL = (1-PAP_VL_params.FracSPosHighVL) * n_births_toHbsAg_not_eAg_women_not_on_treatment;
     births_Total = births_toNonInfectiousWomen + births_toTrWomen + births_toHbEAgWomenHighVL + ...
         births_toHbEAgWomenLowVL + births_toHbSAgWomenHighVL + births_toHbSAgWomenLowVL;
     assert(isscalar(births_Total))
@@ -1451,7 +1571,6 @@ for time = TimeSteps
     %     );
 
 
-    %% KAWA:
     %% Interventions:
     %% BD (standard BD, MAP or CPAD)
     %% PAP or treatment (treatment is a separate compartment so dealt with separately).
@@ -1494,7 +1613,6 @@ for time = TimeSteps
         + (1-prop_no_BD_this_timestep) * PAP_cov_params.scenario_PAPcoverage_BDandPAP_EAgLowVL(i_dt) );
 
 
-    %%%% CIASTECKO 2
     %% Number of babies born with chronic Hep B from women SAg+ (EAg-) with high VL (and not on treatment):
     babiesChronic_from_HbSAgWomenHighVL = p_ChronicCarriage(1, 1, 1, 1) * births_toHbSAgWomenHighVL * ...
         ( ...
@@ -1513,7 +1631,6 @@ for time = TimeSteps
     num_mothers_PAP_HbSAg_HighVL = births_toHbSAgWomenHighVL * (prop_no_BD_this_timestep*PAP_cov_params.scenario_PAPcoverage_PAPonly_SAgHighVL(i_dt) ...
         + (1-prop_no_BD_this_timestep) * PAP_cov_params.scenario_PAPcoverage_BDandPAP_SAgHighVL(i_dt) );
 
-    %%%% CIASTECKO 3
     %% Number of babies born with chronic Hep B from women SAg+ (EAg-) with low VL (and not on treatment):
     babiesChronic_from_HbSAgWomenLowVL = p_ChronicCarriage(1, 1, 1, 1) * births_toHbSAgWomenLowVL * ...
         ( ...
@@ -1573,7 +1690,7 @@ for time = TimeSteps
     assert(isscalar(babies_NotChronicCarriage))
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    %% TAM: PAP chunk 2 - should replace above.
+    %% PAP chunk 2 - should replace above.
 
 
     % number of chronic babies born to HVL HBeAg+ pregnant women =
@@ -1620,9 +1737,9 @@ for time = TimeSteps
                                            PAP_cov_params.scenario_PAPcoverage_PAPonly_SAgHighVL(i_dt),...
                                            PAP_cov_params.scenario_PAPcoverage_PAPonly_SAgLowVL(i_dt)]);
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% TAM: End of PAP Chunk 2
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %% End of PAP Chunk 2
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
     
@@ -1634,35 +1751,17 @@ for time = TimeSteps
     % male births -> infinity => sex_ratio -> infinity => male_multiplier -> 1
     % female births -> 0 => sex_ratio -> infinity => female_multiplier -> 0
     % female births -> infinity => sex_ratio -> 0 => female_multiplier -> 1
-    
-    %% LECZENIE:
-    %% Incorporates the stratification i_notseektreat/i_seektreat which determines if someone will not/will seek treatment (currently TDF) for chronic HBV in future.
 
     % Susceptible babies
-    %% ALPHA-12 (make sure I fix the pregnancy/vertical transmission above as well!)
-    %% No need to have a prop_seek_treatment
-    if(time>=treatment_rate_params.t_remove_treatment_barriers)
-        %% Use the previously calculated prop_currently_seek_treat (ignoring the possible increase at this timestep - so we don't have to deal with high treatment countries where it remains constant):
-        prop_seek_treatment = prop_currently_seek_treat;
-        prop_notseek_treatment = 1 - prop_seek_treatment;
-    else
-        prop_seek_treatment    = (treatment_rate_params.prop_diagnosed_t0*treatment_rate_params.prop_treatifdiag_t0);
-        prop_notseek_treatment = 1 - prop_seek_treatment;
-    end
-
-    X(i_Susc, 1, i_female, i_notseektreat) = female_multiplier * dt * babies_NotChronicCarriage * prop_notseek_treatment;
-    X(i_Susc, 1, i_male, i_notseektreat)   = male_multiplier * dt * babies_NotChronicCarriage * prop_notseek_treatment;
-    X(i_Susc, 1, i_female, i_seektreat)    = female_multiplier * dt * babies_NotChronicCarriage * prop_seek_treatment;
-    X(i_Susc, 1, i_male, i_seektreat)      = male_multiplier * dt * babies_NotChronicCarriage * prop_seek_treatment;
+    X(i_Susc, 1, i_female, i_undiagnosed) = female_multiplier * dt * babies_NotChronicCarriage;
+    X(i_Susc, 1, i_male, i_undiagnosed)   = male_multiplier * dt * babies_NotChronicCarriage;
 
     % Babies with chronic carriage
-    X(i_ImmTol, 1, i_female, i_notseektreat) = female_multiplier * dt * babies_ChronicCarriage * prop_notseek_treatment;
-    X(i_ImmTol, 1, i_male, i_notseektreat)   = male_multiplier * dt * babies_ChronicCarriage * prop_notseek_treatment;
-    X(i_ImmTol, 1, i_female, i_seektreat)    = female_multiplier * dt * babies_ChronicCarriage * prop_seek_treatment;
-    X(i_ImmTol, 1, i_male, i_seektreat)      = male_multiplier * dt * babies_ChronicCarriage * prop_seek_treatment;
+    X(i_ImmTol, 1, i_female, i_undiagnosed) = female_multiplier * dt * babies_ChronicCarriage;
+    X(i_ImmTol, 1, i_male, i_undiagnosed)   = male_multiplier * dt * babies_ChronicCarriage;
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    %% TAM: PAP Chunk 3:
+    %% PAP Chunk 3:
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
     %% In the PAP model, but dead code.
@@ -1679,7 +1778,7 @@ for time = TimeSteps
     %         sum(fert' .* squeeze(sum(sum(X([1:10 12 13:15],:,1,:),1),4))));
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    %% TAM: End of Chunk 3
+    %% End of Chunk 3
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % increment the timestep index
     i_dt = i_dt + 1;
@@ -1706,7 +1805,7 @@ output.Prev_Deaths_1yr = Prev_Deaths_1yr; % 2 x num_1yr_age_gps x (num_years_sim
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% TAM: PAP Chunk 4:
+%% PAP Chunk 4:
 t_PAPoutputs_start = start_year;
 t_PAPoutputs_end = end_year;
 
@@ -1969,7 +2068,7 @@ end
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% TAM: End of PAP Chunk 4
+%% End of PAP Chunk 4
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 DALYs = make_daly_mat(output,num_years_simul,num_year_1980_2100,life_expectancy);
@@ -1996,8 +2095,8 @@ end % end function HBVmodel_PPT
 
 function output_labels=construct_header(agegroups, num_disease_states, num_sexes, num_treat_blocks)
     sex_labels = ["F","M"]; % F first in this model
-    %% ALPHA
-    treat_labels = ["NoTreat","Treat"];
+
+    treat_labels = ["Undiagnosed","AppropriateManage","IncareNonadherent","OutOfCare"];
     assert(num_sexes==length(sex_labels))
     assert(num_treat_blocks==length(treat_labels))
 

@@ -167,7 +167,7 @@ function country_level_analyses(sensitivity_analysis,...
             params.Efficacy_InfantVacc = stochas_params_mat(stochas_run_num,end);
 
 
-            %% TAM: assign PAP/VL parameters:
+            %% PAP: assign PAP/VL parameters:
             %% ***WARNING***: because we overwrite params.p_VerticalTransmission_HbSAg_NoIntv using stochas_params_mat,
             %% we need to call assign_PAP_VL_params() here, otherwise it uses the wrong value of p_VerticalTransmission_HbSAg_NoIntv.
             PAP_VL_params = assign_PAP_VL_params(params);  %% PAP_VL_params was previously called effparams in the PAP branch.
@@ -1097,7 +1097,7 @@ function country_level_analyses(sensitivity_analysis,...
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             %% Now get time trends of PAP coverage (divided into those with/without BD, and by whether EAg+/SAg+ and high/low VL): 
             % Coverage of PAP among those with BD
-            %% TAM cov_BirthDoseAndTDF_EAgHighVL_itt
+            %% PAP code: cov_BirthDoseAndTDF_EAgHighVL_itt
             PAP_cov_params.scenario_PAPcoverage_BDandPAP_EAgHighVL = PAP_coverage_scaleup(start_year, PAP_cov_params.Past_TScaleup_PAP_start, PAP_cov_params.Past_TScaleup_PAP_end,...
                 PAP_cov_params.Intervention_TScaleup_PAP_start, PAP_cov_params.Intervention_TScaleup_PAP_end, end_year,...
                 PAP_cov_params.current_cov_BDandPAP_EAgHighVL, PAP_cov_params.max_cov_BDandPAP_EAgHighVL, dt);
