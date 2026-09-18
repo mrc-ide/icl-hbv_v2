@@ -13,6 +13,10 @@ clear
 MAKE_PARAMETER_FILE_MP = 0; % Set to 1 to write the input parameter files into a series of text files.
 RUN_ON_CLUSTER = 0;     % When 1, look for a text file countries_to_run.txt to determine the range of countries to run.
 
+%% Note these are specified elsewhere too - but I need them for p_ChronicCarriage.
+num_sexes = 2;
+num_treat_blocks = 4;
+
 
 %% To remove to allow full run (labelled with TUTAJ):
 %% num_stochas_runs = 2;
@@ -334,6 +338,13 @@ assert(num_nathist_states==15) % 15 disease states
 % i_NonSevAcute = 14; % 'Non-severe acute', ...  % 14
 % i_SevereAcute = 15; % 'Severe acute' ...  % 15
 
+i_sexes = struct('F', 1, 'M', 2, 'n_sexes',2);
+
+i_care = struct('undiagnosed', 1,...  % Undiagnosed (or never infected)
+    'appropriate_management', 2,...   % following diagnosis, gets appropriate management (monitoring if ineligible, on treatment and adherent if eligible)
+    'incare_nonadherent', 3,...       % following diagnosis, has sub-optimal management or goes on treatment but is non-adherent.
+    'outofcare', 4,...                % following diagnosis, drops out of care. Would need new technology/guidelines to improve outcome to another compartment (e.g. treat-all
+    'n_care_blocks', 4); 
 
 
 theta = 0.01; % proportion of persons newly infected that develop severe symptoms (i.e. go to 15 rather than 14) during acute infection
@@ -441,12 +452,15 @@ risk_ages_edmunds_func = @(age) exp(-0.645*age^(0.455));
 % does not differ over disease stages
 % 4 dimensions necessary so that it can be multiplied by X
 risk_p_ChronicCarriage = arrayfun(@(xx) risk_ages_edmunds_func(xx), ages(:,ages>0.5));
-risk_p_ChronicCarriage = repmat(risk_p_ChronicCarriage,1,1,2,2);
+%% The first "1" below is because we use it for one stage progression at a time. 
+%% The second "1" is because risk_p_ChronicCarriage already is by age group (for age>0.5) before it is repeated.
+%% We then deal with infants <=0.5 below.
+risk_p_ChronicCarriage = repmat(risk_p_ChronicCarriage, 1, 1, num_sexes, num_treat_blocks);
 
 % Set up the probability that an individual becomes a chronic carrier given
 % they get infected at a specific age, their sex, and *accessible* (whether
 % can be reached by treatment progs, 1=no, 2=yes).
-p_ChronicCarriage = p_infant_becomes_chronic_carrier * ones(1, num_age_steps, 2, 2);
+p_ChronicCarriage = p_infant_becomes_chronic_carrier * ones(1, num_age_steps, num_sexes, num_treat_blocks);
 p_ChronicCarriage(:, ages>0.5, :, :) = risk_p_ChronicCarriage;
 
 
@@ -550,8 +564,8 @@ for sensitivity_analysis_num=1:num_sensitivity_analyses
             Countrylevel_intervention_params, Global_intervention_params, ...
             GHO_infacilitybirthproportion_map, ANC_coverage_map, ...
             Polaris_diagnosis_coverage_map, Polaris_treat_coverage_map, ...
-            basedir,...
-            i_natural_hist,num_year_divisions,dt,ages,num_age_steps,start_year,num_years_simul,end_year,...
+            basedir,i_natural_hist,i_sexes, i_care,...
+            num_year_divisions,dt,ages,num_age_steps,start_year,num_years_simul,end_year,...
             theta,CFR_Acute,rate_6months,ECofactor,p_ChronicCarriage,life_expectancy,...
             Prog)
             %% Arguments moved into PAP_VL_params (with modifications by VL) Efficacy_Treatment_MTCT, p_VerticalTransmission_Tr_BirthDoseVacc, p_VerticalTransmission_Tr_BirthDose_MAP_CPAD,

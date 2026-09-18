@@ -8,7 +8,7 @@ function output = HBVmodel(source_HBsAg,...
     p_ChronicCarriage,Prog,Transitions, ...
     scenario_BDcoverage, scenario_BDcoverage_fromMAP, ...
     scenario_BDcoverage_fromCPAD, scenario_HepB3coverage, ...
-    scenario_Treatment, scenario_treat_elig, max_treatment_coverage, ...
+    scenario_Treatment, I_TREAT, scenario_treat_elig, max_treatment_coverage, ...
     ISO, scenario_num, scenario_AddScreenIntervention, ...
     num_year_1980_2100, life_expectancy, ...
     stochas_run_str, sensitivity_analysis, basedir, store_results_as_text)
@@ -162,7 +162,7 @@ else
 end
 
 %% Set effectiveness of treatemnt in reducing transmission (different for long-acting treatment):
-if(scenario_Treatment==I_TREAT_LA)
+if(scenario_Treatment==I_TREAT.LA)
     RRtrans_effective_treatment = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'RRtrans_effective_LAtreatment'),:).Value;
     RRtrans_nonadherent_treatment = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'RRtrans_nonadherent_LAtreatment'),:).Value;
 else %% Current treatment:
@@ -636,8 +636,8 @@ Incid_chronic_all_5yr_approx_no_VertTrans = zeros(2, max(agegroups_5yr), num_yea
 %% end of mini-chunk
 
 [...
-    Tot_Pop_1yr, Prev_Immune_Reactive_1yr, Prev_Chronic_Hep_B_1yr, Prev_Comp_Cirr_1yr, Prev_Decomp_Cirr_1yr, ...
-    Prev_Liver_Cancer_1yr, Prev_TDF_treat_1yr, NumSAg_1yr, NumSAg_chronic_1yr, yld_1yr, Prev_Deaths_1yr...
+    Tot_Pop_1yr, Prev_treatment_eligible_1yr, ...
+    Prev_Liver_Cancer_1yr, Prev_Decomp_Cirr_1yr, Prev_TDF_treat_1yr, NumSAg_1yr, NumSAg_chronic_1yr, yld_1yr, Prev_Deaths_1yr...
     ] = deal(DUMMY_VALUE * ones(num_sexes, max(agegroups_1yr), num_years_simul+1));
 [...
     Incid_chronic_all_1yr_approx,...
@@ -793,7 +793,6 @@ for time = TimeSteps
             if(time==2025)
             %disp([min(ScalerMat),max(ScalerMat)])
                 disp("Uncomment the line below to show scalarmat")
-                disp("***FIX Prev_TDF_treat_1yr***")
                 %%disp("Scalarmat here:")
                 %%disp(ScalerMat)
             end
@@ -815,11 +814,9 @@ for time = TimeSteps
                     assert(isequal(size(state_prev_vec),[num_disease_states 1]))
 
                     Tot_Pop_1yr(k, ag, OutputEventNum-1) = sum(state_prev_vec(i_alive));                
-                    Prev_Immune_Reactive_1yr(k, ag, OutputEventNum-1) = state_prev_vec(i_ImmReact);
-                    Prev_Chronic_Hep_B_1yr(k, ag, OutputEventNum-1) = state_prev_vec(i_Chronic);
-                    Prev_Comp_Cirr_1yr(k, ag, OutputEventNum-1) = state_prev_vec(i_CompCirr);
-                    Prev_Decomp_Cirr_1yr(k, ag, OutputEventNum-1) = state_prev_vec(i_DecompCirr);
+                    
                     Prev_Liver_Cancer_1yr(k, ag, OutputEventNum-1) = state_prev_vec(i_HCC);
+                    Prev_Decomp_Cirr_1yr(k, ag, OutputEventNum-1) = state_prev_vec(i_DecompCirr);
                     
                     %% ALPHA - Prev_TDF_treat_1yr is now the sum over groups in care (note that this will depend on eligibility):
                     if(ag<30)
@@ -829,6 +826,8 @@ for time = TimeSteps
                     end
                     %%i_treatelig_thisage = get_treatment_eligible_nathistindices(scenario_treat_elig, ag, i_natural_hist, ages);
                     Prev_TDF_treat_1yr(k, ag, OutputEventNum-1) = squeeze(sum(sum(sum(X(i_treatelig_thisage, agegroups_1yr == ag, k, [i_appropriate_management,i_incare_nonadherent]), 1), 2), 4));
+                    Prev_treatment_eligible_1yr(k, ag, OutputEventNum-1) = squeeze(sum(sum(sum(X(i_treatelig_thisage, agegroups_1yr == ag, k, :), 1), 2), 4));
+                    
                     %%Prev_TDF_treat_1yr(k, ag, OutputEventNum-1) = state_prev_vec(i_TDFtreat);
 
                     %% MP TODO: Maybe remove this as the HBV deaths compartment has the same "edge of cliff" thing
@@ -1227,14 +1226,14 @@ for time = TimeSteps
                 %% This line caps the number of people moving at this timestep in a given compartment to be at most next_X in that compartment.
                 moving_to_diagnosed_by_ANC_testing_this_timestep(moving_to_diagnosed_by_ANC_testing_this_timestep>next_X) = next_X(moving_to_diagnosed_by_ANC_testing_this_timestep>next_X);
                                
-                if(time<2028)
-                    fprintf("Eligible for ANC treatment: %6.4f at time %6.4f\n",sum(sum(sum(sum(moving_to_diagnosed_by_ANC_testing_this_timestep,1),2),3),4), time)
-                end
+                % if(time<2028)
+                %     fprintf("Eligible for ANC treatment: %6.4f at time %6.4f\n",sum(sum(sum(sum(moving_to_diagnosed_by_ANC_testing_this_timestep,1),2),3),4), time)
+                % end
                 %disp("Eligible for ANC treatment")
                 %disp(sum(sum(sum(sum(moving_to_diagnosed_by_ANC_testing_per_timestep,1),2),3),4))
                 %disp("At time")
                 %disp(time)
-                fprintf("Eligible for ANC treatment %d at time %d",sum(sum(sum(sum(moving_to_diagnosed_by_ANC_testing_per_timestep,1),2),3),4),time)
+                %fprintf("Eligible for ANC treatment %d at time %d",sum(sum(sum(sum(moving_to_diagnosed_by_ANC_testing_this_timestep,1),2),3),4),time)
 
                 sum_moving_to_diagnosed_by_ANC_testing_this_timestep = sum(moving_to_diagnosed_by_ANC_testing_this_timestep, 4);
                 next_X(:, :, :, [i_undiagnosed i_outofcare]) = next_X(:, :, :, [i_undiagnosed i_outofcare]) - moving_to_diagnosed_by_ANC_testing_this_timestep(:, :, :, [i_undiagnosed i_outofcare]);
@@ -1419,8 +1418,8 @@ for time = TimeSteps
                 number_starting_treatment_to_print = num_in_treatment;
                 
                 %% Now just double-check everything again:
-                eligible_pop = squeeze(sum(sum(sum(X(i_treatelig_under30, 1:(i30y-1), :, :),1),2),3)) + ...
-                                    squeeze(sum(sum(sum(X(i_treatelig_30plus, i30y:num_age_steps, :, :),1),2),3)); 
+                eligible_pop = squeeze(sum(sum(sum(sum(X(i_treatelig_under30, 1:(i30y-1), :, :),1),2),3),4)) + ...
+                                    squeeze(sum(sum(sum(sum(X(i_treatelig_30plus, i30y:num_age_steps, :, :),1),2),3),4)); 
                 assert(num_in_treatment/eligible_pop >= treat_coverage_in_2016)
 
                 % treatment coverage amongst treatment-eligible people will be greater than treatment coverage amongst HBsAg+ people, except if treatment coverage is 0
@@ -1791,11 +1790,12 @@ output.Time = Time; % 1 x (num_years_simul + 1)
 output.Tot_Pop_1yr = Tot_Pop_1yr; % 2 x num_1yr_age_gps x (num_years_simul + 1)
 output.num_births_1yr = num_births_1yr; % 1 x (num_years_simul + 1)
 output.Incid_chronic_all_1yr_approx = Incid_chronic_all_1yr_approx; % 2 x num_1yr_age_gps x (num_years_simul + 1)
-output.Prev_Immune_Reactive_1yr = Prev_Immune_Reactive_1yr; % 2 x num_1yr_age_gps x (num_years_simul + 1)
-output.Prev_Chronic_Hep_B_1yr = Prev_Chronic_Hep_B_1yr; % 2 x num_1yr_age_gps x (num_years_simul + 1)
-output.Prev_Comp_Cirr_1yr = Prev_Comp_Cirr_1yr; % 2 x num_1yr_age_gps x (num_years_simul + 1)
-output.Prev_Decomp_Cirr_1yr = Prev_Decomp_Cirr_1yr; % 2 x num_1yr_age_gps x (num_years_simul + 1)
+%%output.Prev_Immune_Reactive_1yr = Prev_Immune_Reactive_1yr; % 2 x num_1yr_age_gps x (num_years_simul + 1)
+%%output.Prev_Chronic_Hep_B_1yr = Prev_Chronic_Hep_B_1yr; % 2 x num_1yr_age_gps x (num_years_simul + 1)
+%%output.Prev_Comp_Cirr_1yr = Prev_Comp_Cirr_1yr; % 2 x num_1yr_age_gps x (num_years_simul + 1)
+%%output.Prev_Decomp_Cirr_1yr = Prev_Decomp_Cirr_1yr; % 2 x num_1yr_age_gps x (num_years_simul + 1)
 output.Prev_TDF_treat_1yr = Prev_TDF_treat_1yr; % 2 x num_1yr_age_gps x (num_years_simul + 1)
+output.Prev_treatment_eligible_1yr = Prev_treatment_eligible_1yr; % 2 x num_1yr_age_gps x (num_years_simul + 1)
 output.NumSAg_1yr = NumSAg_1yr; % 2 x num_1yr_age_gps x (num_years_simul + 1)
 output.NumSAg_chronic_1yr = NumSAg_chronic_1yr; % 2 x num_1yr_age_gps x (num_years_simul + 1)
 output.yld_1yr = yld_1yr; % 2 x num_1yr_age_gps x (num_years_simul + 1)
@@ -1942,11 +1942,8 @@ outputs_3D_cell_array = {...
     'Incid_Deaths_1yr_approx',...
     'Incid_chronic_all_1yr_approx',...
     'Prev_Deaths_1yr',...
-    'Prev_Immune_Reactive_1yr',...
-    'Prev_Chronic_Hep_B_1yr',...
-    'Prev_Comp_Cirr_1yr',...
-    'Prev_Decomp_Cirr_1yr',...
     'Prev_TDF_treat_1yr',...
+    'Prev_treatment_eligible_1yr'...
     };
 num_outputs_3D = length(outputs_3D_cell_array);
 
