@@ -75,6 +75,19 @@ for country_num = 1:num_countries
     ANC_coverage_map(ISO) = table2array(ANC_coverage(ANC_coverage.ISO==ISO,3))/100.0;
 end
 
+%% Used for scenario introducing ANC HBV testing (we use HIV testing as a proxy):
+scenario_data_ANCHBVtestingbyage = readtable("../resources/p_ANCHIVtest_women_by_age.csv");
+scenario_data_ANCHBVtestingbyage.ISO = categorical(scenario_data_ANCHBVtestingbyage.ISO);
+% We pass the entire containers.Map to HBV model because we need the data
+% by year and age group.
+% scenario_data_ANCHBVtestingbyage_map = containers.Map('KeyType','char','ValueType','double');
+% for country_num = 1:num_countries
+%     ISO = ListOfISOs{country_num};
+%     temp = table2array(scenario_data_ANCHBVtestingbyage(scenario_data_ANCHBVtestingbyage.ISO==ISO,3:end));
+%     scenario_data_ANCHBVtestingbyage_map(ISO) = temp;
+% end
+
+
 %%
 Polaris_diag_treat_coverage = readtable("../resources/treatment_cascade.csv");
 Polaris_diag_treat_coverage.ISO = categorical(Polaris_diag_treat_coverage.ISO);
@@ -83,13 +96,17 @@ Polaris_treat_coverage_map = containers.Map('KeyType','char','ValueType','double
 for country_num = 1:num_countries
     ISO = ListOfISOs{country_num};
     p_diag = table2array(Polaris_diag_treat_coverage(Polaris_diag_treat_coverage.ISO==ISO,2));
-    p_treat_given_diag = table2array(Polaris_diag_treat_coverage(Polaris_diag_treat_coverage.ISO==ISO,3));
+    %% This is the fraction of ALL prevalent infections (I think chronic?) that are treated (regardless of diagnosis/eligibility).
+    %% Evidence - for the UK https://www.gov.uk/government/publications/hepatitis-b-in-england/hepatitis-b-in-england-2025#reducing-hepatitis-b-related-mortality-by-increasing-diagnosis-and-treatment
+    %% Figures 22+23 give number of entecavir/TDF as ~6131 +  9958 = 16089 people on treatment.
+    %% 268,767 people living with hepatitis B. 16089/268767=6%, which is pretty close to the Polaris UK 2025 estimate of 7% (note that Polaris Dx estimate for the UK is 46%, slightly higher than in the UKHSA report of 43.6%)
+    p_treat = table2array(Polaris_diag_treat_coverage(Polaris_diag_treat_coverage.ISO==ISO,3));
     Polaris_diagnosis_coverage_map(ISO) = p_diag;
     %% We want the conditional probability P(start treatment|diagnosed) - so we can strenghten diagnosis and (starting treatment|diagnosis) sepatrately
     %% Note that we *do* allow the conditional probabilities to be >1 (in reality testing can target those most likely to be eligible), so this is more like a RR.
     %% In the improve testing scenarios we will take this RR to be 1 or >1 (the latter with targetd testing)
     if(p_diag>0)
-        Polaris_treat_coverage_map(ISO) = p_treat_given_diag/p_diag;
+        Polaris_treat_coverage_map(ISO) = p_treat;
         assert(Polaris_treat_coverage_map(ISO)<=1)
     else
         Polaris_treat_coverage_map(ISO) = 0;
@@ -114,7 +131,7 @@ if RUN_ON_CLUSTER==0
     %%countries_to_run = [6, 8, 17, 34, 38, 47, 50, 52, 56, 70, 92];  %%
     %%countries_to_run = [1, 2];
 
-    countries_to_run = 89;
+    countries_to_run = [16,30];
 else
     fileID = fopen('countries_to_run.txt','r');
     formatSpec = '%i';
@@ -567,7 +584,7 @@ for sensitivity_analysis_num=1:num_sensitivity_analyses
             basedir,i_natural_hist,i_sexes, i_care,...
             num_year_divisions,dt,ages,num_age_steps,start_year,num_years_simul,end_year,...
             theta,CFR_Acute,rate_6months,ECofactor,p_ChronicCarriage,life_expectancy,...
-            Prog)
+            Prog, scenario_data_ANCHBVtestingbyage)
             %% Arguments moved into PAP_VL_params (with modifications by VL) Efficacy_Treatment_MTCT, p_VerticalTransmission_Tr_BirthDoseVacc, p_VerticalTransmission_Tr_BirthDose_MAP_CPAD,
 
     end
