@@ -674,7 +674,7 @@ transfer_to_HepB3vacc = zeros(1, 1, num_sexes, num_treat_blocks);
 
 % single output per year
 %% PAP - extra PAP-model-specific outputs included here:
-[Time, RateInfantVacc, RateBirthDoseVacc, RatePeripartumTreatment, num_starting_treatment_as_eligible,... 
+[Time, RateInfantVacc, RateBirthDoseVacc, RatePeripartumTreatment, ...
     num_births_1yr, NumDecompCirr, NumLiverCancer, ...
     PregnantWomenNeedToScreen, HBVPregnantWomenNeedToEvaluate] = deal(DUMMY_VALUE * ones(1, num_years_simul+1));
  
@@ -958,7 +958,7 @@ for time = TimeSteps
             PeripartumTreatment_HbSAg_LowVL_approx(OutputEventNum-1) = num_mothers_PAP_HbSAg_LowVL;
             RatePeripartumTreatment(OutputEventNum-1) = RateOfPAPInitiation;
             HBVPregnantWomenNeedToEvaluate(OutputEventNum-1) = HBVPositivePregnantWomenAtANC;
-            num_starting_treatment_as_eligible(OutputEventNum-1) = num_starting_treatment_as_eligible_this_year; 
+            %%num_starting_treatment_as_eligible(OutputEventNum-1) = num_starting_treatment_as_eligible_this_year; 
         end
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
@@ -1511,6 +1511,7 @@ for time = TimeSteps
                 %% This represents the number of people starting treatment at this timestep (as noone is on treatment in the model before 2016).
                 number_starting_treatment_to_print = num_in_treatment;
                 
+                 
                 %% Now just double-check everything again:
                 eligible_pop = squeeze(sum(sum(sum(sum(X(i_treatelig_under30, 1:(i30y-1), :, :),1),2),3),4)) + ...
                                     squeeze(sum(sum(sum(sum(X(i_treatelig_30plus, i30y:num_age_steps, :, :),1),2),3),4)); 
@@ -1639,7 +1640,8 @@ for time = TimeSteps
                 + dt * (1-prop_adhere_treatment) * moving_to_treatment(:, :, :, i_undiagnosed);
             next_X(:,:,:,i_outofcare)              = next_X(:,:,:,i_outofcare) + dt * (1-prop_remain_in_care) * moving_to_diagnosed(:,:,:,i_undiagnosed);
             
-            number_starting_treatment_to_print = squeeze(sum(sum(sum(sum(moving_to_diagnosed, 1), 2), 3), 4));
+            number_starting_treatment_to_print = num_starting_treatment_as_eligible_this_year;
+            %%number_starting_treatment_to_print = squeeze(sum(sum(sum(sum(moving_to_diagnosed, 1), 2), 3), 4));
             assert(isscalar(number_starting_treatment_to_print))
 
         end
@@ -2037,7 +2039,6 @@ output.PeripartumTreatment_HbSAg_LowVL_approx = PeripartumTreatment_HbSAg_LowVL_
 output.RatePeripartumTreatment = RatePeripartumTreatment(i_PAPoutputs_start:i_PAPoutputs_end); % 1 x num_years_output
 output.PregnantWomenNeedToScreen = PregnantWomenNeedToScreen(i_PAPoutputs_start:i_PAPoutputs_end); % 1 x num_years_output; added 13.9.15
 output.HBVPregnantWomenNeedToEvaluate = HBVPregnantWomenNeedToEvaluate(i_PAPoutputs_start:i_PAPoutputs_end); % 1 x num_years_output
-output.num_starting_treatment_as_eligible = num_starting_treatment_as_eligible(i_PAPoutputs_start:i_PAPoutputs_end);
 
 output.beta_U5 = beta_U5;
 output.p_HbSAg_av = p_HbSAg_av;
@@ -2110,8 +2111,7 @@ outputs_vectors_cell_array = {...
     'PeripartumTreatment_HbSAg_LowVL_approx',...
     'RatePeripartumTreatment',...
     'PregnantWomenNeedToScreen',...
-    'HBVPregnantWomenNeedToEvaluate',...
-    'num_starting_treatment_as_eligible'...
+    'HBVPregnantWomenNeedToEvaluate'...
     };
 num_outputs_vectors = length(outputs_vectors_cell_array);
 outputs_3D_cell_array = {...
@@ -2287,7 +2287,7 @@ function output_labels=construct_header(agegroups, num_disease_states, num_sexes
     n_age_groups = max(agegroups);
     
     
-    age_width = 1;  %% We are outputting in 1 year age groups.
+    age_width = 5;  %% We are outputting in 5 year age groups.
     age_labels = strings(1, n_age_groups); 
     for i = 1:n_age_groups
         age_min = string((i-1)*age_width);
