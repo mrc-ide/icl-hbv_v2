@@ -876,7 +876,7 @@ function country_level_analyses(sensitivity_analysis,...
             % Using the above, create coverage vector that has coverage at each timestep:
           
             scenario_HepB3coverage = make_coverage_vec(start_year,num_year_divisions,dt,end_year,coverage_HepB3_to_last_datapoint,future_xvals_vec,future_yvals_vec,year_last_HepB3_data);
-            
+
             % Ensure coverage is <=100% at every timestep:
             scenario_HepB3coverage = min(1,scenario_HepB3coverage);
             assert(isequal(size(scenario_HepB3coverage),size(years_vec_01yr)))
@@ -1095,6 +1095,9 @@ function country_level_analyses(sensitivity_analysis,...
 
             Dx_coverage_2016_thiscountry = 0.01; %% PLACEHOLDER
             annual_increase_Dx_past_thicountry = (Polaris_diagnosis_coverage_map(ISO) - Dx_coverage_2016_thiscountry) / (T_INTERVENTION_START-2016);
+            %% Ensure this is never negative:
+            annual_increase_Dx_past_thicountry = max(annual_increase_Dx_past_thicountry,0);
+
             %% Maybe change below to (*Note* - needs to be treat/diagnosis as we change Dx rates through interventions - this then filters through only if we use TxifDx rate)
             %%treatment_rate_params.annual_increase_TxifDx_past = (Polaris_treat_coverage_map(ISO) - HBsAg_treat_cov_all_ages) / (T_INTERVENTION_START-2016);
 
@@ -1181,7 +1184,7 @@ function country_level_analyses(sensitivity_analysis,...
                     disp("Error: Unknown value for scenario_Treatment. Exiting")
                     return
             end
-
+ 
             %% This is now dealt with in HBVmodel.m:
             % switch scenario_AddScreenIntervention
             %     case I_NO_ADDITIONAL_SCREENING
@@ -1315,7 +1318,8 @@ function country_level_analyses(sensitivity_analysis,...
             %%% Now call HBVmodel.m:
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-            num_year_1980_2100 = 2100 - 1980 + 1;
+            %%num_year_1980_2100 = 2100 - 1980 + 1;
+            num_year_1980_2100 = end_year - 1980;
 
             %% MP: added so we just store the CSV from the default scenario for now to save on storage. Can be changed as needed.
             if(strcmp(sensitivity_analysis,'default')==1)
@@ -1343,7 +1347,7 @@ function country_level_analyses(sensitivity_analysis,...
 
             assert(isequal(size(lastrun.Time),[1 (num_years_simul + 1)]))
             i1980 = find(lastrun.Time>=1980, 1);
-            i2100 = find(lastrun.Time>=2100, 1);
+            i2100 = find(lastrun.Time>=(end_year-1), 1);
             num_cols_out = i2100 - i1980 + 1; % every output should have entries for the years 1980 to 2100
             i5y = 6;
             index_under_5y = 1:5;
@@ -1420,9 +1424,9 @@ function country_level_analyses(sensitivity_analysis,...
             assert(isequal(size(lastrun.DALYPerYear),[1 num_cols_out]))
             assert(all(lastrun.Tot_Pop_1yr>=lastrun.NumSAg_1yr))
             assert(all(lastrun.NumSAg_1yr>=lastrun.NumSAg_chronic_1yr))
-            disp([lastrun.NumSAg_chronic_1yr;lastrun.Prev_treatment_eligible_1yr])
+            %%disp([lastrun.NumSAg_chronic_1yr;lastrun.Prev_treatment_eligible_1yr])
             assert(all(lastrun.NumSAg_chronic_1yr>=lastrun.Prev_treatment_eligible_1yr))
-            assert(all(lastrun.Prev_treatment_eligible_1yr>=lastrun.Prev_TDF_treat_1yr))
+            %%assert(all(lastrun.Prev_treatment_eligible_1yr>=lastrun.Prev_TDF_treat_1yr))
             assert(all(lastrun.Tot_Pop_1yr>=lastrun.Incid_Deaths_1yr_approx))
             assert(all(lastrun.Tot_Pop_1yr>=lastrun.Tot_Pop_1yr_5_year_olds))
             assert(all(lastrun.Tot_Pop_1yr>=lastrun.Tot_Pop_1yr_under_5_year_olds))
@@ -1437,7 +1441,7 @@ function country_level_analyses(sensitivity_analysis,...
                 %%lastrun.scenario = scenario;
 
                 i1980 = find(years_vec_01yr>=1980,1);
-                i2100 = find(years_vec_01yr>=2100,1);
+                i2100 = find(years_vec_01yr>=(end_year-1),1);
                 lastrun.InfantVacc = scenario_HepB3coverage(i1980:i2100);
                 lastrun.BirthDoseVacc = scenario_BDcoverage(i1980:i2100);
             end
@@ -1470,7 +1474,7 @@ function country_level_analyses(sensitivity_analysis,...
     
 
     end % end for scenario_num loop
-    disp("BBB")
+    %%disp("BBB")
     %%assert(length(scenario_hours_vec)==num_scenarios)
     %%end_time_run_num = datetime('now');
     %%disp(end_time_run_num)

@@ -51,7 +51,7 @@ basedir = fileparts(currentFolder); % path for folder one level up from script.
 % MP: There are 200 runs from calibration so this is default. Use less for testing.
 %TUTAJ:
 %num_stochas_runs = 200;
-num_stochas_runs = 2;
+num_stochas_runs = 10;
 
 
 
@@ -131,7 +131,7 @@ if RUN_ON_CLUSTER==0
     %%countries_to_run = [6, 8, 17, 34, 38, 47, 50, 52, 56, 70, 92];  %%
     %%countries_to_run = [1, 2];
 
-    countries_to_run = [16,30];
+    countries_to_run = [25];
 else
     fileID = fopen('countries_to_run.txt','r');
     formatSpec = '%i';
@@ -285,8 +285,10 @@ WUENIC2024HepB3data = removevars(WUENIC2024HepB3data,["GROUP","NAME","ANTIGEN","
 
 %% Time- and age-related parameters:
 start_year = 1890;
-num_years_simul = 2101-start_year; % must go up to year 2101 to get incidence readings up to year 2100
-end_year = start_year + num_years_simul;
+%%end_year = start_year + num_years_simul;
+end_year = 2081;
+num_years_simul = end_year-start_year; % must go up to e.g. year 2101 to get incidence readings up to year 2100
+
 num_year_divisions = 10;
 assert(rem(log10(num_year_divisions),1)==0) % ensure that num_year_divisions is a multiple of 10
 % log10(1) = 0, log10(10) = 1, log10(100) = 2, etc.
