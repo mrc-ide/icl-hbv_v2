@@ -14,7 +14,7 @@ function output = HBVmodel(source_HBsAg,...
     num_year_1980_2100, life_expectancy, ...
     stochas_run_str, sensitivity_analysis, basedir, store_results_as_text)
 
-
+PRINT_VERBOSE = 0; %% Don't print debug info to screen
 DUMMY_VALUE = -99;  % Used in initialising arrays to a dummy value (-99 should be easy to spot).
 
 %% Establish basic simulation parameters
@@ -1754,9 +1754,13 @@ for time = TimeSteps
             %% Total diagnosed (denominator for TxifDx):
             n_diagnosed = sum(sum(sum(sum(X(i_sAgpos_chronic, :, :, [i_appropriate_management, i_incare_nonadherent, i_outofcare])))));
             %% n_diagnosed = n_chronic - n_undiagnosed; %% Note - I tried comparing this with the calculation for n_diagnosed below, and they were different by 1e-11 - presumably numerical error.
+            
+            if(time>2015 && scenario_Treatment==I_TREAT.IFscreening)
+                fprintf("time=%6.4f n_diagnosed=%6.4f n_chronic=%6.4f \n",time,n_diagnosed,n_chronic)
+            end
             assert(n_chronic>0)
             Dx_coverage_now = n_diagnosed/n_chronic;
-            assert((Dx_coverage_now<1 && Dx_coverage_now>=0))
+            assert((Dx_coverage_now<1.01 && Dx_coverage_now>=0))
 
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             %% Treatment from 2016.0: (i.e. once initiated)
@@ -1769,36 +1773,27 @@ for time = TimeSteps
             if (time<=treatment_rate_params.t_treatment_scaleup_start)
                 %% Because treat_start_year=(2016-dt) we adjust here by adding back the dt:
                 increase_Dx_since_2016 = treatment_rate_params.Dx_coverage_current - treatment_rate_params.Tx_coverage_2016;
-                %%fprintf("t=%6.4f increase_Dx_since_2016=%6.4f currentDx=%6.4f ",time,increase_Dx_since_2016,treatment_rate_params.Dx_coverage_current);
+                % if(time-floor(time)==0)
+                %     fprintf("t=%6.4f increase_Dx_since_2016=%6.4f currentDx=%6.4f ",time,increase_Dx_since_2016,treatment_rate_params.Dx_coverage_current);
+                % end
                 target_Dx_coverage_now = treatment_rate_params.Tx_coverage_2016 ...
-                    + (time - (treat_start_year+dt)) * increase_Dx_since_2016;                
+                    +  increase_Dx_since_2016 * (time - (treat_start_year+dt))/(treatment_rate_params.t_treatment_scaleup_start - (treat_start_year+dt)); 
                 %% The increase in diagnosis is the difference between the target and actual Dx coverage.
                 %% Ensure it is never negative:
-                increment_Dx_coverage_this_dt = max(target_Dx_coverage_now - Dx_coverage_now, 0);                
+                increment_Dx_coverage_this_dt = dt * max(target_Dx_coverage_now - Dx_coverage_now, 0);                
                 %% PRZESZLOSC: annual_increase_Dx = treatment_rate_params.annual_increase_Dx_past;
             else
                 %% Diagnosis rate is same as future Dx rate for simplicity:
                 increment_Dx_coverage_this_dt = dt * treatment_rate_params.annual_increase_Dx_future;
                 %% PRZESZLOSC: annual_increase_Dx = treatment_rate_params.annual_increase_Dx_past + (treatment_rate_params.annual_increase_Dx_future - treatment_rate_params.annual_increase_Dx_past) * temp_tscale;
             end
-            if(time-floor(time)==0)
-                fprintf("At time %6.4f increment_Dx_coverage_this_dt=%6.4f  \n", time, increment_Dx_coverage_this_dt)
-            end
-
-            
 
             assert(increment_Dx_coverage_this_dt>=0)
-            assert(increment_TxifDx_coverage_this_dt>=0)
                         
             %% This is the number of people who aren't on treatment but are eligible (so the pool of people we could move onto treatment).
             %% Note - moving these people onto treatment is a mix of people getting diagnosed and treated immediately (as eligible) and people out of care getting linked back into care and starting Tx.
             n_eligible_notonTx = sum(sum(sum(sum(X(i_treatelig_under30, 1:(i30y-1), :, [i_undiagnosed, i_outofcare]),1),2),3),4) ...
                 + sum(sum(sum(sum(X(i_treatelig_30plus, i30y:num_age_steps, :, [i_undiagnosed, i_outofcare]),1),2),3),4);
-            %% This is the number of people who aren't in care but who - if using a Tx eligibility test (e.g. PoC) with <100% sensitivity - could potentially end up on treatment:
-            n_potential_miseligible_notonTx = sum(sum(sum(sum(X(i_potential_miseligibilityTx_under30, 1:(i30y-1), :, [i_undiagnosed, i_outofcare]),1),2),3),4) ...
-                + sum(sum(sum(sum(X(i_potential_miseligibilityTx_30plus, i30y:num_age_steps, :, [i_undiagnosed, i_outofcare]),1),2),3),4);
- 
-
             
             %% PRZESZLOSC: n_to_diagnose_thisyear = n_chronic*annual_increase_Dx;  %% This one needed to be multiplied by dt later on. 
 
@@ -1822,6 +1817,11 @@ for time = TimeSteps
                 prop_undiagnosed_to_diagnose_thisdt = 0;
             end
 
+            
+            %% ***These are the total number of people to diagnose and to move to treatment (both strat by age, sex, disease stage)***
+            %% Note: We still need to divide them into who will remain in care/out of care, in appropriate care/nonadherent care.
+            n_move_to_diagnosed(i_sAgpos_chronic, :, :, i_undiagnosed) = prop_undiagnosed_to_diagnose_thisdt * X(i_sAgpos_chronic, :, :, i_undiagnosed);
+
 
 
             %% This is the number of people who are diagnosed and (more or less) immediately start treatment.
@@ -1833,7 +1833,7 @@ for time = TimeSteps
 
             %% Now look at the number of people who will start treatment this timestep. This depends on the treatment eligibility scenario (and time):
             %% First current treatment eligibility scenario:
-            if(strcmp(scenario_treat_elig,"Current treatment") || (time<t_treatment_scaleup_start))
+            if(strcmp(scenario_treat_elig,"Current treatment") || (time<treatment_rate_params.t_treatment_scaleup_start))
                 %% In "Current treatment" we have a fixed rate of Tx initiation among those newly diagnosed (we deal with Tx initiates among those in care who become eligible separately):
                 if (time<=treatment_rate_params.t_treatment_scaleup_start)
                     increment_TxifDx_coverage_this_dt = dt * treatment_rate_params.annual_increase_TxifDx_past;
@@ -1848,6 +1848,7 @@ for time = TimeSteps
                         * temp_tscale);
                     %% PRZESZLOSC: annual_increase_TxifDx = treatment_rate_params.annual_increase_TxifDx_past + (treatment_rate_params.annual_increase_TxifDx_future - treatment_rate_params.annual_increase_TxifDx_past) * temp_tscale;
                 end
+                assert(increment_TxifDx_coverage_this_dt>=0)
 
                 %% This is the overall number who are diagnosed and start treatment (basically...) immediately as they are eligible at diagnosis:
                 n_to_start_treatment_directly_thisdt = n_diagnosed*increment_TxifDx_coverage_this_dt - starting_treatment_as_eligible;
@@ -1873,12 +1874,9 @@ for time = TimeSteps
                     p_test = 0;
                 end
 
-                %% These are the total number of people to diagnose and to move to treatment (both strat by age, sex, disease stage).
-                %% ***These are intermediate steps***: We still need to divide them into who will remain in care/out of care, in appropriate care/nonadherent care.
-                BIDOOF - rename as intermediate.
-                n_move_to_diagnosed(i_sAgpos_chronic, :, :, i_undiagnosed) = prop_undiagnosed_to_diagnose_thisdt * X(i_sAgpos_chronic, :, :, i_undiagnosed);
-                n_move_to_treatment(i_treatelig_under30, 1:(i30y-1), :, [i_undiagnosed, i_outofcare]) = p_test * X(i_treatelig_under30, 1:(i30y-1), :, [i_undiagnosed, i_outofcare]);
-                n_move_to_treatment(i_treatelig_30plus, i30y:num_age_steps, :, [i_undiagnosed, i_outofcare]) = p_test * X(i_treatelig_30plus, i30y:num_age_steps, :, [i_undiagnosed, i_outofcare]);
+                %% n_move_to_treatment is the number going to treatment (or functional cure pathway if available) - adherence is sorted later
+                n_move_to_treatment(i_treatelig_under30, 1:(i30y-1), :, i_undiagnosed) = p_test * X(i_treatelig_under30, 1:(i30y-1), :, i_undiagnosed);
+                n_move_to_treatment(i_treatelig_30plus, i30y:num_age_steps, :, i_undiagnosed) = p_test * X(i_treatelig_30plus, i30y:num_age_steps, :, i_undiagnosed);
     
    
                 %% We need to have a number for the % of people who remain in care (versus leave care) - for those who aren't treatment-eligible.
@@ -1892,8 +1890,45 @@ for time = TimeSteps
                 else
                     prop_remain_in_care = 0;
                 end
+            %% PoC test is available - improved linkage to (immediate) treatment
+            elseif(strcmp(scenario_treat_elig,"PoC treatment") && (time>=t_treatment_scaleup_start))
 
-            %% Although we are in the middle of the "Current treatment" scenario we need to deal with Bepi:
+                %% This determines what % of n_move_to_diagnosed (after removing those going to treatment/functional cure pathway) remain in care if not eligible for treatment yet.
+                prop_remain_in_care = treatment_rate_params.Dx_remain_in_care_noeligbarrier;
+
+                %% n_move_to_treatment is the number going to treatment (or functional cure pathway if available) - adherence is sorted later
+                n_move_to_treatment(:, :, :, :) = 0; %% Set everything to zero
+                %% True eligible who receive a positive eligibility result:
+                n_move_to_treatment(i_treatelig_under30, 1:(i30y-1), :, i_undiagnosed) = ...
+                    treatment_rate_params.treat_elig_sensitivity * prop_remain_in_care ...
+                    * n_move_to_diagnosed(i_treatelig_under30, 1:(i30y-1), :, i_undiagnosed);
+                n_move_to_treatment(i_treatelig_30plus, i30y:num_age_steps, :, i_undiagnosed) = ...
+                    treatment_rate_params.treat_elig_sensitivity * prop_remain_in_care ...
+                    * n_move_to_diagnosed(i_treatelig_30plus, i30y:num_age_steps, :, i_undiagnosed);
+                %% False eligible who receive a positive eligibility result:
+                n_move_to_treatment(i_treateli_potential_miseligibilityTx_under30ig_under30, 1:(i30y-1), :, i_undiagnosed) = ...
+                    (1-treatment_rate_params.treat_elig_specificity) * prop_remain_in_care ...
+                    * n_move_to_diagnosed(i_potential_miseligibilityTx_under30, 1:(i30y-1), :, i_undiagnosed);
+                n_move_to_treatment(i_potential_miseligibilityTx_30plus, i30y:num_age_steps, :, i_undiagnosed) = ...
+                    (1-treatment_rate_params.treat_elig_specificity) * prop_remain_in_care ...
+                    * n_move_to_diagnosed(i_potential_miseligibilityTx_30plus, i30y:num_age_steps, :, i_undiagnosed);
+
+
+            %% Universal treatment - immediate start (with some drop out of care possible):
+            elseif(strcmp(scenario_treat_elig,"Universal treatment") && (time>=t_treatment_scaleup_start))
+               n_move_to_treatment(:, :, :, :) = 0; %% Set everything to zero
+                %% Note that i_treatelig_under30 and i_treatelig_30plus are updated in the Universal treatemnt scenario.
+                assert(isequal(i_treatelig_under30,i_treatelig_30plus))
+                i_treatelig_universal = i_treatelig_under30; %% These are the same
+                n_move_to_treatment(i_treatelig_universal, :, :, i_undiagnosed) = ...
+                    treatment_rate_params.Dx_remain_in_care_noeligbarrier ...
+                    * n_move_to_diagnosed(i_treatelig_universal, :, :, i_undiagnosed);
+                %% For universal treatment, if diagnosed but not going onto treatment, that means going out of care:
+                prop_remain_in_care = 0;
+            end
+
+            
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             %%% BEPI STUFF:
             %% At this point we determine which of the people starting treatment now will be eligible for Bepi and will achieve functional cure.
             %% (so anyone who won't be eligible for Bepi - either becuase they aren't adherent, or because they are cirrhotic - cannot go this route. 20% of those eligible will achieve functional cure)
@@ -1919,153 +1954,22 @@ for time = TimeSteps
 
             %% End of Bepi/functional cure stuff.
 
+            %% Now remove anyone who starts treatment but is on the functional cure pathway
+            %% (so that, when functional cure is available, n_move_to_treatment represents those who start treatment who aren't on the functional cure pathway):
+            n_move_to_treatment = n_move_to_treatment - n_enter_functional_cure_pathway;
             %% Now remove anyone who goes from undiagnosed direct to treatment or functional cure:
             n_move_to_diagnosed = n_move_to_diagnosed - n_move_to_treatment - n_enter_functional_cure_pathway;
 
 
             %% Ensure the number moving is not negative:
             n_move_to_diagnosed(n_move_to_diagnosed<0) = 0;
+            n_move_to_treatment(n_move_to_treatment<0) = 0;
             %% Stupid checks:
             % if(max(max(max(max(n_move_to_diagnosed))))<=0)
             %     fprintf("At t=%6.4f there is %6.4f-%6.4f to treat",time,min(min(min(min(n_move_to_diagnosed)))), max(max(max(max(n_move_to_diagnosed)))))
             % end
-            assert(max(max(max(max(n_move_to_diagnosed))))>=0)
             assert(min(min(min(min(n_move_to_diagnosed))))>=0)
-
-
-            %% PRZESZLOSC: previously we multiplied each of the n_* by dt to convert to a timestep. Now we don't need to.
-            next_X(:, :, :, i_undiagnosed)         = next_X(:, :, :, i_undiagnosed) ...
-                - n_move_to_diagnosed(:, :, :, i_undiagnosed) ...
-                - n_move_to_treatment(:, :, :, i_undiagnosed) ...
-                - n_enter_functional_cure_pathway(:, :, :, i_undiagnosed);
-            next_X(:,:,:,i_appropriate_management) = next_X(:,:,:,i_appropriate_management) ...
-                + prop_remain_in_care * prop_adhere_treatment * n_move_to_diagnosed(:,:,:,i_undiagnosed) ...
-                + prop_adhere_treatment * n_move_to_treatment(:, :, :, i_undiagnosed);
-            next_X(:,:,:,i_incare_nonadherent)     = next_X(:,:,:,i_incare_nonadherent) ...
-                + prop_remain_in_care * (1-prop_adhere_treatment) * n_move_to_diagnosed(:,:,:,i_undiagnosed) ...
-                + (1-prop_adhere_treatment) * n_move_to_treatment(:, :, :, i_undiagnosed);
-            next_X(:,:,:,i_outofcare)              = next_X(:,:,:,i_outofcare) ...
-                + (1-prop_remain_in_care) * n_move_to_diagnosed(:,:,:,i_undiagnosed);
-            next_X(i_funct_cure_path,:,:,i_appropriate_management) = next_X(i_funct_cure_path,:,:,i_appropriate_management) ...
-                + sum(n_enter_functional_cure_pathway(:,:,:,i_undiagnosed),1);
-
-   
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-BIDOOF_END
-
-            BIDOOF  
-            %%This bit should be - current scenario:
-            n_diagnosed*increment_TxifDx_coverage_this_dt - starting_treatment_as_eligible;
-            %% Universal treatment
-            n_to_start_treatment_directly_thisdt = n_diagnosed* prop_remain_in_care;
-            if(BIDOOF)
-            if(strcmp(scenario_treat_elig,"PoC treatment"))
-                                if(n_to_start_treatment_directly_thisdt>0)
-                    assert(treatment_rate_params.treat_elig_sensitivity==1)
-                    assert(treatment_rate_params.treat_elig_specificity==1)
-                    %% p_test is the probability that someone who would test positive gets tested (though this channel).
-                    %% When specificity=sensitivity=100%:
-                    %% p_test = n_to_start_treatment_directly_thisdt/n_eligible_notonTx;
-                    %%                 
-                    p_test_denom = treatment_rate_params.treat_elig_sensitivity*n_eligible_notonTx + (1-treatment_rate_params.treat_elig_specificity)*n_potential_miseligible_notonTx;
-                    p_test = n_to_start_treatment_directly_thisdt/p_test_denom;
-                    if(p_test>1)
-                        fprintf("Warning - diagnosis testing rate = %6.4f at t=%6.4f. Capping at 100% \n",p_test,time)
-                        %% Cap diagnosis at 1;
-                        p_test = 1;
-                    end
-                else
-                    %% This always occurs for SQ scenario, but print warning if it happens at other times:
-                    if(~scenario_Treatment==I_TREAT.SQ)
-                        disp(time)
-                        disp("Warning: Nobody left to treat!")
-                    end
-                    p_test = 0;
-                end
-
-                %% Higher proportion remain in care (80% or 90%):
-                prop_remain_in_care = treatment_rate_params.Dx_remain_in_care_noeligbarrier;
-                fprintf("PoC treatment eligibility - at time %6.4f prop_remain_in_care=%6.4f \n", time, prop_remain_in_care)
-            elseif(strcmp(scenario_treat_elig,"Universal treatment"))
-                %% Higher proportion remain in care (80% or 90%):
-                prop_remain_in_care = treatment_rate_params.Dx_remain_in_care_noeligbarrier;
-
-                
-            end
-            
-
-            
-
-
-
-
-
-            n_move_to_diagnosed(i_sAgpos_chronic, :, :, i_undiagnosed) = prop_undiagnosed_to_diagnose_thisdt * X(i_sAgpos_chronic, :, :, i_undiagnosed);
-            n_move_to_treatment(i_treatelig_under30, 1:(i30y-1), :, [i_undiagnosed, i_outofcare]) = p_test * X(i_treatelig_under30, 1:(i30y-1), :, [i_undiagnosed, i_outofcare]);
-            n_move_to_treatment(i_treatelig_30plus, i30y:num_age_steps, :, [i_undiagnosed, i_outofcare]) = p_test * X(i_treatelig_30plus, i30y:num_age_steps, :, [i_undiagnosed, i_outofcare]);
-
-
-
-            %% We need to have a number for the % of people who remain in care (versus leave care) - for those who aren't treatment-eligible.
-            %% We approximate this as the fraction of those diagnosed who are treatment-eligible who start treatment (so remain in care)
-            %% Firstly store the number of people who are treatment-eligible who get diagnosed at this timestep:
-            n_treatelig_whoarediagnosed = sum(sum(sum(sum(n_move_to_diagnosed(i_treatelig_under30, 1:(i30y-1), :, i_undiagnosed))))) + sum(sum(sum(n_move_to_diagnosed(i_treatelig_30plus, i30y:num_age_steps, :, i_undiagnosed))));
-            %% This is the number of people who get diagnosed this timestep who start treatment:
-            n_starttreat_whoarediagnosed = sum(sum(sum(sum(n_move_to_treatment(i_treatelig_under30, 1:(i30y-1), :, i_undiagnosed))))) + sum(sum(sum(sum(n_move_to_treatment(i_treatelig_30plus, i30y:num_age_steps, :, i_undiagnosed)))));
-            if(scenario_Treatment==I_TREAT.PoCeligibility)
-                %% Higher proportion remain in care (80% or 90%):
-                prop_remain_in_care = treatment_rate_params.Dx_remain_in_care_noeligbarrier;
-                fprintf("PoC treatment eligibility - at time %6.4f prop_remain_in_care=%6.4f \n", time, prop_remain_in_care)
-            elseif(strcmp(scenario_treat_elig,"Universal treatment"))
-                %% Higher proportion remain in care (80% or 90%):
-                prop_remain_in_care = treatment_rate_params.Dx_remain_in_care_noeligbarrier;
-                fprintf("Universal treatment eligibility - at time %6.4f prop_remain_in_care=%6.4f \n", time, prop_remain_in_care)
-            else %%  Non-PoC or universal care:
-                if(n_treatelig_whoarediagnosed>0)
-                    prop_remain_in_care = n_starttreat_whoarediagnosed/n_treatelig_whoarediagnosed;
-                else
-                    prop_remain_in_care = 0;
-                end
-            end
-
-            %%% BEPI STUFF:
-            %% At this point we determine which of the people starting treatment now will be eligible for Bepi and will achieve functional cure.
-            %% (so anyone who won't be eligible for Bepi - either becuase they aren't adherent, or because they are cirrhotic - cannot go this route. 20% of those eligible will achieve functional cure)
-            %% Note that the treatment eligibility under30/30 plus is already dealt with when we make n_move_to_treatment so I can assume that all immune tolerant in n_move_to_treatment are eligble for treatment (and hence Bepi).
-            if(scenario_FunctCure==I_CURE.Bepi)
-                if(time>funct_cure_params.T_Bepi_start)
-                    n_enter_functional_cure_pathway(i_bepi_eligible,:,:,i_undiagnosed) = ...
-                        funct_cure_params.p_Bepi * prop_adhere_treatment ...
-                        * n_move_to_treatment(i_bepi_eligible, :, :,i_undiagnosed);
-                else 
-                    n_enter_functional_cure_pathway = zeros(size(n_move_to_treatment));
-                end
-            elseif(scenario_FunctCure==I_CURE.future_funct_cure)
-                if(time>funct_cure_params.T_Bepi_start)
-                    n_enter_functional_cure_pathway = funct_cure_params.p_futurefunctcure * prop_adhere_treatment ...
-                        * n_move_to_treatment(i_future_funct_cure_eligible,:,:,i_undiagnosed);
-                else 
-                    n_enter_functional_cure_pathway = zeros(size(n_move_to_treatment));
-                end
-            else
-                    n_enter_functional_cure_pathway = zeros(size(n_move_to_treatment));
-            end
-
-            %% End of Bepi/functional cure stuff.
-
-            %% Now remove anyone who goes from undiagnosed direct to treatment or functional cure:
-            n_move_to_diagnosed = n_move_to_diagnosed - n_move_to_treatment - n_enter_functional_cure_pathway;
-
-
-            %% Ensure the number moving is not negative:
-            n_move_to_diagnosed(n_move_to_diagnosed<0) = 0;
-            %% Stupid checks:
-            % if(max(max(max(max(n_move_to_diagnosed))))<=0)
-            %     fprintf("At t=%6.4f there is %6.4f-%6.4f to treat",time,min(min(min(min(n_move_to_diagnosed)))), max(max(max(max(n_move_to_diagnosed)))))
-            % end
-            assert(max(max(max(max(n_move_to_diagnosed))))>=0)
-            assert(min(min(min(min(n_move_to_diagnosed))))>=0)
+            assert(min(min(min(min(n_move_to_treatment))))>=0)
 
 
             %% PRZESZLOSC: previously we multiplied each of the n_* by dt to convert to a timestep. Now we don't need to.
@@ -2092,6 +1996,27 @@ BIDOOF_END
             number_starting_treatment_to_print = num_starting_treatment_as_eligible_this_year;
             %%number_starting_treatment_to_print = squeeze(sum(sum(sum(sum(n_move_to_diagnosed, 1), 2), 3), 4));
             assert(isscalar(number_starting_treatment_to_print))
+
+            if(PRINT_VERBOSE==1)
+                if(time-floor(time)==0)
+                    n_chronic_CHECK = sum(sum(sum(sum(X(i_sAgpos_chronic, :, :, :),1),2),3),4);
+                    n_diagnosed_CHECK = sum(sum(sum(sum(X(i_sAgpos_chronic, :, :, [i_appropriate_management, i_incare_nonadherent, i_outofcare])))));
+                    n_treat_adhere_CHECK = sum(sum(sum(sum(X(i_treatelig_under30, 1:(i30y-1), :, i_appropriate_management))))) ...
+                        + sum(sum(sum(sum(X(i_treatelig_30plus, i30y:num_age_steps, :, i_appropriate_management)))));
+                    n_treat_nonadhere_CHECK = sum(sum(sum(sum(X(i_treatelig_under30, 1:(i30y-1), :, i_incare_nonadherent))))) ...
+                        + sum(sum(sum(sum(X(i_treatelig_30plus, i30y:num_age_steps, :, i_incare_nonadherent)))));
+                    n_treat_CHECK = n_treat_adhere_CHECK + n_treat_nonadhere_CHECK;
+                    n_funccurepath_CHECK = sum(sum(sum(sum(X(i_funct_cure_path, :, :, i_appropriate_management)))));
+                    n_funccure_CHECK = sum(sum(sum(sum(X(i_funct_cure, :, :, i_appropriate_management)))));
+    
+                    
+    
+                    fprintf("At time %6.4f Dx=%6.4f Tx (of Dx)=%6.4f Tx (of sAg+)=%6.4f Propadhere = %6.4f functcurepath=%6.4f funccure = %6.4f \n", ...
+                        time, n_diagnosed_CHECK/n_chronic_CHECK, n_treat_CHECK/n_diagnosed_CHECK, ...
+                        n_treat_CHECK/n_chronic_CHECK, n_treat_adhere_CHECK/n_treat_CHECK, n_funccurepath_CHECK/n_chronic_CHECK, ...
+                        n_funccure_CHECK/n_chronic_CHECK)
+                end
+            end
 
         end
     end % end treatment if statement

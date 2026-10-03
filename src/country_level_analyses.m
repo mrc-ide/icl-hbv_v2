@@ -110,7 +110,7 @@ function country_level_analyses(sensitivity_analysis,...
     % TUTAJ:
     num_scenarios = 21;
     %start_scenario = 17;
-    start_scenario = 1;
+    start_scenario = 16;
 
     %%assert(ismember(sensitivity_analysis,{'default','infant_100','treat_medium','treat_high'}))
 
@@ -1156,7 +1156,7 @@ function country_level_analyses(sensitivity_analysis,...
                     scenario_treat_elig = "Current treatment";
                     %prop_accessing_healthcare_F = [0,0,0,0.02,0.02,0.02,0.03,0.03,0.03,0.04,0.04,0.05,0.1,0.2,0.4,0.4,0.5,0.5,0.5,0.5];
                     %prop_accessing_healthcare_M = [0,0,0,0.02,0.02,0.02,0.03,0.03,0.03,0.04,0.04,0.05,0.1,0.2,0.4,0.4,0.5,0.5,0.5,0.5];
-                    prop_accessing_healthcare_and_accepttest = Intervention_data_thiscountry.Dx_coverage_with_infacilitytesting;                    
+                    prop_accessing_healthcare_and_accepttest = Intervention_data_thiscountry.Dx_coverage_with_infacilitytesting;
                     treatment_rate_params.annual_increase_Dx_future = Intervention_data_thiscountry.ContImp_Dx_annual_increase + prop_accessing_healthcare_and_accepttest;
                     treatment_rate_params.annual_increase_TxifDx_future = Intervention_data_thiscountry.ContImp_TxifDx_annual_increase;
                 %% PLACEHOLDER - does nothing:
