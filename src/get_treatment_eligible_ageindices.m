@@ -3,8 +3,8 @@ function treat_eligibility_ageindices = get_treatment_eligible_ageindices(scenar
 
     num_age_steps = length(ages);
 
-    %% Current treatment eligibility:
-    if(strcmp(scenario_treat_elig,"Current treatment"))
+    %% Current treatment eligibility (PoC doesn't change guidelines so same eligibilility - the PoC diagnostic sensitivity is dealt with separately):
+    if(strcmp(scenario_treat_elig,"Current treatment") || strcmp(scenario_treat_elig,"PoC treatment"))
         if(current_natural_history_state==i_natural_hist.ImmTol)
             i30y = find(ages >= 30, 1);       %% Age boundary for i_natural_hist.ImmTol state
             treat_eligibility_ageindices = i30y:num_age_steps;

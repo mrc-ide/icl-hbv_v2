@@ -354,7 +354,21 @@ if(!("NIC" %in% list.of.isos))
   missing.isos <- c(missing.isos,"NIC")
 ## [1] "AZE" "BGD" "CHN" "PRK" "IND" "KIR" "MHL" "FSM" "MMR" "WSM" "TON" "TUV"
 ## Taken from Polaris 2025 estimates:
+
 Polaris2025 <- read_excel(paste0(basefolder,"OneDrive - Imperial College London/Dropbox_copy/Hepatitis B/Data/Polaris/Polaris Database Query – CDA Foundation.xlsx"),sheet="Cleaned")
+## 2016 data on diagnosis. Also 2016 treatment which we can use as a check against what's in the model if needed:
+Polaris_additional_data2016 <- read_excel(paste0(basefolder,"OneDrive - Imperial College London/Dropbox_copy/Hepatitis B/Data/Polaris/Polaris_Database_allyears.xlsx"),sheet="2016")
+
+Polaris_additional_data2016 <- Polaris_additional_data2016[, colnames(Polaris_additional_data2016) %in% c("ISO","Diagnosed","Annual Treated")]
+names(Polaris_additional_data2016)[names(Polaris_additional_data2016) == 'Diagnosed'] <- 'Polaris_propDx2016'
+names(Polaris_additional_data2016)[names(Polaris_additional_data2016) == 'Annual Treated'] <- 'Polaris_treatcov2016_CHECK'
+Polaris_additional_data2016$Polaris_propDx2016[Polaris_additional_data2016$Polaris_propDx2016 %in% "<1%"] <- "0"
+Polaris_additional_data2016$Polaris_propDx2016 <- as.numeric(Polaris_additional_data2016$Polaris_propDx2016)
+Polaris_additional_data2016$Polaris_treatcov2016_CHECK[Polaris_additional_data2016$Polaris_treatcov2016_CHECK %in% "<1%"] <- "0"
+Polaris_additional_data2016$Polaris_treatcov2016_CHECK <- as.numeric(Polaris_additional_data2016$Polaris_treatcov2016_CHECK)
+##Polaris_additional_data2016$Country_name[Polaris_additional_data2016$Country_name %in% "China Mainland"] <- "China"
+
+
 Polaris_propdiag <- Polaris2025[Polaris2025$ISO %in% missing.isos, colnames(Polaris2025) %in% c("Country_name","ISO","Diagnosed")]
 Polaris_propdiag$Year <- 2025 ## All 2025 estimates
 Polaris_propdiag <- Polaris_propdiag[,c(2,1,4,3)]
@@ -406,14 +420,19 @@ treatment_cascade$treatment_coverage <- treatment_cascade$Diagnosed * treatment_
 ## Madagascar is low-income SSA/ East SSA. Low-income have 7% diagnosis, 1% on treatment (so 1/7=0.14 on treatment). Africa has 2% treatment,7% diagnosed. AFRO has 2% treatment, 6% diagnosed. East Africa has <1% treated, 8% diagnosed. East Africa is probably most geographically relevant and similar to low-income, so take 1/8=12.5%
 ##write.csv(treatment_cascade,paste0(basefolder,"OneDrive - Imperial College London/Dropbox_copy/Hepatitis B/Presentations/15May2026/treatment_cascade.csv"),row.names = FALSE)
 treatment_cascade$OnTreatOfDiagnosed[treatment_cascade$ISO %in% "MDG"] <- 0.125
-write.csv(treatment_cascade,paste0(basefolder,"Documents/Hepatitis_B/icl-hbv/resources/treatment_cascade_GHO.csv"),row.names = FALSE)
+##ABC
+##write.csv(treatment_cascade,paste0(basefolder,"Documents/Hepatitis_B/icl-hbv/resources/treatment_cascade_GHO.csv"),row.names = FALSE)
 
 
 Polaris_raw_data <- read_excel(paste0(basefolder,"OneDrive - Imperial College London/Dropbox_copy/Hepatitis B/Data/Polaris/Polaris_data_from2023paperLGastHep.xlsx"),sheet="Data")
-Polaris_data <- Polaris_raw_data[,colnames(Polaris_raw_data) %in% c("ISO","Diagnosed","treatment_coverage","Diagnosed_Polaris2025","AnnualTreated_Polaris2025")]
+Polaris_raw_data <- merge(Polaris_raw_data,Polaris_additional_data2016,by="ISO",all.x=TRUE)
+
+Polaris_data <- Polaris_raw_data[,colnames(Polaris_raw_data) %in% c("ISO","Diagnosed","treatment_coverage","Diagnosed_Polaris2025","AnnualTreated_Polaris2025","Polaris_propDx2016","Polaris_treatcov2016_CHECK")]
 
 ## Compare Polaris 2023 paper and GHO:
 temp <- merge(treatment_cascade,Polaris_data,by="ISO")
+
+
 
 ## 
 # ISO Diagnosed.x Diagnosed.y
@@ -445,13 +464,13 @@ setdiff(list.of.isos,Prop_ontreat_of_diagnosed$ISO)
 ## However, annual_treated_Polaris2025 seems to be smaller than 2023 value - it looks to me like the denominators are different (the 2025 probably uses all chronic sAg+).
 ## So use 2023 treatment_coverage. *EXCEPT FOR CHINA* where the treatment/diagnosis is 15% in 2023 Polaris but treatment/sAg+ is 30% in GHO and 2025 Polaris.
 
-treatment_data_final <- Polaris_data[,colnames(Polaris_data) %in% c("ISO","Diagnosed_Polaris2025","treatment_coverage")]
+treatment_data_final <- Polaris_data[,colnames(Polaris_data) %in% c("ISO","Diagnosed_Polaris2025","treatment_coverage","Polaris_propDx2016","Polaris_treatcov2016_CHECK")]
 treatment_data_final$treatment_coverage[treatment_data_final$ISO %in% "CHN"] <- Polaris_data$AnnualTreated_Polaris2025[Polaris_data$ISO %in% "CHN"]
 
 colnames(treatment_data_final)[which(names(treatment_data_final) == "Diagnosed_Polaris2025")] <- "prop_diagnosed"
 colnames(treatment_data_final)[which(names(treatment_data_final) == "treatment_coverage")] <- "treatment_coverage_of_eligible"
 ## Make order: ISO, prop_diagnosed, treatment_coverage_of_eligible:
-treatment_data_final <- treatment_data_final[,c(1,3,2)]
+treatment_data_final <- treatment_data_final[,c(1,3,2,4,5)]
 head(treatment_data_final)
 
 ## Note that some final fixes are needed:
@@ -475,9 +494,14 @@ treatment_data_final$prop_diagnosed[treatment_data_final$ISO %in% "KEN"] <- 0.01
 treatment_data_final$treatment_coverage_of_eligible[treatment_data_final$ISO %in% "MWI"] <- 0.005
 treatment_data_final$prop_diagnosed[treatment_data_final$ISO %in% "ZWE"] <- 0.01
 
+## Polaris doesn't give data for Namibia, so guesstimate - latest Dx is 16%. Countries with similar diagnoses now have Dx roughly half in 2016.
+## As Tx is 0.2%, just take 2016 Tx to be 0 (this isn't important as we input treatment data separately in the model - this is just a comparator)
+treatment_data_final$Polaris_propDx2016[treatment_data_final$ISO %in% "NAM"] <- 0.08
+treatment_data_final$Polaris_treatcov2016_CHECK[treatment_data_final$ISO %in% "NAM"] <- 0.08
+
 ## Double-check:
 treatment_data_final[treatment_data_final$treatment_coverage_of_eligible > treatment_data_final$prop_diagnosed,]
-
+treatment_data_final <- treatment_data_final[order(treatment_data_final$ISO),]
 write.csv(treatment_data_final,paste0(basefolder,"Documents/Hepatitis_B/icl-hbv/resources/treatment_cascade.csv"),row.names = FALSE)
 
 

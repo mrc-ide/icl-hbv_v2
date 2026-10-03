@@ -93,6 +93,7 @@ Polaris_diag_treat_coverage = readtable("../resources/treatment_cascade.csv");
 Polaris_diag_treat_coverage.ISO = categorical(Polaris_diag_treat_coverage.ISO);
 Polaris_diagnosis_coverage_map = containers.Map('KeyType','char','ValueType','double');
 Polaris_treat_coverage_map = containers.Map('KeyType','char','ValueType','double');
+Polaris_2016diagnosis_coverage_map = containers.Map('KeyType','char','ValueType','double');
 for country_num = 1:num_countries
     ISO = ListOfISOs{country_num};
     p_diag = table2array(Polaris_diag_treat_coverage(Polaris_diag_treat_coverage.ISO==ISO,2));
@@ -101,7 +102,15 @@ for country_num = 1:num_countries
     %% Figures 22+23 give number of entecavir/TDF as ~6131 +  9958 = 16089 people on treatment.
     %% 268,767 people living with hepatitis B. 16089/268767=6%, which is pretty close to the Polaris UK 2025 estimate of 7% (note that Polaris Dx estimate for the UK is 46%, slightly higher than in the UKHSA report of 43.6%)
     p_treat = table2array(Polaris_diag_treat_coverage(Polaris_diag_treat_coverage.ISO==ISO,3));
+    p_diag2016 = table2array(Polaris_diag_treat_coverage(Polaris_diag_treat_coverage.ISO==ISO,4));
+    %% Check that diagnosis rate currently is at least as good as in 2016:
+    if(p_diag<p_diag2016)
+        %% Current diagnosis data will be more reliable than 2016, so assume the 2016 value is the same as now.
+        %% In data only LKA (Sri Lanka) didn't meet this condition (6% in 2016, 5% now)
+        p_diag2016 = p_diag;
+    end
     Polaris_diagnosis_coverage_map(ISO) = p_diag;
+    Polaris_2016diagnosis_coverage_map(ISO) = p_diag2016;
     %% We want the conditional probability P(start treatment|diagnosed) - so we can strenghten diagnosis and (starting treatment|diagnosis) sepatrately
     %% Note that we *do* allow the conditional probabilities to be >1 (in reality testing can target those most likely to be eligible), so this is more like a RR.
     %% In the improve testing scenarios we will take this RR to be 1 or >1 (the latter with targetd testing)
@@ -315,8 +324,8 @@ Snames = {
     'HBV: Immune (Rec. or vacc.)', ... % 9
     'HBV: TDF-Treatment', ... % 10
     'Prematurely dead due to HBV', ... % 11
-    '3TC-Treatment', ... % 12
-    'Failed 3TC-Treatment', ...  % 13
+    'Functional cure pathway', ... % 12
+    'Functional cure', ...  % 13
     'Non-severe acute', ...  % 14
     'Severe acute' ...  % 15
     }; % 1 x 15 cell array
@@ -333,8 +342,8 @@ i_natural_hist = struct('Susc', 1,...
     'Immune', 9,...       % 'HBV: Immune (Rec. or vacc.)',
     'TDFtreat_LEGACY', 10,...    % 'HBV: TDF-Treatment', ... % 10    - NOT CURRENTLY USED (LEGACY CODE)
     'HBVdeath', 11,...    % 'Prematurely dead due to HBV', ... % 11
-    'i3TCtreat_LEGACY', 12,...    % '3TC-Treatment', ... % 12  - NOT CURRENTLY USED (LEGACY CODE)
-    'i3TCfailed_LEGACY', 13,...   % 'Failed 3TC-Treatment', ...  % 13 - NOT CURRENTLY USED (LEGACY CODE)
+    'i_funct_cure_path', 12,...    % 'Functional cure pathway', ... % 12  - repurposed from '3TC-Treatment'
+    'i_funct_cure', 13,...   % 'Functional cure', ...  % 13 - repurposed from 'Failed 3TC-Treatment'
     'NonSevAcute', 14,... % 'Non-severe acute', ...  % 14
     'SevereAcute', 15,... % 'Severe acute' ...  % 15
     'n_nathist_states', 15); %% Number of modelled natural history states
@@ -352,8 +361,8 @@ assert(num_nathist_states==15) % 15 disease states
 % i_Immune = 9;       % 'HBV: Immune (Rec. or vacc.)',
 % i_TDFtreat = 10;    % 'HBV: TDF-Treatment',
 % i_HBVdeath = 11;    % 'Prematurely dead due to HBV', ... % 11
-% i_3TCtreat = 12;    % '3TC-Treatment', ... % 12
-% i_3TCfailed = 13;   % 'Failed 3TC-Treatment', ...  % 13
+% i_funct_cure_path = 12;    % 'Functional cure pathway', ... % 12
+% i_funct_cure = 13;   % 'Functional cure', ...  % 13
 % i_NonSevAcute = 14; % 'Non-severe acute', ...  % 14
 % i_SevereAcute = 15; % 'Severe acute' ...  % 15
 
@@ -430,12 +439,12 @@ Prog(7, 11) = 0.30; % Decomp Cirrhosis to HBV death.
 % Fill-in transition from TDF-Treatment:
 Prog(10, 11) = 0.001; % TDF-Treatment to HBV death.
 
-% Fill-in transition from 3TC-Treatment:
-Prog(12, 13) = 0.2;   % 3TC-Treatment to Failed 3TC-Treatment.
+% Fill-in transition from "functional cure pathway":
+Prog(12, 13) = 0.5;   % "functional cure pathway" to "functional cure" - i.e. 1/time to functional cure. Hou NEJM 2026 - 6 months stable NA, then 24 weeks Bepi+NA, with a further 24-48 weeks NA only. So take 2 yrs, i.e. rate 0.5/yr.
 
-% Fill-in transition from Failed 3TC-Treatment to HCC or death
-Prog(13, 8) = 0.04;   % Failed 3TC-Treatment to HCC.
-Prog(13, 11) = 0.3;   % Failed 3TC-Treatment to HBV death.
+% Fill-in transition from functional cure to HCC or death
+Prog(13, 8) = 0.001;   % Functional cure to HCC. PLACEHOLDER - assume for now same rate as HBV death from TDF (given how small number is, the time spent in HCC doesn't make much difference).
+Prog(13, 11) = 0.0;   % Functional cure to HBV death. Assume for now functional cure has to progress to HCC.
 
 % Fill-in transition from Severe acute to death
 Prog(15, 11) = CFR_Acute * rate_6months;
@@ -582,7 +591,7 @@ for sensitivity_analysis_num=1:num_sensitivity_analyses
             WUENIC2024BDdata, WUENIC2024HepB3data, ...
             Countrylevel_intervention_params, Global_intervention_params, ...
             GHO_infacilitybirthproportion_map, ANC_coverage_map, ...
-            Polaris_diagnosis_coverage_map, Polaris_treat_coverage_map, ...
+            Polaris_diagnosis_coverage_map, Polaris_2016diagnosis_coverage_map, ...
             basedir,i_natural_hist,i_sexes, i_care,...
             num_year_divisions,dt,ages,num_age_steps,start_year,num_years_simul,end_year,...
             theta,CFR_Acute,rate_6months,ECofactor,p_ChronicCarriage,life_expectancy,...
