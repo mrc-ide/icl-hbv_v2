@@ -110,7 +110,7 @@ function country_level_analyses(sensitivity_analysis,...
     % TUTAJ:
     num_scenarios = 21;
     %start_scenario = 17;
-    start_scenario = 16;
+    start_scenario = 10;
 
     %%assert(ismember(sensitivity_analysis,{'default','infant_100','treat_medium','treat_high'}))
 
@@ -131,8 +131,6 @@ function country_level_analyses(sensitivity_analysis,...
 
     for scenario_num = start_scenario:num_scenarios
     %%for scenario_num = [3,9,10]
-        disp("Running scenario")
-        disp(scenario_num)
         % Make a copy of "Prog" for the given scenario - we can change
         % Prog_scenario in this loop if needed.
         Prog_scenario = Prog;
@@ -695,7 +693,6 @@ function country_level_analyses(sensitivity_analysis,...
             
             switch scenario_BD
                 case I_BD_WUENIC2025
-                    disp("I_BD_WUENIC2025")
                     year_last_BD_data = 2024;
                     %% Update using WUENIC 2025: follow WUENIC2025 and after 2024 coverage remains at last (2024) value
                     coverage_BD_to_last_datapoint = BirthDose_wuenic2025;
@@ -706,7 +703,6 @@ function country_level_analyses(sensitivity_analysis,...
                     scenario_BDcoverage_fromCPAD = zeros(1,length(years_vec_01yr));
                 case I_BD_contimp
                     year_last_BD_data = 2024;
-                    disp("I_BD_contimp")
                     coverage_BD_to_last_datapoint = BirthDose_wuenic2025;
                     %% Non-GAVI eligible countries (as of 2026):
                     if(Intervention_data_thiscountry.HasBDorGAVIeligible==0)
@@ -737,7 +733,6 @@ function country_level_analyses(sensitivity_analysis,...
                     scenario_BDcoverage_fromCPAD = zeros(1,length(years_vec_01yr));
                 case I_BD_IFexpansion  %% Optimisation of in-facility BD
                     year_last_BD_data = 2024;
-                    disp("I_BD_IFexpansion")
                     coverage_BD_to_last_datapoint = BirthDose_wuenic2025;
                     %% Coverage up to % in-facility births, or current (2025 WUENIC) value - whichever is bigger.
                     max_in_facility_coverage = GHO_infacilitybirthproportion_map(ISO)*BD_in_facility_acceptance_contimp;
@@ -752,7 +747,6 @@ function country_level_analyses(sensitivity_analysis,...
 
                 case I_BD_OOFexpansion
                     year_last_BD_data = 2024;
-                    disp("I_BD_OOFexpansion")
                     coverage_BD_to_last_datapoint = BirthDose_wuenic2025;
                     %% Coverage up to % in-facility births, or current (2025 WUENIC) value - whichever is bigger.
                     max_in_facility_coverage = GHO_infacilitybirthproportion_map(ISO)*BD_in_facility_acceptance_contimp;
@@ -771,7 +765,6 @@ function country_level_analyses(sensitivity_analysis,...
                 %% Combining in-facility and out-of-facility expansion:
                 case I_BD_IF_OOFexpansion
                     year_last_BD_data = 2024;
-                    disp("I_BD_OOFexpansion")
                     coverage_BD_to_last_datapoint = BirthDose_wuenic2025;
                     %% Coverage up to % in-facility births, or current (2025 WUENIC) value - whichever is bigger.
                     max_in_facility_coverage = GHO_infacilitybirthproportion_map(ISO)*BD_in_facility_acceptance_contimp;
@@ -852,13 +845,11 @@ function country_level_analyses(sensitivity_analysis,...
             
             switch scenario_HepB3
                 case I_HEPB3_WUENIC2025
-                    disp("I_HEPB3_WUENIC2025")
                     year_last_HepB3_data = 2024;
                     coverage_HepB3_to_last_datapoint = HepB3_wuenic2025;
                     future_xvals_vec = [2024.0, 2025.0, end_year_simul];
                     future_yvals_vec = [HepB3_wuenic2025(end), HepB3_wuenic2025(end), HepB3_wuenic2025(end)];
                 case I_HEPB3_contimp
-                    disp("I_HEPB3_contimp")
                     year_last_HepB3_data = 2024;
                     coverage_HepB3_to_last_datapoint = HepB3_wuenic2025;
                     %% Annual percentage point increase in Hep B3 (capped at 90%)
@@ -875,7 +866,6 @@ function country_level_analyses(sensitivity_analysis,...
                         future_yvals_vec = [HepB3_wuenic2025(end), HepB3_wuenic2025(end), potential_hepb3_target];
                     end
                 case I_HEPB3_WHOtarget
-                    disp("I_HEPB3_WHOtarget")
                     year_last_HepB3_data = 2024;
                     coverage_HepB3_to_last_datapoint = HepB3_wuenic2025;
                     %% Increase to HepB3_WHO_target_coverage (90%) (or current value if higher) from 2026 to 2029
