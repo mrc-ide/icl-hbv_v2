@@ -18,6 +18,7 @@ PRINT_VERBOSE = 0; %% Don't print debug info to screen
 DUMMY_VALUE = -99;  % Used in initialising arrays to a dummy value (-99 should be easy to spot).
 
 MAX_COVERAGE = 0.9; %% Maximum coverage in any specific compartment of ANC testing/community screening/birth cohort testing.
+MAX_COVERAGE_BIRTHCOHORT = 0.9;
 
 %% Establish basic simulation parameters
 agegroups_5yr = 1 + floor(ages / 5); % categorises the ages into age-groups of 5 year width; 1 x 1000 double; [1 1 ... 20 20], each number present 50 times
@@ -1223,8 +1224,7 @@ for time = TimeSteps
         if strcmp(scenario_AddScreenIntervention,"Birth cohort screening")
             if (time >= birth_cohort_testing_start && time <= birth_cohort_testing_end)
                 %%case I_NO_COHORT_TEST
-                %%disp("Running birth cohort testing and treatment")
-                %%disp(time)
+                %%fprintf("Running birth cohort testing and treatment at t=%6.4f",time)
                 BirthCohort_extrayears = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'BirthCohort_extrayears'),:).Value;
 
                 BirthCohort_youngest_birth_year = Intervention_data_thiscountry.BirthCohortTest_year_first_BD + BirthCohort_extrayears;
@@ -1262,7 +1262,7 @@ for time = TimeSteps
                     %% Diagnosis if sAG positive chronic infection:
                     N_currentDx_in_birth_cohort = squeeze(sum(sum(sum(sum(next_X(i_sAgpos_chronic, i_cohortage_min:i_cohortage_max, :, [i_appropriate_management i_incare_nonadherent i_outofcare]))))));
                     N_sAgpos_in_birth_cohort = squeeze(sum(sum(sum(sum(next_X(i_sAgpos_chronic, i_cohortage_min:i_cohortage_max, :, :))))));
-
+                    
                     assert(N_currentDx_in_birth_cohort>=0)
                     assert(N_sAgpos_in_birth_cohort>0)
                     assert(N_sAgpos_in_birth_cohort>=N_currentDx_in_birth_cohort)
@@ -1275,6 +1275,8 @@ for time = TimeSteps
                         %% No birth cohort testing if Dx too high - e.g. in China
                         proportion_notcurrentlyDx_toDx = 0;
                     end
+                    fprintf("proportion_notcurrentlyDx_toDx = %6.4f, current Dx=%6.4f at t=%6.4f \n",proportion_notcurrentlyDx_toDx, N_currentDx_in_birth_cohort/N_sAgpos_in_birth_cohort, time)
+                    assert(proportion_notcurrentlyDx_toDx<1)
                     %% assert(proportion_notcurrentlyDx_toDx>0) %% This doesn't hold for China
                     
                     %% Note that "diagnosis" here means either diagnosing undiagnosed, or finding those out of care and potentially supporting them into care (the cascade is leaky so they may still not reenter care).
@@ -1300,8 +1302,8 @@ for time = TimeSteps
                         = zeros(num_disease_states, i_birth_cohort_offset, num_sexes, num_treat_blocks);
                 end
                 %% Cap the number of people to move from a given compartment to be at most the number of people in that compartment right now:
-                moving_to_diagnosed_by_birthcohort_testing_this_timestep(moving_to_diagnosed_by_birthcohort_testing_this_timestep>(MAX_COVERAGE*next_X)) = ...
-                    MAX_COVERAGE * next_X(moving_to_diagnosed_by_birthcohort_testing_this_timestep>(MAX_COVERAGE*next_X));
+                moving_to_diagnosed_by_birthcohort_testing_this_timestep(moving_to_diagnosed_by_birthcohort_testing_this_timestep>(MAX_COVERAGE_BIRTHCOHORT*next_X)) = ...
+                    MAX_COVERAGE_BIRTHCOHORT * next_X(moving_to_diagnosed_by_birthcohort_testing_this_timestep>(MAX_COVERAGE_BIRTHCOHORT*next_X));
 
 
 
@@ -1698,6 +1700,8 @@ for time = TimeSteps
             n_to_move_treatment_2016(i_treatelig_30plus, i30y:num_age_steps, :, i_undiagnosed) = ...
                 prop_eligible_treatedby2016 * X(i_treatelig_30plus, i30y:num_age_steps, :, i_undiagnosed);
 
+            %% Ensure that everyone who is being moved to treatment is also diagnosed (there is a mis-match between the 2016 treatment and diagnosis data that means sometimes Dx coverage=0 but some people are on Tx)
+            n_to_move_diagnosis_2016(n_to_move_diagnosis_2016<n_to_move_treatment_2016) = n_to_move_treatment_2016(n_to_move_diagnosis_2016<n_to_move_treatment_2016);
             %% Now calculate the number of people diagnosed 
             n_to_move_diagnosis_butnotTx_2016 = n_to_move_diagnosis_2016 - n_to_move_treatment_2016;
             %% Check that this is never negative:
@@ -1766,6 +1770,7 @@ for time = TimeSteps
             %     fprintf("time=%6.4f n_diagnosed=%6.4f n_chronic=%6.4f \n",time,n_diagnosed,n_chronic)
             % end
             assert(n_chronic>0)
+            fprintf("Treatment: time=%6.4f n_diagnosed=%6.4f n_chronic=%6.4f \n",time,n_diagnosed,n_chronic)
             Dx_coverage_now = n_diagnosed/n_chronic;
             assert((Dx_coverage_now<1.01 && Dx_coverage_now>=0))
 
@@ -1806,7 +1811,7 @@ for time = TimeSteps
             %% Note - moving these people onto treatment is a mix of people getting diagnosed and treated immediately (as eligible) and people out of care getting linked back into care and starting Tx.
             n_eligible_notonTx = sum(sum(sum(sum(X(i_treatelig_under30, 1:(i30y-1), :, [i_undiagnosed, i_outofcare]),1),2),3),4) ...
                 + sum(sum(sum(sum(X(i_treatelig_30plus, i30y:num_age_steps, :, [i_undiagnosed, i_outofcare]),1),2),3),4);
-            
+            assert(n_eligible_notonTx>=0)
             %% PRZESZLOSC: n_to_diagnose_thisyear = n_chronic*annual_increase_Dx;  %% This one needed to be multiplied by dt later on. 
 
             %% This is the total number of people to diagnose in this timestep (including those starting treatment directly, plus those going on the functional cure pathway after diagnosis)
@@ -1871,9 +1876,8 @@ for time = TimeSteps
                     %% When specificity=sensitivity=100%:
                     p_test = n_to_start_treatment_directly_thisdt/n_eligible_notonTx;
                     if(p_test>1)
-                        fprintf("Warning - diagnosis testing rate = %6.4f at t=%6.4f. Capping at 100% \n",p_test,time)
-                        %% Cap diagnosis at 1;
-                        p_test = 1;
+                        fprintf("Warning - diagnosis testing rate = %6.4f at t=%6.4f. Capping at 90% \n",p_test,time)
+                        p_test = 0.9;   %% Cap diagnosis at 0.9;
                     end
                 else
                     %% This always occurs for SQ scenario (as the number starting treatment is set to zero), but print warning if it happens at other times:
