@@ -17,6 +17,8 @@ function output = HBVmodel(source_HBsAg,...
 PRINT_VERBOSE = 0; %% Don't print debug info to screen
 DUMMY_VALUE = -99;  % Used in initialising arrays to a dummy value (-99 should be easy to spot).
 
+MAX_COVERAGE = 0.9; %% Maximum coverage in any specific compartment of ANC testing/community screening/birth cohort testing.
+
 %% Establish basic simulation parameters
 agegroups_5yr = 1 + floor(ages / 5); % categorises the ages into age-groups of 5 year width; 1 x 1000 double; [1 1 ... 20 20], each number present 50 times
 agegroups_1yr = 1 + floor(ages); % categorises the ages into age-groups of 1 year width; 1 x 1000 double; [1 1 ... 100 100], each number present 10 times
@@ -912,8 +914,8 @@ for time = TimeSteps
                         % Note that this is prevalence of e+ among s+
                     else
                         if(NumSAg_5yr(k, ag, OutputEventNum-1)<0)
-                            disp("NumSAg_5yr negative:")
-                            disp(NumSAg_5yr(k, ag, OutputEventNum-1))
+                            fprintf("NumSAg_5y=%6.4f negative for ag=%i k=%i at t=%6.4f \n",NumSAg_5yr(k, ag, OutputEventNum-1),ag,k,time)
+                            %disp(NumSAg_5yr(k, ag, OutputEventNum-1))
                         end
                         %%assert(NumSAg_5yr(k, ag, OutputEventNum-1)==0)
                         assert(NumSAg_5yr(k, ag, OutputEventNum-1)>-10)
@@ -1298,7 +1300,8 @@ for time = TimeSteps
                         = zeros(num_disease_states, i_birth_cohort_offset, num_sexes, num_treat_blocks);
                 end
                 %% Cap the number of people to move from a given compartment to be at most the number of people in that compartment right now:
-                moving_to_diagnosed_by_birthcohort_testing_this_timestep(moving_to_diagnosed_by_birthcohort_testing_this_timestep>next_X) = next_X(moving_to_diagnosed_by_birthcohort_testing_this_timestep>next_X);
+                moving_to_diagnosed_by_birthcohort_testing_this_timestep(moving_to_diagnosed_by_birthcohort_testing_this_timestep>(MAX_COVERAGE*next_X)) = ...
+                    MAX_COVERAGE * next_X(moving_to_diagnosed_by_birthcohort_testing_this_timestep>(MAX_COVERAGE*next_X));
 
 
 
@@ -1421,7 +1424,8 @@ for time = TimeSteps
                 %% Note we should use next_X rather than X here:
                 moving_to_diagnosed_by_ANC_testing_this_timestep = dt * ANC_testing .* next_X; 
                 %% This line caps the number of people moving at this timestep in a given compartment to be at most next_X in that compartment.
-                moving_to_diagnosed_by_ANC_testing_this_timestep(moving_to_diagnosed_by_ANC_testing_this_timestep>next_X) = next_X(moving_to_diagnosed_by_ANC_testing_this_timestep>next_X);
+                moving_to_diagnosed_by_ANC_testing_this_timestep(moving_to_diagnosed_by_ANC_testing_this_timestep>(MAX_COVERAGE*next_X)) = ... 
+                    MAX_COVERAGE * next_X(moving_to_diagnosed_by_ANC_testing_this_timestep>(MAX_COVERAGE*next_X));
 
 
                 %% Now deal with functional cure and ANC screening:
@@ -1569,7 +1573,8 @@ for time = TimeSteps
                 end
                 %% Ensure we never go below 0:
                 %% Firstly, for any elements of moving_to_diagnosed_by_community_screening_this_timestep which are > than the corresponding element in next_X, set that to be the value in next_X:
-                moving_to_diagnosed_by_community_screening_this_timestep(moving_to_diagnosed_by_community_screening_this_timestep>next_X) = next_X(moving_to_diagnosed_by_community_screening_this_timestep>next_X);
+                moving_to_diagnosed_by_community_screening_this_timestep(moving_to_diagnosed_by_community_screening_this_timestep>(MAX_COVERAGE*next_X)) ...
+                    = MAX_COVERAGE * next_X(moving_to_diagnosed_by_community_screening_this_timestep>(MAX_COVERAGE*next_X));
 
 
 
@@ -1785,8 +1790,13 @@ for time = TimeSteps
                 increment_Dx_coverage_this_dt = dt * max(target_Dx_coverage_now - Dx_coverage_now, 0);                
                 %% PRZESZLOSC: annual_increase_Dx = treatment_rate_params.annual_increase_Dx_past;
             else
-                %% Diagnosis rate is same as future Dx rate for simplicity:
-                increment_Dx_coverage_this_dt = dt * treatment_rate_params.annual_increase_Dx_future;
+                %% Cap diagnosis at 90%
+                if(Dx_coverage_now<MAX_COVERAGE)
+                    %% Diagnosis rate is same as future Dx rate for simplicity:
+                    increment_Dx_coverage_this_dt = dt * treatment_rate_params.annual_increase_Dx_future;
+                else
+                    increment_Dx_coverage_this_dt = 0;
+                end
                 %% PRZESZLOSC: annual_increase_Dx = treatment_rate_params.annual_increase_Dx_past + (treatment_rate_params.annual_increase_Dx_future - treatment_rate_params.annual_increase_Dx_past) * temp_tscale;
             end
 
