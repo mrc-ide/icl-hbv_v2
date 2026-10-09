@@ -72,6 +72,24 @@ function country_level_analyses(sensitivity_analysis,...
     i_scenario_ContImp_plusDecentralisedDxTx = 19;
     i_scenario_ContImp_plusTx_cure_Bepi = 20;
     i_scenario_ContImp_plusTx_cure_improved = 21;
+    i_scenario_CI_B3_BDIF = 22;
+    i_scenario_CI_B3_BDOOF = 23;
+    i_scenario_CI_B3_BDIFOOF = 24;
+    i_scenario_CI_B3_BDOOF_PAPHVL = 25;
+    i_scenario_CI_B3_BDOOF_PAPPoC = 26;
+    i_scenario_CI_B3_BDOOF_PAPall = 27;
+    i_scenario_CI_B3_BDOOF_PAPPoC_ANC = 28;
+    i_scenario_CI_B3_BDOOF_PAPPoC_BirthCoh = 29;
+    i_scenario_CI_B3_BDOOF_PAPPoC_infacil = 30;
+    i_scenario_CI_B3_BDOOF_PAPPoC_CommScr = 31;
+    i_scenario_CI_B3_BDOOF_PAPPoC_CommScr100 = 32;
+    i_scenario_CI_B3_BDOOF_PAPPoC_IntSer = 33;
+    i_scenario_CI_B3_BDOOF_PAPPoC_BirthCoh_PoC = 34;
+    i_scenario_CI_B3_BDOOF_PAPPoC_BirthCoh_TxAll = 35;
+    i_scenario_CI_B3_BDOOF_PAPPoC_BirthCoh_LA = 36;
+    i_scenario_CI_B3_BDOOF_PAPPoC_BirthCoh_Decent = 37;
+    i_scenario_CI_B3_BDOOF_PAPPoC_BirthCoh_PoC_Bepi = 38;
+    i_scenario_CI_B3_BDOOF_PAPPoC_BirthCoh_PoC_cure = 39;
 
     %% Possible options for BD: different BD trends, changes in how BD is introduced etc.
     I_BD_WUENIC2025 = 100;  %% Follow WUENIC2025 and after 2024 coverage remains at last (2024) value
@@ -108,9 +126,9 @@ function country_level_analyses(sensitivity_analysis,...
 
     
     % TUTAJ:
-    num_scenarios = 21;
+    num_scenarios = 39;
     %start_scenario = 17;
-    start_scenario = 11;
+    start_scenario = 1;
 
     %%assert(ismember(sensitivity_analysis,{'default','infant_100','treat_medium','treat_high'}))
 
@@ -535,7 +553,7 @@ function country_level_analyses(sensitivity_analysis,...
                     scenario_Treatment = I_TREAT.continuedimprovement;
                     scenario_FunctCure = I_CURE.NoCure;
                     scenario_AddScreenIntervention = "No additional screening";                    
-                case i_scenario_ContImp_plusBD_IF     %% BD increases - increasing OOF coverage
+                case i_scenario_ContImp_plusBD_IF     %% BD increases - increasing IF coverage
                     scenario_BD = I_BD_IFexpansion;
                     scenario_HepB3 = I_HEPB3_contimp;
                     scenario_PAP = I_PAP_HVL_contimp;
@@ -671,6 +689,132 @@ function country_level_analyses(sensitivity_analysis,...
                     scenario_Treatment = I_TREAT.continuedimprovement;
                     scenario_FunctCure = I_CURE.future_funct_cure;
                     scenario_AddScreenIntervention = "No additional screening";  
+                case i_scenario_CI_B3_BDIF
+                    scenario_BD = I_BD_IFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_HVL_contimp;
+                    scenario_Treatment = I_TREAT.continuedimprovement;
+                    scenario_FunctCure = I_CURE.NoCure;
+                    scenario_AddScreenIntervention = "No additional screening";  
+                case i_scenario_CI_B3_BDOOF
+                    scenario_BD = I_BD_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_HVL_contimp;
+                    scenario_Treatment = I_TREAT.continuedimprovement;
+                    scenario_FunctCure = I_CURE.NoCure;
+                    scenario_AddScreenIntervention = "No additional screening";  
+                case i_scenario_CI_B3_BDIFOOF
+                    scenario_BD = I_BD_IF_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_HVL_contimp;
+                    scenario_Treatment = I_TREAT.continuedimprovement;
+                    scenario_FunctCure = I_CURE.NoCure;
+                    scenario_AddScreenIntervention = "No additional screening";  
+                case i_scenario_CI_B3_BDOOF_PAPHVL
+                    scenario_BD = I_BD_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_HVL_targeted;
+                    scenario_Treatment = I_TREAT.continuedimprovement;
+                    scenario_FunctCure = I_CURE.NoCure;
+                    scenario_AddScreenIntervention = "No additional screening";
+                case i_scenario_CI_B3_BDOOF_PAPPoC
+                    scenario_BD = I_BD_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_PoC;
+                    scenario_Treatment = I_TREAT.continuedimprovement;
+                    scenario_FunctCure = I_CURE.NoCure;
+                    scenario_AddScreenIntervention = "No additional screening";  
+                case i_scenario_CI_B3_BDOOF_PAPall
+                    scenario_BD = I_BD_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_all;
+                    scenario_Treatment = I_TREAT.continuedimprovement;
+                    scenario_FunctCure = I_CURE.NoCure;
+                    scenario_AddScreenIntervention = "No additional screening";  
+                case i_scenario_CI_B3_BDOOF_PAPPoC_ANC
+                    scenario_BD = I_BD_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_PoC;
+                    scenario_Treatment = I_TREAT.continuedimprovement;
+                    scenario_FunctCure = I_CURE.NoCure;
+                    scenario_AddScreenIntervention = "ANC screening";  
+                case i_scenario_CI_B3_BDOOF_PAPPoC_BirthCoh
+                    scenario_BD = I_BD_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_PoC;
+                    scenario_Treatment = I_TREAT.continuedimprovement;
+                    scenario_FunctCure = I_CURE.NoCure;
+                    scenario_AddScreenIntervention = "Birth cohort screening";
+                case i_scenario_CI_B3_BDOOF_PAPPoC_infacil
+                    scenario_BD = I_BD_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_PoC;
+                    scenario_Treatment = I_TREAT.IFscreening;
+                    scenario_FunctCure = I_CURE.NoCure;
+                    scenario_AddScreenIntervention = "No additional screening";
+                case i_scenario_CI_B3_BDOOF_PAPPoC_CommScr
+                    scenario_BD = I_BD_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_PoC;
+                    scenario_Treatment = I_TREAT.continuedimprovement;
+                    scenario_FunctCure = I_CURE.NoCure;
+                    scenario_AddScreenIntervention = "Community screening";  
+                case i_scenario_CI_B3_BDOOF_PAPPoC_CommScr100
+                    scenario_BD = I_BD_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_PoC;
+                    scenario_Treatment = I_TREAT.continuedimprovement;
+                    scenario_FunctCure = I_CURE.NoCure;
+                    scenario_AddScreenIntervention = "Perfect community screening";
+                case i_scenario_CI_B3_BDOOF_PAPPoC_IntSer
+                    scenario_BD = I_BD_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_PoC;
+                    scenario_Treatment = I_TREAT.IntegratedServices;
+                    scenario_FunctCure = I_CURE.NoCure;
+                    scenario_AddScreenIntervention = "No additional screening";  
+                case i_scenario_CI_B3_BDOOF_PAPPoC_BirthCoh_PoC
+                    scenario_BD = I_BD_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_PoC;
+                    scenario_Treatment = I_TREAT.PoCeligibility;
+                    scenario_FunctCure = I_CURE.NoCure;
+                    scenario_AddScreenIntervention = "Birth cohort screening";  
+                case i_scenario_CI_B3_BDOOF_PAPPoC_BirthCoh_TxAll
+                    scenario_BD = I_BD_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_PoC;
+                    scenario_Treatment = I_TREAT.universal;
+                    scenario_FunctCure = I_CURE.NoCure;
+                    scenario_AddScreenIntervention = "Birth cohort screening";  
+                case i_scenario_CI_B3_BDOOF_PAPPoC_BirthCoh_LA
+                    scenario_BD = I_BD_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_PoC;
+                    scenario_Treatment = I_TREAT.LA;
+                    scenario_FunctCure = I_CURE.NoCure;
+                    scenario_AddScreenIntervention = "Birth cohort screening";  
+                case i_scenario_CI_B3_BDOOF_PAPPoC_BirthCoh_Decent
+                    scenario_BD = I_BD_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_PoC;
+                    scenario_Treatment = I_TREAT.decentralised;
+                    scenario_FunctCure = I_CURE.NoCure;
+                    scenario_AddScreenIntervention = "Birth cohort screening";  
+                case i_scenario_CI_B3_BDOOF_PAPPoC_BirthCoh_PoC_Bepi
+                    scenario_BD = I_BD_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_PoC;
+                    scenario_Treatment = I_TREAT.PoCeligibility;
+                    scenario_FunctCure = I_CURE.Bepi;
+                    scenario_AddScreenIntervention = "Birth cohort screening";  
+                case i_scenario_CI_B3_BDOOF_PAPPoC_BirthCoh_PoC_cure
+                    scenario_BD = I_BD_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_PoC;
+                    scenario_Treatment = I_TREAT.PoCeligibility;
+                    scenario_FunctCure = I_CURE.future_funct_cure;
+                    scenario_AddScreenIntervention = "Birth cohort screening";  
                 otherwise
                     disp("Error - unknown scenario. Exiting")
                     return  %% Exit the script.
@@ -718,14 +862,15 @@ function country_level_analyses(sensitivity_analysis,...
                             if(potential_bd_target>(GHO_infacilitybirthproportion_map(ISO)*BD_in_facility_acceptance_contimp))
                                 year_reach_IF_target = floor(((GHO_infacilitybirthproportion_map(ISO)*BD_in_facility_acceptance_contimp)-BirthDose_wuenic2025(end))/annual_BDimprovement);
                                 future_xvals_vec = [2024.0, 2025.0, year_reach_IF_target, end_year_simul];
-                                future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end), GHO_infacilitybirthproportion_map(ISO), GHO_infacilitybirthproportion_map(ISO)];
-                            else
+                                future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end), GHO_infacilitybirthproportion_map(ISO)*BD_in_facility_acceptance_contimp, GHO_infacilitybirthproportion_map(ISO)*BD_in_facility_acceptance_contimp];
+                            else  %% will not reach in-facility ceiling by end_year_simul:
                                 future_xvals_vec = [2024.0, 2025.0, end_year_simul];
                                 future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end), potential_bd_target];
                             end
                         else
+                            %% potential_bd_target<=BirthDose_wuenic2025(end). Assume no decrease so keep at BirthDose_wuenic2025(end) value
                             future_xvals_vec = [2024.0, 2025.0, end_year_simul];
-                            future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end), potential_bd_target];
+                            future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end), BirthDose_wuenic2025(end)];
                         end
                     end
                     %% No MAP or CPAD introduced:
@@ -748,6 +893,31 @@ function country_level_analyses(sensitivity_analysis,...
                 case I_BD_OOFexpansion
                     year_last_BD_data = 2024;
                     coverage_BD_to_last_datapoint = BirthDose_wuenic2025;
+                    BDOOF
+                    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                    %% We use the same code as for I_BD_contimp - but cap at <= IFexpansion, then add OOF. 
+                    % %% I've slightly modified the code by tagging the variables with "_IF".
+                    annual_BDimprovement_IF = Intervention_data_thiscountry.ContImp_BD_annual_increase;
+                    potential_bd_target_IF = BirthDose_wuenic2025(end)+(end_year_simul-2025)*annual_BDimprovement_IF;
+                    if(potential_bd_target_IF>BirthDose_wuenic2025(end))
+                        if(potential_bd_target_IF>(GHO_infacilitybirthproportion_map(ISO)*BD_in_facility_acceptance_contimp))
+                            potential_bd_target_IF = GHO_infacilitybirthproportion_map(ISO)*BD_in_facility_acceptance_contimp;
+                            year_reach_IF_target = floor(((GHO_infacilitybirthproportion_map(ISO)*BD_in_facility_acceptance_contimp)-BirthDose_wuenic2025(end))/annual_BDimprovement_IF);
+                            ## Construct piecewise linear coverage of IF+OOF:
+                            ## FIXME
+                            future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end), GHO_infacilitybirthproportion_map(ISO)*BD_in_facility_acceptance_contimp, GHO_infacilitybirthproportion_map(ISO)*BD_in_facility_acceptance_contimp];
+                        else
+
+                            potential_bd_target_IF
+                            future_xvals_vec = [2024.0, 2025.0, end_year_simul];
+                            future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end), potential_bd_target_IF];
+                        end
+                    else %% potential_bd_target<=BirthDose_wuenic2025(end). Assume no decrease so keep at BirthDose_wuenic2025(end) value
+                        future_xvals_vec = [2024.0, 2025.0, end_year_simul];
+                        future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end), BirthDose_wuenic2025(end)];
+                    end
+                        endBDOOF
+
                     %% Coverage up to % in-facility births, or current (2025 WUENIC) value - whichever is bigger.
                     max_in_facility_coverage = GHO_infacilitybirthproportion_map(ISO)*BD_in_facility_acceptance_contimp;
 
