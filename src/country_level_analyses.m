@@ -5,8 +5,8 @@ function country_level_analyses(sensitivity_analysis,...
     num_in_treatment_2016_map,pop_size_HBsAg_treatment_map,treatment_rates_map,...
     country_s_e_HCCdeaths_map,...
     params_map,stochas_params_mat,country_start_cols,...
-    WUENIC2024BDdata, WUENIC2024HepB3data, ...
-    Countrylevel_intervention_params, Global_intervention_params, ...
+    WUENIC2025BDdata, WUENIC2025HepB3data, ...
+    Countrylevel_intervention_params, Global_intervention_params, Global_intervention_time_params, ...
     GHO_infacilitybirthproportion_map, ANC_coverage_map, ...
     Polaris_diagnosis_coverage_map, Polaris_2016diagnosis_coverage_map, ...
     basedir,i_natural_hist,i_sexes, i_care, ...
@@ -19,20 +19,19 @@ function country_level_analyses(sensitivity_analysis,...
     end
 
     
-
+    %% This is when the ContImp BD + HepB3 start:
+    CURRENT_TIME = 2026.0;
     
     %% Intervention with HepB3 takes 3 years and can start now:
-    T_INTERVENTION_START_HepB3 = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'Start_ContImp+HepB3'),:).Value;
-    T_INTERVENTION_END_HepB3 = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'End_ContImp+HepB3'),:).Value;
+    T_INTERVENTION_START_HepB3 = Global_intervention_time_params(strcmp(Global_intervention_time_params.Parameter,'HepB3_T_scaleup'),:).StartValue;
+    T_INTERVENTION_END_HepB3 = Global_intervention_time_params(strcmp(Global_intervention_time_params.Parameter,'HepB3_T_scaleup'),:).EndValue;
     HepB3_WHO_target_coverage = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'HepB3_WHO_target_coverage'),:).Value;
-    assert(T_INTERVENTION_START_HepB3>2024 && T_INTERVENTION_END_HepB3>2024)
+    assert(T_INTERVENTION_START_HepB3>=CURRENT_TIME && T_INTERVENTION_END_HepB3>=CURRENT_TIME)
     assert(HepB3_WHO_target_coverage>=0 && HepB3_WHO_target_coverage<=1)
 
-    T_INTERVENTION_START = 2026.0;
-    T_INTERVENTION_END = 2029.0;
     %% Birth dose takes 5 years:
-    T_INTERVENTION_START_BD = 2026.0;
-    T_INTERVENTION_END_BD  = 2031.0;
+    T_INTERVENTION_START_BD = Global_intervention_time_params(strcmp(Global_intervention_time_params.Parameter,'BD_IF_T_scaleup'),:).StartValue;
+    T_INTERVENTION_END_BD  = Global_intervention_time_params(strcmp(Global_intervention_time_params.Parameter,'BD_IF_T_scaleup'),:).EndValue;
 
     RRprogress_effective_TDFtreatment_nonCC = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'RRprogress_effective_TDFtreatment_nonCC'),:).Value;
     RRprogress_effective_TDFtreatment_CC = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'RRprogress_effective_TDFtreatment_CC'),:).Value;
@@ -64,38 +63,39 @@ function country_level_analyses(sensitivity_analysis,...
     i_scenario_ContImp_plusDx_BirthCohort = 11;  %% ContImp with additional diagnosis through birth cohort screening (those born within 5 years of country introduction of HepB3)
     i_scenario_ContImp_plusDx_IFscreening = 12; %% ContImp with diagnosis through in-facility screening (e.g. acute care). Use WHO 
     i_scenario_ContImp_plusDx_CommunityScreening = 13; %% ContImp with additional diagnosis through (realistic) community screening similar to PROLIFICA.
-    i_scenario_ContImp_plusDx_CommunityScreening_perfect = 14; %% ContImp with additional diagnosis through perfect community screening.
-    i_scenario_ContImp_plusDx_IntegratedServices = 15;  %% CompInt with integrated services (TBD?)
-    i_scenario_ContImp_plusTx_PoCeligibility = 16; %% CompInt with PoC treatment eligibility 
-    i_scenario_ContImp_plusTx_treatall = 17;
-    i_scenario_ContImp_plusTx_LA = 18;
-    i_scenario_ContImp_plusDecentralisedDxTx = 19;
-    i_scenario_ContImp_plusTx_cure_Bepi = 20;
-    i_scenario_ContImp_plusTx_cure_improved = 21;
-    i_scenario_CI_B3_BDIF = 22;
-    i_scenario_CI_B3_BDOOF = 23;
-    i_scenario_CI_B3_BDIFOOF = 24;
-    i_scenario_CI_B3_BDOOF_PAPHVL = 25;
-    i_scenario_CI_B3_BDOOF_PAPPoC = 26;
-    i_scenario_CI_B3_BDOOF_PAPall = 27;
-    i_scenario_CI_B3_BDOOF_PAPPoC_ANC = 28;
-    i_scenario_CI_B3_BDOOF_PAPPoC_BirthCoh = 29;
-    i_scenario_CI_B3_BDOOF_PAPPoC_infacil = 30;
-    i_scenario_CI_B3_BDOOF_PAPPoC_CommScr = 31;
-    i_scenario_CI_B3_BDOOF_PAPPoC_CommScr100 = 32;
-    i_scenario_CI_B3_BDOOF_PAPPoC_IntSer = 33;
-    i_scenario_CI_B3_BDOOF_PAPPoC_BirthCoh_PoC = 34;
-    i_scenario_CI_B3_BDOOF_PAPPoC_BirthCoh_TxAll = 35;
-    i_scenario_CI_B3_BDOOF_PAPPoC_BirthCoh_LA = 36;
-    i_scenario_CI_B3_BDOOF_PAPPoC_BirthCoh_Decent = 37;
-    i_scenario_CI_B3_BDOOF_PAPPoC_BirthCoh_PoC_Bepi = 38;
-    i_scenario_CI_B3_BDOOF_PAPPoC_BirthCoh_PoC_cure = 39;
+    %%i_scenario_ContImp_plusDx_CommunityScreening_perfect = 14; %% ContImp with additional diagnosis through perfect community screening.
+    i_scenario_ContImp_plusDx_IntegratedServices = 14;  %% CompInt with integrated services (TBD?)
+    i_scenario_ContImp_plusTx_PoCeligibility = 15; %% CompInt with PoC treatment eligibility 
+    i_scenario_ContImp_plusTx_treatall = 16;
+    i_scenario_ContImp_plusTx_LA = 17;
+    i_scenario_ContImp_plusDecentralisedDxTx = 18;
+    i_scenario_ContImp_plusTx_cure_Bepi = 19;
+    i_scenario_ContImp_plusTx_cure_improved = 20;
+    i_scenario_CI_B3_BDIF = 21;
+    i_scenario_CI_B3_BDOOF = 22;
+    i_scenario_CI_B3_BDIFOOF = 23;
+
+    i_scenario_CI_B3_BDIFOOF_PAPHVL = 24;
+    i_scenario_CI_B3_BDIFOOF_PAPPoC = 25;
+    i_scenario_CI_B3_BDIFOOF_PAPall = 26;
+    i_scenario_CI_B3_BDIFOOF_PAPall_ANC = 27;
+    i_scenario_CI_B3_BDIFOOF_PAPall_BirthCoh = 28;
+    i_scenario_CI_B3_BDIFOOF_PAPall_infacil = 29;
+    i_scenario_CI_B3_BDIFOOF_PAPall_CommScr = 30;
+    %%i_scenario_CI_B3_BDIFOOF_PAPall_CommScr100 = 32;
+    i_scenario_CI_B3_BDIFOOF_PAPall_IntSer = 31;
+    i_scenario_CI_B3_BDIFOOF_PAPall_BirthCoh_PoC = 32;
+    i_scenario_CI_B3_BDIFOOF_PAPall_BirthCoh_TxAll = 33;
+    i_scenario_CI_B3_BDIFOOF_PAPall_BirthCoh_LA = 34;
+    i_scenario_CI_B3_BDIFOOF_PAPall_BirthCoh_Decent = 35;
+    i_scenario_CI_B3_BDIFOOF_PAPall_BirthCoh_PoC_Bepi = 36;
+    i_scenario_CI_B3_BDIFOOF_PAPall_BirthCoh_PoC_cure = 37;
 
     %% Possible options for BD: different BD trends, changes in how BD is introduced etc.
-    I_BD_WUENIC2025 = 100;  %% Follow WUENIC2025 and after 2024 coverage remains at last (2024) value
+    I_BD_WUENIC2025 = 100;  %% Follow WUENIC2025 and after 2025 coverage remains at last (2025) value
     I_BD_contimp = 101;  %% Possible increase beyond WUENIC2025 at a slow rate (currently 0). Introduction of BD to GAVI-approved countries
     I_BD_IFexpansion = 102; %% BD increases to current in-facilility % (or current coverage if higher) in all countries with BD/GAVI-approved.
-    I_BD_OOFexpansion = 103; %% I_BD_IFexpansion with additional intervention to reach BD_oof_coverage=60% of OOF births (e.g. CHW, MAP). BD introduced in countries without BD.
+    I_BD_OOFexpansion = 103; %% I_BD_IFexpansion with additional intervention to reach BD_OOF_coverage=60% of OOF births (e.g. CHW, MAP). BD introduced in countries without BD.
     I_BD_IF_OOFexpansion = 104; %% Combining IF expansion + OOF 
 
     %% Possible options for HepB3 (scenario_HepB3)
@@ -126,8 +126,8 @@ function country_level_analyses(sensitivity_analysis,...
 
     
     % TUTAJ:
-    num_scenarios = 39;
-    %start_scenario = 17;
+    num_scenarios = 37;
+    %start_scenario = 16;
     start_scenario = 1;
 
     %%assert(ismember(sensitivity_analysis,{'default','infant_100','treat_medium','treat_high'}))
@@ -481,42 +481,99 @@ function country_level_analyses(sensitivity_analysis,...
 
             % 2019 is the last year of vaccination available from WUENIC2020
 
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            %% Previous code:
             %% Now load up the 2020-2024 BD and Hepb3 DATA
             %% For now we append the 2020-2024 values onto the 2019 WUENIC data (there are small differences in estimates up to 2019)
             %% So here we just extract the 2020-2024 data (2024 is the most recent year):
-            if(ISO=="NIC")  %% Nicaragua currently not in WUENIC 2025 data!?
-                BirthDose_wuenic2025 = [BirthDose_wuenic2020, ones(1,2024-last_available_coverage_data_year_wuenic2020)*BirthDose_wuenic2020(end)];
-                HepB3_wuenic2025 = [HepB3_wuenic2020, ones(1,2024-last_available_coverage_data_year_wuenic2020)*HepB3_wuenic2020(end)];
-                
-            else
-                firstyear_BD_coverage_available_wuenic2024 = min(table2array(WUENIC2024BDdata(strcmp(WUENIC2024BDdata.CODE,ISO), "YEAR")));
-                firstyear_HepB3_coverage_available_wuenic2024 = min(table2array(WUENIC2024HepB3data(strcmp(WUENIC2024HepB3data.CODE,ISO), "YEAR")));
-                
-                %% Extract rows of the table corresponding to the country "ISO":
-                BirthDose_wuenic2025_table_unsorted = WUENIC2024BDdata(strcmp(WUENIC2024BDdata.CODE,ISO), :);
-                HepB3_wuenic2025_table_unsorted = WUENIC2024HepB3data(strcmp(WUENIC2024HepB3data.CODE,ISO), :);
-                %% Sort the table by year (with year increasing)
-                BirthDose_wuenic2025_table_sorted = sortrows(BirthDose_wuenic2025_table_unsorted, "YEAR");
-                HepB3_wuenic2025_table_sorted = sortrows(HepB3_wuenic2025_table_unsorted, "YEAR");
-                %% Now just pull out the coverage column, then convert from table to vector and divide by 100 (so proportion instead of percentage)
-                BirthDose_wuenic2025 =  (table2array(BirthDose_wuenic2025_table_sorted(:,"COVERAGE"))')/100.0; 
-                HepB3_wuenic2025 =  (table2array(HepB3_wuenic2025_table_sorted(:,"COVERAGE"))')/100.0; 
-                %% Years where there is no coverage data are given as NA. Set these to be 0:
-                BirthDose_wuenic2025(isnan(BirthDose_wuenic2025)) = 0;
-                HepB3_wuenic2025(isnan(HepB3_wuenic2025)) = 0;
+            % if(ISO=="NIC")  %% Nicaragua currently not in WUENIC 2025 data!?
+            %     BirthDose_wuenic2025 = [BirthDose_wuenic2020, ones(1,2024-last_available_coverage_data_year_wuenic2020)*BirthDose_wuenic2020(end)];
+            %     HepB3_wuenic2025 = [HepB3_wuenic2020, ones(1,2024-last_available_coverage_data_year_wuenic2020)*HepB3_wuenic2020(end)];
+            % 
+            % else
+            %     firstyear_BD_coverage_available_wuenic2024 = min(table2array(WUENIC2024BDdata(strcmp(WUENIC2024BDdata.CODE,ISO), "YEAR")));
+            %     firstyear_HepB3_coverage_available_wuenic2024 = min(table2array(WUENIC2024HepB3data(strcmp(WUENIC2024HepB3data.CODE,ISO), "YEAR")));
+            % 
+            %     %% Extract rows of the table corresponding to the country "ISO":
+            %     BirthDose_wuenic2025_table_unsorted = WUENIC2024BDdata(strcmp(WUENIC2024BDdata.CODE,ISO), :);
+            %     HepB3_wuenic2025_table_unsorted = WUENIC2024HepB3data(strcmp(WUENIC2024HepB3data.CODE,ISO), :);
+            %     %% Sort the table by year (with year increasing)
+            %     BirthDose_wuenic2025_table_sorted = sortrows(BirthDose_wuenic2025_table_unsorted, "YEAR");
+            %     HepB3_wuenic2025_table_sorted = sortrows(HepB3_wuenic2025_table_unsorted, "YEAR");
+            %     %% Now just pull out the coverage column, then convert from table to vector and divide by 100 (so proportion instead of percentage)
+            %     BirthDose_wuenic2025 =  (table2array(BirthDose_wuenic2025_table_sorted(:,"COVERAGE"))')/100.0; 
+            %     HepB3_wuenic2025 =  (table2array(HepB3_wuenic2025_table_sorted(:,"COVERAGE"))')/100.0; 
+            %     %% Years where there is no coverage data are given as NA. Set these to be 0:
+            %     BirthDose_wuenic2025(isnan(BirthDose_wuenic2025)) = 0;
+            %     HepB3_wuenic2025(isnan(HepB3_wuenic2025)) = 0;
+            % 
+            %     BirthDose_wuenic2025 = [BirthDose_wuenic2020(1:(firstyear_BD_coverage_available_wuenic2024-yearsBD_coverage_available_wuenic2020(1))), BirthDose_wuenic2025];
+            %     HepB3_wuenic2025 = [HepB3_wuenic2020(1:(firstyear_HepB3_coverage_available_wuenic2024-yearsHepB3_coverage_available_wuenic2020(1))), HepB3_wuenic2025];
+            %     assert(isequal(length(BirthDose_wuenic2025),(length(BirthDose_wuenic2020)+5))) %% Check that the 2024 wuenic is now the same length as 2019 + 5
+            %     assert(isequal(length(HepB3_wuenic2025),(length(HepB3_wuenic2020)+5))) %% Check that the 2024 wuenic is now the same length as 2019 + 5
+            % 
+            %     assert(all(HepB3_wuenic2025>=0) && all(HepB3_wuenic2025<=1), "WUENIC 2024 HepB3 coverage must be between 0 and 1")
+            %     assert(all(BirthDose_wuenic2025>=0) && all(BirthDose_wuenic2025<=1), "WUENIC 2024 BD coverage must be between 0 and 1")
+            % 
+            % end
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-                BirthDose_wuenic2025 = [BirthDose_wuenic2020(1:(firstyear_BD_coverage_available_wuenic2024-yearsBD_coverage_available_wuenic2020(1))), BirthDose_wuenic2025];
-                HepB3_wuenic2025 = [HepB3_wuenic2020(1:(firstyear_HepB3_coverage_available_wuenic2024-yearsHepB3_coverage_available_wuenic2020(1))), HepB3_wuenic2025];
-                assert(isequal(length(BirthDose_wuenic2025),(length(BirthDose_wuenic2020)+5))) %% Check that the 2024 wuenic is now the same length as 2019 + 5
-                assert(isequal(length(HepB3_wuenic2025),(length(HepB3_wuenic2020)+5))) %% Check that the 2024 wuenic is now the same length as 2019 + 5
-
-                assert(all(HepB3_wuenic2025>=0) && all(HepB3_wuenic2025<=1), "WUENIC 2024 HepB3 coverage must be between 0 and 1")
-                assert(all(BirthDose_wuenic2025>=0) && all(BirthDose_wuenic2025<=1), "WUENIC 2024 BD coverage must be between 0 and 1")
-
-            end
-
-       
+            %% WUENIC BD data actually only goes back to 1994 (and for many countries it is later - e.g. AFG starts in 2000 - but the data we have in BD_table (a dataset MJdV used) goes back to 1980, and has non-zero values in 1992-1993. 
+            %% Some countries (ZIM, maybe others) don't have WUENIC estimates going back to 1980 for some reason (it has admin estimates of 0% during 1981-1984 but no WUENIC during that period, and nothing in 1980)
+            %% So we need to append the current (2025 WUENIC) data onto the pre-1994 BD_table data.
+            %% For now we append the 2020-2024 values onto the 2019 WUENIC data (there are small differences in estimates up to 2019)
+            %% So here we just extract the 2020-2024 data (2024 is the most recent year):
+            BirthDose_wuenic2025_table_unsorted = WUENIC2025BDdata(strcmp(WUENIC2025BDdata.CODE,ISO), :);
+            %% Use this when we are generating the BD coverage trends (IF_future_xvals_vec):
+            year_first_WUENIC2025_BD_data = min(BirthDose_wuenic2025_table_unsorted.YEAR);
+            %% year_first_WUENIC2025_BD_data differs by country so don't try to put an assert in.
+            year_last_BD_data = max(BirthDose_wuenic2025_table_unsorted.YEAR);
+            %% Sort the table by year (with year increasing)
+            BirthDose_wuenic2025_table_sorted = sortrows(BirthDose_wuenic2025_table_unsorted, "YEAR");
+            %% Now just pull out the coverage column, then convert from table to vector and divide by 100 (so proportion instead of percentage)
+            BirthDose_wuenic2025 =  (table2array(BirthDose_wuenic2025_table_sorted(:,"COVERAGE"))')/100.0; 
+            %% Years where there is no coverage data are given as NA. Set these to be 0:
+            BirthDose_wuenic2025(isnan(BirthDose_wuenic2025)) = 0;
             
+            BirthDose_wuenic2025 = [BirthDose_wuenic2020(1:(year_first_WUENIC2025_BD_data-yearsBD_coverage_available_wuenic2020(1))), BirthDose_wuenic2025];
+            %     HepB3_wuenic2025 = [HepB3_wuenic2020(1:(firstyear_HepB3_coverage_available_wuenic2024-yearsHepB3_coverage_available_wuenic2020(1))), HepB3_wuenic2025];
+            
+            assert(isequal(length(BirthDose_wuenic2025),(length(BirthDose_wuenic2020)+6))) %% Check that the 2024 wuenic is now the same length as 2019 + 5
+            %     assert(isequal(length(HepB3_wuenic2025),(length(HepB3_wuenic2020)+5))) %% Check that the 2024 wuenic is now the same length as 2019 + 5
+            % 
+            %     assert(all(HepB3_wuenic2025>=0) && all(HepB3_wuenic2025<=1), "WUENIC 2024 HepB3 coverage must be between 0 and 1")
+
+
+             %firstyear_BD_coverage_available_wuenic2024 = min(table2array(WUENIC2024BDdata(strcmp(WUENIC2024BDdata.CODE,ISO), "YEAR")));
+            %     firstyear_HepB3_coverage_available_wuenic2024 = min(table2array(WUENIC2024HepB3data(strcmp(WUENIC2024HepB3data.CODE,ISO), "YEAR")));
+
+            %     BirthDose_wuenic2025 = [BirthDose_wuenic2020(1:(firstyear_BD_coverage_available_wuenic2024-yearsBD_coverage_available_wuenic2020(1))), BirthDose_wuenic2025];
+            %     HepB3_wuenic2025 = [HepB3_wuenic2020(1:(firstyear_HepB3_coverage_available_wuenic2024-yearsHepB3_coverage_available_wuenic2020(1))), HepB3_wuenic2025];
+            %     assert(isequal(length(BirthDose_wuenic2025),(length(BirthDose_wuenic2020)+5))) %% Check that the 2024 wuenic is now the same length as 2019 + 5
+            %     assert(isequal(length(HepB3_wuenic2025),(length(HepB3_wuenic2020)+5))) %% Check that the 2024 wuenic is now the same length as 2019 + 5
+            % 
+            %     assert(all(HepB3_wuenic2025>=0) && all(HepB3_wuenic2025<=1), "WUENIC 2024 HepB3 coverage must be between 0 and 1")
+            %     assert(all(BirthDose_wuenic2025>=0) && all(BirthDose_wuenic2025<=1), "WUENIC 2024 BD coverage must be between 0 and 1")
+            % 
+            % end
+
+
+
+
+            HepB3_wuenic2025_table_unsorted = WUENIC2025HepB3data(strcmp(WUENIC2025HepB3data.CODE,ISO), :);
+            year_first_WUENIC2025_HepB3_data = min(HepB3_wuenic2025_table_unsorted.YEAR);
+            year_last_HepB3_data = max(HepB3_wuenic2025_table_unsorted.YEAR);
+            %% Sort the table by year (with year increasing)
+            HepB3_wuenic2025_table_sorted = sortrows(HepB3_wuenic2025_table_unsorted, "YEAR");
+            %% Now just pull out the coverage column, then convert from table to vector and divide by 100 (so proportion instead of percentage)
+            HepB3_wuenic2025 =  (table2array(HepB3_wuenic2025_table_sorted(:,"COVERAGE"))')/100.0; 
+            %% Years where there is no coverage data are given as NA. Set these to be 0:
+            HepB3_wuenic2025(isnan(HepB3_wuenic2025)) = 0;
+            HepB3_wuenic2025 = [BirthDose_wuenic2020(1:(year_first_WUENIC2025_HepB3_data-yearsHepB3_coverage_available_wuenic2020(1))), HepB3_wuenic2025];
+            %     HepB3_wuenic2025 = [HepB3_wuenic2020(1:(firstyear_HepB3_coverage_available_wuenic2024-yearsHepB3_coverage_available_wuenic2020(1))), HepB3_wuenic2025];
+            
+
+
             %% Get country-specific intervention data:
             Intervention_data_thiscountry = Countrylevel_intervention_params(strcmp(Countrylevel_intervention_params.ISO,ISO), :);
 
@@ -626,14 +683,14 @@ function country_level_analyses(sensitivity_analysis,...
                     scenario_Treatment = I_TREAT.continuedimprovement;
                     scenario_FunctCure = I_CURE.NoCure;
                     scenario_AddScreenIntervention = "Community screening";  
-                %% ContImp with additional diagnosis through perfect community screening.
-                case i_scenario_ContImp_plusDx_CommunityScreening_perfect
-                    scenario_BD = I_BD_contimp;
-                    scenario_HepB3 = I_HEPB3_contimp;
-                    scenario_PAP = I_PAP_HVL_contimp;
-                    scenario_Treatment = I_TREAT.continuedimprovement;
-                    scenario_FunctCure = I_CURE.NoCure;
-                    scenario_AddScreenIntervention = "Perfect community screening";  
+                %% ContImp with additional diagnosis through perfect community screening - currently removed
+                % case i_scenario_ContImp_plusDx_CommunityScreening_perfect
+                %     scenario_BD = I_BD_contimp;
+                %     scenario_HepB3 = I_HEPB3_contimp;
+                %     scenario_PAP = I_PAP_HVL_contimp;
+                %     scenario_Treatment = I_TREAT.continuedimprovement;
+                %     scenario_FunctCure = I_CURE.NoCure;
+                %     scenario_AddScreenIntervention = "Perfect community screening";  
                 %% CompInt with integrated services (TBD?)
                 case i_scenario_ContImp_plusDx_IntegratedServices
                     scenario_BD = I_BD_contimp;
@@ -710,108 +767,108 @@ function country_level_analyses(sensitivity_analysis,...
                     scenario_Treatment = I_TREAT.continuedimprovement;
                     scenario_FunctCure = I_CURE.NoCure;
                     scenario_AddScreenIntervention = "No additional screening";  
-                case i_scenario_CI_B3_BDOOF_PAPHVL
-                    scenario_BD = I_BD_OOFexpansion;
+                case i_scenario_CI_B3_BDIFOOF_PAPHVL 
+                    scenario_BD = I_BD_IF_OOFexpansion;
                     scenario_HepB3 = I_HEPB3_WHOtarget;
                     scenario_PAP = I_PAP_HVL_targeted;
                     scenario_Treatment = I_TREAT.continuedimprovement;
                     scenario_FunctCure = I_CURE.NoCure;
                     scenario_AddScreenIntervention = "No additional screening";
-                case i_scenario_CI_B3_BDOOF_PAPPoC
-                    scenario_BD = I_BD_OOFexpansion;
+                case i_scenario_CI_B3_BDIFOOF_PAPPoC
+                    scenario_BD = I_BD_IF_OOFexpansion;
                     scenario_HepB3 = I_HEPB3_WHOtarget;
                     scenario_PAP = I_PAP_PoC;
                     scenario_Treatment = I_TREAT.continuedimprovement;
                     scenario_FunctCure = I_CURE.NoCure;
                     scenario_AddScreenIntervention = "No additional screening";  
-                case i_scenario_CI_B3_BDOOF_PAPall
-                    scenario_BD = I_BD_OOFexpansion;
+                case i_scenario_CI_B3_BDIFOOF_PAPall
+                    scenario_BD = I_BD_IF_OOFexpansion;
                     scenario_HepB3 = I_HEPB3_WHOtarget;
                     scenario_PAP = I_PAP_all;
                     scenario_Treatment = I_TREAT.continuedimprovement;
                     scenario_FunctCure = I_CURE.NoCure;
                     scenario_AddScreenIntervention = "No additional screening";  
-                case i_scenario_CI_B3_BDOOF_PAPPoC_ANC
-                    scenario_BD = I_BD_OOFexpansion;
+                case i_scenario_CI_B3_BDIFOOF_PAPall_ANC
+                    scenario_BD = I_BD_IF_OOFexpansion;
                     scenario_HepB3 = I_HEPB3_WHOtarget;
-                    scenario_PAP = I_PAP_PoC;
+                    scenario_PAP = I_PAP_all;
                     scenario_Treatment = I_TREAT.continuedimprovement;
                     scenario_FunctCure = I_CURE.NoCure;
                     scenario_AddScreenIntervention = "ANC screening";  
-                case i_scenario_CI_B3_BDOOF_PAPPoC_BirthCoh
-                    scenario_BD = I_BD_OOFexpansion;
+                case i_scenario_CI_B3_BDIFOOF_PAPall_BirthCoh
+                    scenario_BD = I_BD_IF_OOFexpansion;
                     scenario_HepB3 = I_HEPB3_WHOtarget;
-                    scenario_PAP = I_PAP_PoC;
+                    scenario_PAP = I_PAP_all;
                     scenario_Treatment = I_TREAT.continuedimprovement;
                     scenario_FunctCure = I_CURE.NoCure;
                     scenario_AddScreenIntervention = "Birth cohort screening";
-                case i_scenario_CI_B3_BDOOF_PAPPoC_infacil
-                    scenario_BD = I_BD_OOFexpansion;
+                case i_scenario_CI_B3_BDIFOOF_PAPall_infacil
+                    scenario_BD = I_BD_IF_OOFexpansion;
                     scenario_HepB3 = I_HEPB3_WHOtarget;
-                    scenario_PAP = I_PAP_PoC;
+                    scenario_PAP = I_PAP_all;
                     scenario_Treatment = I_TREAT.IFscreening;
                     scenario_FunctCure = I_CURE.NoCure;
                     scenario_AddScreenIntervention = "No additional screening";
-                case i_scenario_CI_B3_BDOOF_PAPPoC_CommScr
-                    scenario_BD = I_BD_OOFexpansion;
+                case i_scenario_CI_B3_BDIFOOF_PAPall_CommScr
+                    scenario_BD = I_BD_IF_OOFexpansion;
                     scenario_HepB3 = I_HEPB3_WHOtarget;
-                    scenario_PAP = I_PAP_PoC;
+                    scenario_PAP = I_PAP_all;
                     scenario_Treatment = I_TREAT.continuedimprovement;
                     scenario_FunctCure = I_CURE.NoCure;
                     scenario_AddScreenIntervention = "Community screening";  
-                case i_scenario_CI_B3_BDOOF_PAPPoC_CommScr100
-                    scenario_BD = I_BD_OOFexpansion;
+                % case i_scenario_CI_B3_BDIFOOF_PAPall_CommScr100
+                %     scenario_BD = I_BD_IF_OOFexpansion;
+                %     scenario_HepB3 = I_HEPB3_WHOtarget;
+                %     scenario_PAP = I_PAP_all;
+                %     scenario_Treatment = I_TREAT.continuedimprovement;
+                %     scenario_FunctCure = I_CURE.NoCure;
+                %     scenario_AddScreenIntervention = "Perfect community screening";
+                case i_scenario_CI_B3_BDIFOOF_PAPall_IntSer
+                    scenario_BD = I_BD_IF_OOFexpansion;
                     scenario_HepB3 = I_HEPB3_WHOtarget;
-                    scenario_PAP = I_PAP_PoC;
-                    scenario_Treatment = I_TREAT.continuedimprovement;
-                    scenario_FunctCure = I_CURE.NoCure;
-                    scenario_AddScreenIntervention = "Perfect community screening";
-                case i_scenario_CI_B3_BDOOF_PAPPoC_IntSer
-                    scenario_BD = I_BD_OOFexpansion;
-                    scenario_HepB3 = I_HEPB3_WHOtarget;
-                    scenario_PAP = I_PAP_PoC;
+                    scenario_PAP = I_PAP_all;
                     scenario_Treatment = I_TREAT.IntegratedServices;
                     scenario_FunctCure = I_CURE.NoCure;
                     scenario_AddScreenIntervention = "No additional screening";  
-                case i_scenario_CI_B3_BDOOF_PAPPoC_BirthCoh_PoC
-                    scenario_BD = I_BD_OOFexpansion;
+                case i_scenario_CI_B3_BDIFOOF_PAPall_BirthCoh_PoC
+                    scenario_BD = I_BD_IF_OOFexpansion;
                     scenario_HepB3 = I_HEPB3_WHOtarget;
-                    scenario_PAP = I_PAP_PoC;
+                    scenario_PAP = I_PAP_all;
                     scenario_Treatment = I_TREAT.PoCeligibility;
                     scenario_FunctCure = I_CURE.NoCure;
                     scenario_AddScreenIntervention = "Birth cohort screening";  
-                case i_scenario_CI_B3_BDOOF_PAPPoC_BirthCoh_TxAll
-                    scenario_BD = I_BD_OOFexpansion;
+                case i_scenario_CI_B3_BDIFOOF_PAPall_BirthCoh_TxAll
+                    scenario_BD = I_BD_IF_OOFexpansion;
                     scenario_HepB3 = I_HEPB3_WHOtarget;
-                    scenario_PAP = I_PAP_PoC;
+                    scenario_PAP = I_PAP_all;
                     scenario_Treatment = I_TREAT.universal;
                     scenario_FunctCure = I_CURE.NoCure;
                     scenario_AddScreenIntervention = "Birth cohort screening";  
-                case i_scenario_CI_B3_BDOOF_PAPPoC_BirthCoh_LA
-                    scenario_BD = I_BD_OOFexpansion;
+                case i_scenario_CI_B3_BDIFOOF_PAPall_BirthCoh_LA
+                    scenario_BD = I_BD_IF_OOFexpansion;
                     scenario_HepB3 = I_HEPB3_WHOtarget;
-                    scenario_PAP = I_PAP_PoC;
+                    scenario_PAP = I_PAP_all;
                     scenario_Treatment = I_TREAT.LA;
                     scenario_FunctCure = I_CURE.NoCure;
                     scenario_AddScreenIntervention = "Birth cohort screening";  
-                case i_scenario_CI_B3_BDOOF_PAPPoC_BirthCoh_Decent
-                    scenario_BD = I_BD_OOFexpansion;
+                case i_scenario_CI_B3_BDIFOOF_PAPall_BirthCoh_Decent
+                    scenario_BD = I_BD_IF_OOFexpansion;
                     scenario_HepB3 = I_HEPB3_WHOtarget;
-                    scenario_PAP = I_PAP_PoC;
+                    scenario_PAP = I_PAP_all;
                     scenario_Treatment = I_TREAT.decentralised;
                     scenario_FunctCure = I_CURE.NoCure;
                     scenario_AddScreenIntervention = "Birth cohort screening";  
-                case i_scenario_CI_B3_BDOOF_PAPPoC_BirthCoh_PoC_Bepi
-                    scenario_BD = I_BD_OOFexpansion;
+                case i_scenario_CI_B3_BDIFOOF_PAPall_BirthCoh_PoC_Bepi
+                    scenario_BD = I_BD_IF_OOFexpansion;
                     scenario_HepB3 = I_HEPB3_WHOtarget;
-                    scenario_PAP = I_PAP_PoC;
+                    scenario_PAP = I_PAP_all;
                     scenario_Treatment = I_TREAT.PoCeligibility;
                     scenario_FunctCure = I_CURE.Bepi;
                     scenario_AddScreenIntervention = "Birth cohort screening";  
-                case i_scenario_CI_B3_BDOOF_PAPPoC_BirthCoh_PoC_cure
-                    scenario_BD = I_BD_OOFexpansion;
+                case i_scenario_CI_B3_BDIFOOF_PAPall_BirthCoh_PoC_cure
+                    scenario_BD = I_BD_IF_OOFexpansion;
                     scenario_HepB3 = I_HEPB3_WHOtarget;
-                    scenario_PAP = I_PAP_PoC;
+                    scenario_PAP = I_PAP_all;
                     scenario_Treatment = I_TREAT.PoCeligibility;
                     scenario_FunctCure = I_CURE.future_funct_cure;
                     scenario_AddScreenIntervention = "Birth cohort screening";  
@@ -822,178 +879,121 @@ function country_level_analyses(sensitivity_analysis,...
 
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             %% PARAMETERS FOR BD SCENARIOS:
-            %% Here we specify what the maximum increase in BD coverage from MAP/CPAD would be:
-            %%prop_accept_MAP = 0.9;   %% Placeholder assumption - easier to accept a patch than a needle
-            %%prop_accept_CPAD = 0.85; %% Placeholder assumption
 
             %% In countries where BD is introduced in continued improvement scenario, this represents 
-            %% Analysis is simply the median of WUENIC2024/(% in-facility births) for countries with BD - see BD.divided.by.infacility variable in process_polaris_timeseries_data.R
+            %% Analysis is simply the median of WUENIC2025/(% in-facility births) for countries with BD - see BD.divided.by.infacility variable in process_polaris_timeseries_data.R
             BD_in_facility_acceptance_contimp = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'BD_in_facility_acceptance_contimp'),:).Value;
-
-            %%prop_OOF_births = 1-GHO_infacilitybirthproportion_map(ISO);
-
-            % Make model scenario birth dose coverage over time:
-            %%last_BD_scaleup_year = 2030.0;  %% Assumption that BD plateaus after this time.
+            %% For now we are not utilising the explicit MAP/CPAD mechanisms (the OOF can implicitly be MAP/CPAD/community health workers etc):
+            scenario_BDcoverage_fromMAP = zeros(1,length(years_vec_01yr));
+            scenario_BDcoverage_fromCPAD = zeros(1,length(years_vec_01yr));
             
+            %% Separate out the IF/OOF components:
+            %% Update using WUENIC 2025: follow WUENIC2025 and after 2025 coverage remains at last (2025) value
+            coverage_BD_to_last_datapoint = BirthDose_wuenic2025;
+            %% If expanding IF (I_BD_contimp, I_BD_IFexpansion, etc) this is the ceiling (so can't expand IF coverage further)
+            in_facility_ceiling = GHO_infacilitybirthproportion_map(ISO)*BD_in_facility_acceptance_contimp;
+
             switch scenario_BD
-                case I_BD_WUENIC2025
-                    year_last_BD_data = 2024;
-                    %% Update using WUENIC 2025: follow WUENIC2025 and after 2024 coverage remains at last (2024) value
-                    coverage_BD_to_last_datapoint = BirthDose_wuenic2025;
-                    future_xvals_vec = [2024.0, 2025.0, end_year_simul];
-                    future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end), BirthDose_wuenic2025(end)];
-                    %% No MAP or CPAD introduced:
-                    scenario_BDcoverage_fromMAP = zeros(1,length(years_vec_01yr));
-                    scenario_BDcoverage_fromCPAD = zeros(1,length(years_vec_01yr));
-                case I_BD_contimp
-                    year_last_BD_data = 2024;
-                    coverage_BD_to_last_datapoint = BirthDose_wuenic2025;
-                    %% Non-GAVI eligible countries (as of 2026):
-                    if(Intervention_data_thiscountry.HasBDorGAVIeligible==0)
-                        future_xvals_vec = [2024.0, end_year_simul];
-                        future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end)];
+                case I_BD_WUENIC2025  %% Status quo
+                    IF_future_xvals_vec = [year_last_BD_data, end_year_simul];
+                    IF_future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end)];
+                case {I_BD_contimp,I_BD_OOFexpansion} %% OOF expansion means in-facility coverage follows ContImp scenario.
+                    %% Non-GAVI eligible countries (as of 2026) - do not get BD under ContImp scenario:
+                    if(scenario_BD==I_BD_contimp && Intervention_data_thiscountry.HasBDorGAVIeligible==0)
+                        IF_future_xvals_vec = [year_last_BD_data, CURRENT_TIME, end_year_simul];
+                        IF_future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end), BirthDose_wuenic2025(end)];
                     else
                         %% BD increases at a slow rate in countries which already have BD; increases to BD_in_facility_acceptance_contimp% of in-facility births in 
                         %% Annual percentage point increase in Hep B3 (capped at 90%)
                         annual_BDimprovement = Intervention_data_thiscountry.ContImp_BD_annual_increase;
-                        %% Check whether, at this rate of increase from 2025 onwards, if we ever go above in-facility births:
-                        potential_bd_target = BirthDose_wuenic2025(end)+(end_year_simul-2025)*annual_BDimprovement;
-                        if(potential_bd_target>BirthDose_wuenic2025(end))
-                            if(potential_bd_target>(GHO_infacilitybirthproportion_map(ISO)*BD_in_facility_acceptance_contimp))
-                                year_reach_IF_target = floor(((GHO_infacilitybirthproportion_map(ISO)*BD_in_facility_acceptance_contimp)-BirthDose_wuenic2025(end))/annual_BDimprovement);
-                                future_xvals_vec = [2024.0, 2025.0, year_reach_IF_target, end_year_simul];
-                                future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end), GHO_infacilitybirthproportion_map(ISO)*BD_in_facility_acceptance_contimp, GHO_infacilitybirthproportion_map(ISO)*BD_in_facility_acceptance_contimp];
-                            else  %% will not reach in-facility ceiling by end_year_simul:
-                                future_xvals_vec = [2024.0, 2025.0, end_year_simul];
-                                future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end), potential_bd_target];
+                        %% This is the BD coverage we would reach if the rate of increase is constant until end_year_simul.
+                        potential_bd_target = BirthDose_wuenic2025(end)+(end_year_simul-2025)*annual_BDimprovement;                        
+
+                        %% For here and the IF/OOF scenarios we have to consider in_facility_ceiling, BirthDose_wuenic2025(end) and potential_bd_target.
+                        %% In particular we need to know the order of these 3 quantities (there are 3!=6 ways in which they can be ordered a<=b<=c)
+                        
+                        %% if wuenic>target or if wuenic>ceiling (4 permutations), then we stay at wuenic 
+                        if(BirthDose_wuenic2025(end)>=potential_bd_target || BirthDose_wuenic2025(end)>=in_facility_ceiling)
+                            IF_future_xvals_vec = [year_last_BD_data, CURRENT_TIME, end_year_simul];
+                            IF_future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end), BirthDose_wuenic2025(end)];
+                        elseif(in_facility_ceiling>=potential_bd_target && potential_bd_target>BirthDose_wuenic2025(end))
+                            %% Keep increasing to potential_bd_target in 2100:
+                            IF_future_xvals_vec = [year_last_BD_data, CURRENT_TIME, end_year_simul];
+                            IF_future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end), in_facility_ceiling];
+                        elseif(potential_bd_target>in_facility_ceiling && in_facility_ceiling>BirthDose_wuenic2025(end))
+                            %% Go to ceiling at t_ceiling and stay there until end_year_simul:
+                            %% Note that the elseif condition above means that potential_bd_target>BirthDose_wuenic2025(end), which forces annual_BDimprovement>0.
+                            t_reach_IF_target = CURRENT_TIME + floor((in_facility_ceiling-BirthDose_wuenic2025(end))/annual_BDimprovement);
+                            assert(t_reach_IF_target>CURRENT_TIME)
+                            if(t_reach_IF_target<end_year_simul)
+                                IF_future_xvals_vec = [year_last_BD_data, CURRENT_TIME, t_reach_IF_target, end_year_simul];
+                                IF_future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end), in_facility_ceiling, in_facility_ceiling];
+                            else
+                                fprintf("ERROR: this shouldn't occur!!! Exiting\n")
+                                return
                             end
-                        else
-                            %% potential_bd_target<=BirthDose_wuenic2025(end). Assume no decrease so keep at BirthDose_wuenic2025(end) value
-                            future_xvals_vec = [2024.0, 2025.0, end_year_simul];
-                            future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end), BirthDose_wuenic2025(end)];
                         end
                     end
-                    %% No MAP or CPAD introduced:
-                    scenario_BDcoverage_fromMAP = zeros(1,length(years_vec_01yr));
-                    scenario_BDcoverage_fromCPAD = zeros(1,length(years_vec_01yr));
-                case I_BD_IFexpansion  %% Optimisation of in-facility BD
-                    year_last_BD_data = 2024;
-                    coverage_BD_to_last_datapoint = BirthDose_wuenic2025;
+                case {I_BD_IFexpansion, I_BD_IF_OOFexpansion}  %% Optimisation of in-facility BD
+
+                    %% Uncomment to filter out non-BD/non-Gavi eligble countries:
+                    % if(Intervention_data_thiscountry.HasBDorGAVIeligible==0)
+                    %     IF_future_xvals_vec = [CURRENT_TIME, T_INTERVENTION_START_BD, end_year_simul];
+                    %     IF_future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end), BirthDose_wuenic2025(end)];
+                    % else
                     %% Coverage up to % in-facility births, or current (2025 WUENIC) value - whichever is bigger.
-                    max_in_facility_coverage = GHO_infacilitybirthproportion_map(ISO)*BD_in_facility_acceptance_contimp;
-                    max_coverage = max(max_in_facility_coverage,BirthDose_wuenic2025(end));
+                    max_coverage = max(in_facility_ceiling,BirthDose_wuenic2025(end));
                     assert(max_coverage<=1);
                     %% Currently 5 year scale-up of BD.
-                    future_xvals_vec = [2024.0, T_INTERVENTION_START_BD, T_INTERVENTION_END_BD, end_year_simul];
-                    future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end), max_coverage, max_coverage];
-                    %% No MAP or CPAD introduced:
-                    scenario_BDcoverage_fromMAP = zeros(1,length(years_vec_01yr));
-                    scenario_BDcoverage_fromCPAD = zeros(1,length(years_vec_01yr));
+                    IF_future_xvals_vec = [year_last_BD_data, T_INTERVENTION_START_BD, T_INTERVENTION_END_BD, end_year_simul];
+                    IF_future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end), max_coverage, max_coverage];
 
-                case I_BD_OOFexpansion
-                    year_last_BD_data = 2024;
-                    coverage_BD_to_last_datapoint = BirthDose_wuenic2025;
-                    BDOOF
-                    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                    %% We use the same code as for I_BD_contimp - but cap at <= IFexpansion, then add OOF. 
-                    % %% I've slightly modified the code by tagging the variables with "_IF".
-                    annual_BDimprovement_IF = Intervention_data_thiscountry.ContImp_BD_annual_increase;
-                    potential_bd_target_IF = BirthDose_wuenic2025(end)+(end_year_simul-2025)*annual_BDimprovement_IF;
-                    if(potential_bd_target_IF>BirthDose_wuenic2025(end))
-                        if(potential_bd_target_IF>(GHO_infacilitybirthproportion_map(ISO)*BD_in_facility_acceptance_contimp))
-                            potential_bd_target_IF = GHO_infacilitybirthproportion_map(ISO)*BD_in_facility_acceptance_contimp;
-                            year_reach_IF_target = floor(((GHO_infacilitybirthproportion_map(ISO)*BD_in_facility_acceptance_contimp)-BirthDose_wuenic2025(end))/annual_BDimprovement_IF);
-                            ## Construct piecewise linear coverage of IF+OOF:
-                            ## FIXME
-                            future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end), GHO_infacilitybirthproportion_map(ISO)*BD_in_facility_acceptance_contimp, GHO_infacilitybirthproportion_map(ISO)*BD_in_facility_acceptance_contimp];
-                        else
-
-                            potential_bd_target_IF
-                            future_xvals_vec = [2024.0, 2025.0, end_year_simul];
-                            future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end), potential_bd_target_IF];
-                        end
-                    else %% potential_bd_target<=BirthDose_wuenic2025(end). Assume no decrease so keep at BirthDose_wuenic2025(end) value
-                        future_xvals_vec = [2024.0, 2025.0, end_year_simul];
-                        future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end), BirthDose_wuenic2025(end)];
-                    end
-                        endBDOOF
-
-                    %% Coverage up to % in-facility births, or current (2025 WUENIC) value - whichever is bigger.
-                    max_in_facility_coverage = GHO_infacilitybirthproportion_map(ISO)*BD_in_facility_acceptance_contimp;
-
-                    BD_oof_coverage = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'BD_oof_coverage'),:).Value;
-                    max_OOF_coverage = (1.0-GHO_infacilitybirthproportion_map(ISO))*BD_oof_coverage;
-                    
-                    max_coverage = max(max_in_facility_coverage + max_OOF_coverage,BirthDose_wuenic2025(end));
-                    assert(max_coverage<=1);
-                    %% Currently 5 year scale-up of BD.
-                    future_xvals_vec = [2024.0, T_INTERVENTION_START_BD, T_INTERVENTION_END_BD, end_year_simul];
-                    future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end), max_coverage, max_coverage];
-                    %% No MAP or CPAD introduced:
-                    scenario_BDcoverage_fromMAP = zeros(1,length(years_vec_01yr));
-                    scenario_BDcoverage_fromCPAD = zeros(1,length(years_vec_01yr));
-                %% Combining in-facility and out-of-facility expansion:
-                case I_BD_IF_OOFexpansion
-                    year_last_BD_data = 2024;
-                    coverage_BD_to_last_datapoint = BirthDose_wuenic2025;
-                    %% Coverage up to % in-facility births, or current (2025 WUENIC) value - whichever is bigger.
-                    max_in_facility_coverage = GHO_infacilitybirthproportion_map(ISO)*BD_in_facility_acceptance_contimp;
-
-                    BD_oof_coverage = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'BD_oof_coverage'),:).Value;
-                    max_OOF_coverage = (1.0-GHO_infacilitybirthproportion_map(ISO))*BD_oof_coverage;
-                    
-                    max_coverage = max(max_in_facility_coverage + max_OOF_coverage,BirthDose_wuenic2025(end));
-                    assert(max_coverage<=1);
-                    %% Currently 5 year scale-up of BD.
-                    future_xvals_vec = [2024.0, T_INTERVENTION_START_BD, T_INTERVENTION_END_BD, end_year_simul];
-                    future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end), max_coverage, max_coverage];
-                    %% No MAP or CPAD introduced:
-                    scenario_BDcoverage_fromMAP = zeros(1,length(years_vec_01yr));
-                    scenario_BDcoverage_fromCPAD = zeros(1,length(years_vec_01yr));
-
-                    
-                    % case I_BD_MAP  %% MAP introduced:
-                %     disp("I_BD_MAP")
-                %     year_last_BD_data = 2024;
-                %     %% Follow WUENIC2025, then an extra (different efficacy) product increases overall BD coverage up to a level capped by out-of-facility deliveries.
-                %     coverage_BD_to_last_datapoint = BirthDose_wuenic2025;
-                %     %% This governs the coverage of the standard BD injection:
-                %     future_xvals_vec = [2024.0, 2025.0, end_year_simul];  
-                %     future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end), BirthDose_wuenic2025(end)];
-                %     %% This governs the coverage of the additional MAP injection:
-                %     future_xvals_vec_MAP = [2024.0, T_INTERVENTION_START, T_INTERVENTION_END, end_year_simul];
-                %     %% Increase in BD if introduce MAP (requires BD to currently be available):
-                %     if(BirthDose_wuenic2025(end)>0)  %% BD already available
-                %         %% Increase in BD is capped to not exceed the current proportion not getting BD.
-                %         current_prop_not_getting_BD = (1-BirthDose_wuenic2025(end));
-                %         BD_increase_from_MAP  = min(prop_OOF_births*prop_accept_MAP, current_prop_not_getting_BD);
-                %     else                             %% BD not currently available
-                %         BD_increase_from_MAP = 0;
-                %     end
-                % 
-                %     future_yvals_vec_MAP = [0, 0, BD_increase_from_MAP, BD_increase_from_MAP];
-                %     coverageMAP_to_present = zeros(1,length(BirthDose_wuenic2025));  
-                %     disp("MAP1")
-                %     scenario_BDcoverage_fromMAP = make_coverage_vec(start_year_simul,num_year_divisions,dt,end_year_simul,coverageMAP_to_present,future_xvals_vec_MAP, future_yvals_vec_MAP, year_last_BD_data);
-                %     scenario_BDcoverage_fromCPAD = zeros(1,length(years_vec_01yr));
-                 
                 otherwise 
-                    disp("Error - unknown scenario_BD. Exiting")
+                    disp("Error - unknown scenario_BD for IF coverage. Exiting")
                     return  %% Exit the script.
+            end
 
-            end  %% end switch scenario_BD
-            
-            %% Now get the full timetrend of BD coverage from start_year_simul to end_year_simul (note that MAP/CPAD coverage is stored separately in scenario_BDcoverage_fromMAP/CPAD)
-            % disp([start_year_simul,num_year_divisions,dt,end_year_simul])
-            % disp(coverage_BD_to_last_datapoint)
-            % disp("A")
-            % disp(future_xvals_vec)
-            % disp("B")
-            % disp(future_yvals_vec)
-            % disp(year_last_BD_data)
-            % disp("DONE")
-            scenario_BDcoverage = make_coverage_vec(start_year_simul,num_year_divisions,dt,end_year_simul,coverage_BD_to_last_datapoint,future_xvals_vec,future_yvals_vec,year_last_BD_data);
-            scenario_BDcoverage = min(1,scenario_BDcoverage);    % Ensure coverage is <=100% at every timestep:
+            %% Now repeat for OOF:
+            switch scenario_BD
+                case {I_BD_WUENIC2025,I_BD_contimp,I_BD_IFexpansion}
+                    %% No OOF (if existing Wuenic coverage means there is some OOF coverage this is included in IF_future_yvals_vec and we shouldn't double-count it here)
+                    OOF_future_xvals_vec = [year_last_BD_data, end_year_simul];
+                    OOF_future_yvals_vec = [0, 0];
+                case {I_BD_IF_OOFexpansion,I_BD_OOFexpansion} %% OOF expansion means in-facility coverage follows ContImp scenario.
+                    
+                    %% Coverage of OOF births:
+                    BD_OOF_coverage = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'BD_OOF_coverage'),:).Value;
+                    BD_OOF_start = Global_intervention_time_params(strcmp(Global_intervention_time_params.Parameter,'BD_OOF_T_scaleup'),:).StartValue;
+                    BD_OOF_end = Global_intervention_time_params(strcmp(Global_intervention_time_params.Parameter,'BD_OOF_T_scaleup'),:).EndValue;
+                    
+                    %% Note that in the IF code above we set the IF BD coverage to be BirthDose_wuenic2025(end) when (BirthDose_wuenic2025(end)>=in_facility_ceiling)
+                    %% So that means we are taking the "existing_OOF_coverage" to be in the IF_future_yvals_vec, and we need to subtract it from here.
+                    existing_OOF_coverage = max(0, BirthDose_wuenic2025(end)-in_facility_ceiling);
+                    
+                    %% Coverage of OOF births where denom is all births (IF+OOF)
+                    max_OOF_coverage_includingexisting = (1.0-GHO_infacilitybirthproportion_map(ISO))*BD_OOF_coverage;
+                    %% Coverage of OOF births (excluding existing, which are already in IF_future_yvals_vec):
+                    max_OOF_coverage = max(0, max_OOF_coverage_includingexisting-existing_OOF_coverage);
+                    OOF_future_xvals_vec = [year_last_BD_data, BD_OOF_start, BD_OOF_end, end_year_simul];
+                    OOF_future_yvals_vec = [0, 0, max_OOF_coverage, max_OOF_coverage];
+
+                otherwise
+                    disp("Error - unknown scenario_BD for OOF coverage. Exiting")
+                    return  %% Exit the script.
+            end
+
+            %% No (new) OOF - any pre-existing OOF is attributed to the "IF" coverage in the code.
+            OOF_past_yvals = zeros(size(coverage_BD_to_last_datapoint));
+
+            scenario_IF_BDcoverage = make_coverage_vec(start_year_simul,num_year_divisions,dt,end_year_simul,coverage_BD_to_last_datapoint,...
+                IF_future_xvals_vec,IF_future_yvals_vec,year_last_BD_data);
+            scenario_OOF_BDcoverage = make_coverage_vec(start_year_simul,num_year_divisions,dt,end_year_simul,OOF_past_yvals,...
+                OOF_future_xvals_vec,OOF_future_yvals_vec,year_last_BD_data);
+
+
+            scenario_BDcoverage = scenario_IF_BDcoverage + scenario_OOF_BDcoverage;
+            % Ensure coverage is <=100% at every timestep:
+            assert(max(scenario_BDcoverage)<1)
             assert(isequal(size(scenario_BDcoverage),size(years_vec_01yr)))
             assert(isequal(size(scenario_BDcoverage_fromMAP),size(years_vec_01yr)))
             assert(isequal(size(scenario_BDcoverage_fromCPAD),size(years_vec_01yr)))
@@ -1003,6 +1003,18 @@ function country_level_analyses(sensitivity_analysis,...
             %% Make sure total coverage of BD (normal BD/MAP/CPAD) is in range 0-1:
             %%mustBeBetween((scenario_BDcoverage+scenario_BDcoverage_fromMAP+scenario_BDcoverage_fromCPAD),0,1);
             assert(all((scenario_BDcoverage+scenario_BDcoverage_fromMAP+scenario_BDcoverage_fromCPAD)>=0) && all((scenario_BDcoverage+scenario_BDcoverage_fromMAP+scenario_BDcoverage_fromCPAD)<=1))
+
+
+
+            %% Now get the full timetrend of BD coverage from start_year_simul to end_year_simul (note that MAP/CPAD coverage is stored separately in scenario_BDcoverage_fromMAP/CPAD)
+            % disp([start_year_simul,num_year_divisions,dt,end_year_simul])
+            % disp(coverage_BD_to_last_datapoint)
+            % disp("A")
+            % disp(future_xvals_vec)
+            % disp("B")
+            % disp(future_yvals_vec)
+            % disp(year_last_BD_data)
+            % disp("DONE")
 
             %% Make sure that the total (normal BD + MAP/CPAD) BD coverage is 100% or less:
             %%scenario_BDcoverage_fromMAP_CPAD = min(scenario_BDcoverage_fromMAP_CPAD, 1 - scenario_BDcoverage);
@@ -1015,32 +1027,28 @@ function country_level_analyses(sensitivity_analysis,...
             
             switch scenario_HepB3
                 case I_HEPB3_WUENIC2025
-                    year_last_HepB3_data = 2024;
                     coverage_HepB3_to_last_datapoint = HepB3_wuenic2025;
-                    future_xvals_vec = [2024.0, 2025.0, end_year_simul];
-                    future_yvals_vec = [HepB3_wuenic2025(end), HepB3_wuenic2025(end), HepB3_wuenic2025(end)];
+                    future_xvals_vec = [year_last_HepB3_data, end_year_simul];
+                    future_yvals_vec = [HepB3_wuenic2025(end), HepB3_wuenic2025(end)];
                 case I_HEPB3_contimp
-                    year_last_HepB3_data = 2024;
                     coverage_HepB3_to_last_datapoint = HepB3_wuenic2025;
                     %% Annual percentage point increase in Hep B3 (capped at 90%)
                     annual_hepB3improvement = Intervention_data_thiscountry.ContImp_HepB3_annual_increase;
                     %% Check whether, at this rate of increase from 2025 onwards, if we ever go above the WHO target of 90%:
-                    potential_hepb3_target = HepB3_wuenic2025(end)+(end_year_simul-2025)*annual_hepB3improvement;
+                    potential_hepb3_target = HepB3_wuenic2025(end)+(end_year_simul-CURRENT_TIME)*annual_hepB3improvement;
                     if(annual_hepB3improvement>0 && potential_hepb3_target>HepB3_WHO_target_coverage)
                         year_reach_whotarget = floor((HepB3_WHO_target_coverage-HepB3_wuenic2025(end))/annual_hepB3improvement);
-                       
-                        future_xvals_vec = [2024.0, 2025.0, year_reach_whotarget, end_year_simul];
+                        future_xvals_vec = [year_last_HepB3_data, CURRENT_TIME, year_reach_whotarget, end_year_simul];
                         future_yvals_vec = [HepB3_wuenic2025(end), HepB3_wuenic2025(end), HepB3_WHO_target_coverage, HepB3_WHO_target_coverage];
                     else
-                        future_xvals_vec = [2024.0, 2025.0, end_year_simul];
+                        future_xvals_vec = [year_last_HepB3_data, CURRENT_TIME, end_year_simul];
                         future_yvals_vec = [HepB3_wuenic2025(end), HepB3_wuenic2025(end), potential_hepb3_target];
                     end
                 case I_HEPB3_WHOtarget
-                    year_last_HepB3_data = 2024;
                     coverage_HepB3_to_last_datapoint = HepB3_wuenic2025;
                     %% Increase to HepB3_WHO_target_coverage (90%) (or current value if higher) from 2026 to 2029
                     hepb3_target = max(HepB3_wuenic2025(end),HepB3_WHO_target_coverage);
-                    future_xvals_vec = [2024.0, T_INTERVENTION_START_HepB3 T_INTERVENTION_END_HepB3, end_year_simul];
+                    future_xvals_vec = [year_last_HepB3_data, T_INTERVENTION_START_HepB3 T_INTERVENTION_END_HepB3, end_year_simul];
                     future_yvals_vec = [HepB3_wuenic2025(end), HepB3_wuenic2025(end), hepb3_target hepb3_target];
                 otherwise
                     disp("Error: Unknown value for scenario_HepB3. Exiting")
@@ -1054,10 +1062,10 @@ function country_level_analyses(sensitivity_analysis,...
                 
             end  %% End switch scenario_HepB3
 
-            % Using the above, create coverage vector that has coverage at each timestep:
-          
-            scenario_HepB3coverage = make_coverage_vec(start_year_simul,num_year_divisions,dt,end_year_simul,coverage_HepB3_to_last_datapoint,future_xvals_vec,future_yvals_vec,year_last_HepB3_data);
+            
 
+            % Using the above, create coverage vector that has coverage at each timestep:
+            scenario_HepB3coverage = make_coverage_vec(start_year_simul,num_year_divisions,dt,end_year_simul,coverage_HepB3_to_last_datapoint,future_xvals_vec,future_yvals_vec,year_last_HepB3_data);
             % Ensure coverage is <=100% at every timestep:
             scenario_HepB3coverage = min(1,scenario_HepB3coverage);
             assert(isequal(size(scenario_HepB3coverage),size(years_vec_01yr)))
@@ -1163,8 +1171,8 @@ function country_level_analyses(sensitivity_analysis,...
             PAP_cov_params.current_cov_PAPonly_SAgLowVL  = 0;        
 
             %% Now set the future PAP coverage trend:
-            PAP_cov_params.Intervention_TScaleup_PAP_start = 2026;
-            PAP_cov_params.Intervention_TScaleup_PAP_end = 2030;
+            PAP_cov_params.Intervention_TScaleup_PAP_start = Global_intervention_time_params(strcmp(Global_intervention_time_params.Parameter,'PAP_T_scaleup'),:).StartValue;
+            PAP_cov_params.Intervention_TScaleup_PAP_end = Global_intervention_time_params(strcmp(Global_intervention_time_params.Parameter,'PAP_T_scaleup'),:).EndValue;
             switch scenario_PAP
                 %% Scenarios where only HVL is eligible:
                 case {I_PAP_SQ,I_PAP_HVL_contimp,I_PAP_HVL_targeted}
@@ -1270,6 +1278,73 @@ function country_level_analyses(sensitivity_analysis,...
                 PAP_cov_params.Intervention_TScaleup_PAP_start, PAP_cov_params.Intervention_TScaleup_PAP_end, end_year_simul,...
                 PAP_cov_params.current_cov_PAPonly_SAgLowVL, PAP_cov_params.max_cov_PAPonly_SAgLowVL, dt);
 
+
+
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            %%% Now store BD, HepB3 and PAP coverage for specific scenarios:
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+            %% Only print the first run for a given country (stochas_run_str is a string)
+            if(strcmp(stochas_run_str,"1"))
+                %% Only print 1971-2050 (or closest years in simulation) to reduce size:
+                i_first_year_to_print = find(years_vec_01yr==max(1971,start_year_simul));
+                i_last_year_to_print = find(years_vec_01yr==min(2050,end_year_simul));
+                n_to_print = i_last_year_to_print - i_first_year_to_print + 1; %% Same as size(temp_t_print)
+                temp_t_to_print = years_vec_01yr(i_first_year_to_print:i_last_year_to_print)';
+                temp_scenario_to_print = scenario_num * ones(n_to_print,1);
+
+                %% Only output for these 4 scenarios as they are the only 4 options for BD:
+                if(scenario_num==i_scenario_ContImp || scenario_num==i_scenario_ContImp_plusBD_IF || ...
+                    scenario_num==i_scenario_ContImp_plusBD_OOF || scenario_num==i_scenario_ContImp_plusBD_IF_OOF)
+                    temp_BD_to_print = scenario_BDcoverage(i_first_year_to_print:i_last_year_to_print)';
+                    %% Check if we've already created BD_coverage_to_print (so we are adding to it) or not:
+                    if(scenario_num==i_scenario_ContImp || start_scenario==scenario_num)
+                        BD_coverage_to_print = [temp_t_to_print, temp_BD_to_print, temp_scenario_to_print];
+                    else
+                        %% Add to existing row:
+                        BD_coverage_to_print = [BD_coverage_to_print ; ...
+                                                [temp_t_to_print, temp_BD_to_print, temp_scenario_to_print]];
+                    end
+                end
+                %% Now HepB3 coverage:
+                %% Only output for these 2 scenarios as they are the only 2 options for HepB3:
+                if(scenario_num==i_scenario_ContImp || scenario_num==i_scenario_ContImp_plusB3)
+                    temp_HepB3_to_print = scenario_HepB3coverage(i_first_year_to_print:i_last_year_to_print)';
+                    %% Check if we've already created BD_coverage_to_print (so we are adding to it) or not:
+                    if(scenario_num==i_scenario_ContImp || start_scenario==scenario_num)
+                        HepB3_coverage_to_print = [temp_t_to_print, temp_HepB3_to_print, temp_scenario_to_print];
+                    else
+                        %% Add to existing row:
+                        HepB3_coverage_to_print = [HepB3_coverage_to_print ; ...
+                                                  [temp_t_to_print, temp_HepB3_to_print, temp_scenario_to_print]];
+                    end
+                end
+                %% Now PAP coverage:
+                %% Only output for these 4 scenarios as they are the only 4 options for PAP:
+                if(scenario_num==i_scenario_ContImp || scenario_num==i_scenario_ContImp_plusPAP_HVL_targeted || ...
+                        scenario_num==i_scenario_ContImp_plusPAP_PoC || scenario_num==i_scenario_ContImp_plusPAP_all)
+                    temp_PAP_to_print = [PAP_cov_params.scenario_PAPcoverage_BDandPAP_EAgHighVL(i_first_year_to_print:i_last_year_to_print); ...
+                        PAP_cov_params.scenario_PAPcoverage_BDandPAP_EAgLowVL(i_first_year_to_print:i_last_year_to_print); ...
+                        PAP_cov_params.scenario_PAPcoverage_BDandPAP_SAgHighVL(i_first_year_to_print:i_last_year_to_print); ...
+                        PAP_cov_params.scenario_PAPcoverage_BDandPAP_SAgLowVL(i_first_year_to_print:i_last_year_to_print); ...
+                        PAP_cov_params.scenario_PAPcoverage_PAPonly_EAgHighVL(i_first_year_to_print:i_last_year_to_print); ...
+                        PAP_cov_params.scenario_PAPcoverage_PAPonly_EAgLowVL(i_first_year_to_print:i_last_year_to_print); ...
+                        PAP_cov_params.scenario_PAPcoverage_PAPonly_SAgHighVL(i_first_year_to_print:i_last_year_to_print); ...
+                        PAP_cov_params.scenario_PAPcoverage_PAPonly_SAgLowVL(i_first_year_to_print:i_last_year_to_print)]';
+                    %% Check if we've already created BD_coverage_to_print (so we are adding to it) or not:
+                    if(scenario_num==i_scenario_ContImp || start_scenario==scenario_num)
+                        PAP_coverage_to_print = [temp_t_to_print, temp_PAP_to_print, temp_scenario_to_print];
+                    else
+                        %% Add to existing row:
+                        PAP_coverage_to_print = [PAP_coverage_to_print ; ...
+                                                [temp_t_to_print, temp_PAP_to_print, temp_scenario_to_print]];
+                    end
+                end
+
+            end
+
+
+
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             %% Diagnosis and treatment:
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1290,12 +1365,16 @@ function country_level_analyses(sensitivity_analysis,...
             %%Polaris_diagnosis_coverage_map("CHN") = 0.68; 
             treatment_rate_params = struct('Tx_coverage_2016', HBsAg_treat_cov_all_ages, ...
                     'Dx_coverage_2016', Polaris_2016diagnosis_coverage_map(ISO), ...
-                    't_current_treat_data', 2025, ... %%% This is the most recent Polaris data.
+                    't_current_treat_data', 2025, ... %%% Currently unused parameter - this is the most recent Polaris data.
                     'Dx_coverage_current', Polaris_diagnosis_coverage_map(ISO), ...
                     'annual_increase_TxifDx_past', stochas_params_mat(stochas_run_num,country_start_col+7),...
                     ... %%'annual_increase_Dx_past',annual_increase_Dx_past_thiscountry,...        
-                    't_treatment_scaleup_start', T_INTERVENTION_START,...  %% Treatment takes a few years to change from current rate of increase to new one.
-                    't_treatment_scaleup_end', T_INTERVENTION_END,...
+                    't_default_Dx_Tx_scaleup_start', Global_intervention_time_params(strcmp(Global_intervention_time_params.Parameter,'Default_Dx_Tx_T_scaleup'),:).StartValue, ...
+                    't_default_Dx_Tx_scaleup_end', Global_intervention_time_params(strcmp(Global_intervention_time_params.Parameter,'Default_Dx_Tx_T_scaleup'),:).EndValue, ...
+                    't_treatment_PoC_start', Global_intervention_time_params(strcmp(Global_intervention_time_params.Parameter,'PoC_treatment_eligibility_T_start'),:).StartValue,... 
+                    't_treatment_universal_start', Global_intervention_time_params(strcmp(Global_intervention_time_params.Parameter,'Universal_treatment_eligibility_T_start'),:).StartValue,... 
+                    ... %% When LA Tx first becomes available
+                    't_treatment_scaleup_LA_start', Global_intervention_time_params(strcmp(Global_intervention_time_params.Parameter,'LA_Tx_T_start'),:).StartValue,... 
                     'annual_increase_Dx_future',0,...       %% Set below
                     'annual_increase_TxifDx_future',0,...   %% Set below
                     'Dx_remain_in_care_noeligbarrier',Global_intervention_params(strcmp(Global_intervention_params.Parameter,'Treat_elig_PoC_prop_remain_in_care'),:).Value,...      %% Used for PoC eligibility testing scenario/universal treatment.
@@ -1376,7 +1455,7 @@ function country_level_analyses(sensitivity_analysis,...
                     funct_cure_params.p_Bepi = 0;   %% Dummy value - nobody will use Bepi
                     funct_cure_params.p_futurefunctcure = 0;   %% Dummy value - nobody will use
                 case I_CURE.Bepi
-                    funct_cure_params.T_Bepi_start = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'Bepi_T_start'),:).Value;
+                    funct_cure_params.T_Bepi_start = Global_intervention_time_params(strcmp(Global_intervention_time_params.Parameter,'Bepi_T_start'),:).StartValue;
                     funct_cure_params.p_Bepi = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'Bepi_p_achieve_cure'),:).Value;
                     %% No functional cure so use dummy values:
                     funct_cure_params.T_future_functcure_start = 9999;
@@ -1384,7 +1463,7 @@ function country_level_analyses(sensitivity_analysis,...
                 case I_CURE.future_funct_cure
                     funct_cure_params.T_Bepi_start = 9999;  %% Dummy future time - means no Bepi functional cure
                     funct_cure_params.p_Bepi = 0;   %% Dummy value - nobody will use Bepi
-                    funct_cure_params.T_future_functcure_start = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'Future_functcure_T_start'),:).Value;
+                    funct_cure_params.T_future_functcure_start = Global_intervention_time_params(strcmp(Global_intervention_time_params.Parameter,'Future_functcure_T_start'),:).StartValue;
                     funct_cure_params.p_futurefunctcure = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'Future_functcure_p_achieve_cure'),:).Value;
                 otherwise
                     disp("Unknown value for scenario_FunctCure. Exiting")
@@ -1431,13 +1510,18 @@ function country_level_analyses(sensitivity_analysis,...
             %% Now post-present (with changes to guidelines and treatments) relative rates:
             if(scenario_Treatment==I_TREAT.SQ || scenario_Treatment==I_TREAT.continuedimprovement || ...
                     scenario_Treatment==I_TREAT.IFscreening || scenario_Treatment==I_TREAT.IntegratedServices || ...
-                    scenario_Treatment==I_TREAT.PoCeligibility || scenario_Treatment==I_TREAT.universal || ...
-                    scenario_Treatment==I_TREAT.decentralised)
+                    scenario_Treatment==I_TREAT.universal || scenario_Treatment==I_TREAT.decentralised)
                 %% Tenofovir-based treatment:
                 RRprogress_effective_treatment_nonCC_future = RRprogress_effective_TDFtreatment_nonCC;
                 RRprogress_effective_treatment_CC_future = RRprogress_effective_TDFtreatment_CC;
                 RRprogress_nonadherent_treatment_nonCC_future = RRprogress_nonadherent_TDFtreatment_nonCC;
                 RRprogress_nonadherent_treatment_CC_future = RRprogress_nonadherent_TDFtreatment_CC;
+            elseif(scenario_Treatment==I_TREAT.PoCeligibility)
+                %% Tenofovir-based treatment, but with some eligible individuals not started due to PoC test sensitivity <100%:
+                RRprogress_effective_treatment_nonCC_future = RRprogress_effective_TDFtreatment_nonCC*treatment_rate_params.treat_elig_sensitivity;
+                RRprogress_effective_treatment_CC_future = RRprogress_effective_TDFtreatment_CC*treatment_rate_params.treat_elig_sensitivity;
+                RRprogress_nonadherent_treatment_nonCC_future = RRprogress_nonadherent_TDFtreatment_nonCC*treatment_rate_params.treat_elig_sensitivity;
+                RRprogress_nonadherent_treatment_CC_future = RRprogress_nonadherent_TDFtreatment_CC*treatment_rate_params.treat_elig_sensitivity;
             elseif(scenario_Treatment==I_TREAT.LA)
                 %% Long-acting treatment:
                 RRprogress_effective_treatment_nonCC_future = RRprogress_effective_LAtreatment_nonCC;
@@ -1454,8 +1538,9 @@ function country_level_analyses(sensitivity_analysis,...
                 start_state = Transitions.From(i_transition);
                 end_state = Transitions.To(i_transition);
                 
-                %% This sets the scenario's eligibility guidelines for baseline and future:
+                %% This sets the scenario's eligibility guidelines for baseline (i.e. with current eligibility guidelines) and future (if we introduce universal, etc):
                 treat_eligibility_ageindices_baseline = get_treatment_eligible_ageindices("Current treatment", start_state, i_natural_hist, ages);
+                %% These are the eligibility guidelines once any intervention/change in guidelines (e.g. universal treatment) occur:
                 treat_eligibility_ageindices_future = get_treatment_eligible_ageindices(scenario_treat_elig, start_state, i_natural_hist, ages);
                 
                 %% Now modify the rate of progression of temparray for any age groups that can be in treatment:
@@ -1539,7 +1624,7 @@ function country_level_analyses(sensitivity_analysis,...
                 start_year_simul,num_years_simul,...
                 theta,ECofactor,treatment_rate_params, treatment_start_year-dt, ...
                 params, PAP_VL_params, PAP_cov_params, ...
-                Global_intervention_params, Intervention_data_thiscountry, ...
+                Global_intervention_params, Global_intervention_time_params, Intervention_data_thiscountry, ...
                 p_ChronicCarriage,Prog_scenario,Transitions,......
                 scenario_BDcoverage, scenario_BDcoverage_fromMAP,...
                 scenario_BDcoverage_fromCPAD, scenario_HepB3coverage, ...
@@ -1656,6 +1741,21 @@ function country_level_analyses(sensitivity_analysis,...
 
             countryMap(ISO) = lastrun;
 
+            BD_coverage_filename = strcat('BD_coverage',ISO,'.csv');
+            HepB3_coverage_filename = strcat('HepB3_coverage',ISO,'.csv');
+            PAP_coverage_filename = strcat('PAP_coverage',ISO,'.csv');
+            %%disp(fullfile(basedir,'outputs',BD_coverage_filename))
+    
+            %% The "4" below is used as follows - round( . , 4) rounds to 4 decimal places.
+            if (exist('BD_coverage_to_print','var'))
+                writematrix(round(BD_coverage_to_print,4), fullfile(basedir,'outputs',BD_coverage_filename));
+            end
+            if (exist('HepB3_coverage_to_print','var'))
+                writematrix(round(HepB3_coverage_to_print,4), fullfile(basedir,'outputs',HepB3_coverage_filename));
+            end
+            if (exist('PAP_coverage_to_print','var'))
+                writematrix(round(PAP_coverage_to_print,4), fullfile(basedir,'outputs',PAP_coverage_filename));
+            end
         end % end for country_num loop
 
         outMap(num2str(scenario_num)) = countryMap;
@@ -1718,7 +1818,7 @@ function out = make_coverage_vec(start_year,num_year_divisions,dt,end_year,yleft
     x_vec_1980_last_available_year = 1980:dt:(last_available_year-dt);
     num_time_steps_1980_last_available_year = length(x_vec_1980_last_available_year);
     y_vec_1980_last_available_year = repmat(yleft(1:(end-1)),num_year_divisions,1);
-    %%size(y_vec_1980_last_available_year)
+    %%disp(size(y_vec_1980_last_available_year))
     assert(isequal(size(y_vec_1980_last_available_year),[num_year_divisions (last_available_year-1)-1979]))
     y_vec_1980_last_available_year = y_vec_1980_last_available_year(:);
     assert(isequal(size(y_vec_1980_last_available_year),[num_time_steps_1980_last_available_year 1]))

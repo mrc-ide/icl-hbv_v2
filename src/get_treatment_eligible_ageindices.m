@@ -1,5 +1,10 @@
 function treat_eligibility_ageindices = get_treatment_eligible_ageindices(scenario_treat_elig, current_natural_history_state, ...
     i_natural_hist, ages)
+    %% Function gives the indices corresponding to age groups who are eligible for
+    %% Note that this function gives the age eligibility once the scenario_treat_elig scenario is implemented.
+    %% So for example if scenario_treat_elig="Universal treatment" then it gives all ages for all chronic states.
+    %% This means that if using this function before the implementation of Universal treatment, you would need to 
+    %% 
 
     num_age_steps = length(ages);
 

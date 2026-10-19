@@ -154,6 +154,50 @@ list.of.regions <- c("Africa","Americas","Eastern Mediterranean","Europe","South
 #r <- "Europe"
 #r <- "Eastern Mediterranean"
 
+## Code now implemented in C:\Users\mpickles\OneDrive - Imperial College London\Dropbox_copy\Hepatitis B\Data\WUENIC\HepB3_BD_slope_analysis.R
+# ##Get ContImp_BD_annual_increase:
+# ## Get the slope by country:
+# BD_regression_models <- bd.data %>%
+#   group_by(ISO) %>%
+#   do(model = lm(WUENIC ~ Year, data = .))
+# 
+# ##print(BD_regression_models)
+# # Summarize coefficients by group
+# coefficients_summary_BD <- BD_regression_models %>%
+#   summarise(
+#     ISO = ISO,
+#     intercept = coef(model)[1],
+#     ## Divide by 100 to convert from percentage point increase per year (WUENIC is a %) to fractional increase per year
+#     slope = coef(model)[2] / 100
+#   )
+# ## Force slope to be >=0:
+# coefficients_summary_BD$slope[coefficients_summary_BD$slope<0] <- 0
+# ## Countries without BD have slope 0:
+# coefficients_summary_BD$slope[is.na(coefficients_summary_BD$slope)] <- 0
+# print(coefficients_summary_BD)
+# 
+# 
+# 
+# ##Get ContImp_HepB3_annual_increase:
+# ## Get the slope by country:
+# HepB3_regression_models <- hepB3.data %>%
+#   group_by(ISO) %>%
+#   do(model = lm(WUENIC ~ Year, data = .))
+# 
+# ##print(HepB3_regression_models)
+# # Summarize coefficients by group
+# coefficients_summary_HepB3 <- HepB3_regression_models %>%
+#   summarise(
+#     ISO = ISO,
+#     intercept = coef(model)[1],
+#     ## Divide by 100 to convert from percentage point increase per year (WUENIC is a %) to fractional increase per year
+#     slope = coef(model)[2] / 100
+#   )
+# ## Force slope to be >=0:
+# coefficients_summary_HepB3$slope[coefficients_summary_HepB3$slope<0] <- 0
+# print(coefficients_summary_HepB3)
+
+
 for(r in 1:length(list.of.regions)){
   region.nospaces <- gsub(" ","_",list.of.regions[r])
   pdf(paste0(graph.dir,"WUENIC/HepB3_timetrends_panel_",region.nospaces,".pdf"),width=20,height=12)

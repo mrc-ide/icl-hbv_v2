@@ -268,24 +268,29 @@ load(fullfile(basedir,'resources','treatment_rates_map.mat')) % contains treatme
 %% Source: https://immunizationdata.who.int/global/wiise-detail-page/hepatitis-b-vaccination-coverage?GROUP=Countries&ANTIGEN=HEPB_BD&YEAR=&CODE=
 %% BD and Hep B3 coverage data:
 if(RUN_ON_CLUSTER==0)
-    WUENIC2024BDdata = readtable('C:\Users\mpickles\OneDrive - Imperial College London\Dropbox_copy\Hepatitis B\Data\Hepatitis B vaccination coverage 2026-17-02_BD.xlsx','Sheet','Sheet1');
-    WUENIC2024HepB3data = readtable('C:\Users\mpickles\OneDrive - Imperial College London\Dropbox_copy\Hepatitis B\Data\Hepatitis B vaccination coverage 2026-17-02_HepB3.xlsx','Sheet','Sheet1');  
+    %%WUENIC2025BDdata = readtable('C:\Users\mpickles\OneDrive - Imperial College London\Dropbox_copy\Hepatitis B\Data\Hepatitis B vaccination coverage 2026-17-02_BD.xlsx','Sheet','Sheet1');
+    %%WUENIC2025HepB3data = readtable('C:\Users\mpickles\OneDrive - Imperial College London\Dropbox_copy\Hepatitis B\Data\Hepatitis B vaccination coverage 2026-17-02_HepB3.xlsx','Sheet','Sheet1');  
+    WUENIC2025BDdata = readtable('C:\Users\mpickles\OneDrive - Imperial College London\Dropbox_copy\Hepatitis B\Data\WUENIC\WUENIC2025_HepB_BD_vaccination_coverage.xlsx','Sheet','Data');
+    WUENIC2025HepB3data = readtable('C:\Users\mpickles\OneDrive - Imperial College London\Dropbox_copy\Hepatitis B\Data\WUENIC\WUENIC2025_HepB3_vaccination_coverage.xlsx','Sheet','Data');  
     Countrylevel_intervention_params = readtable('C:\Users\mpickles\OneDrive - Imperial College London\Dropbox_copy\Hepatitis B\Modelling\Intervention_parameters.xlsx','Sheet','CountryParameters');
     Global_intervention_params        = readtable('C:\Users\mpickles\OneDrive - Imperial College London\Dropbox_copy\Hepatitis B\Modelling\Intervention_parameters.xlsx','Sheet','GlobalParams');
+    %% Start + end of different interventions:
+    Global_intervention_time_params   = readtable('C:\Users\mpickles\OneDrive - Imperial College London\Dropbox_copy\Hepatitis B\Modelling\Intervention_parameters.xlsx','Sheet','GlobalParamsTimes');
     
 else
-    WUENIC2024BDdata = readtable('Hepatitis B vaccination coverage 2026-17-02_BD.xlsx','Sheet','Sheet1');
-    WUENIC2024HepB3data = readtable('Hepatitis B vaccination coverage 2026-17-02_HepB3.xlsx','Sheet','Sheet1');
+    WUENIC2025BDdata = readtable('WUENIC2025_HepB_BD_vaccination_coverage.xlsx','Sheet','Data');
+    WUENIC2025HepB3data = readtable('WUENIC2025_HepB3_vaccination_coverage.xlsx','Sheet','Data');
     %% Parameters related to different intervention scenarios (19 July 2026):
     Countrylevel_intervention_params = readtable(fullfile(basedir,'resources','Intervention_parameters.xlsx'),'Sheet','CountryParameters');
     Global_intervention_params       = readtable(fullfile(basedir,'resources','Intervention_parameters.xlsx'),'Sheet','GlobalParams');
-
+    %% Start + end of different interventions:
+    Global_intervention_time_params  = readtable(fullfile(basedir,'resources','Intervention_parameters.xlsx'),'Sheet','GlobalParamsTimes');
 end
-WUENIC2024BDdata = WUENIC2024BDdata(WUENIC2024BDdata.COVERAGE_CATEGORY=="WUENIC", :);
-WUENIC2024BDdata = removevars(WUENIC2024BDdata,["GROUP","NAME","ANTIGEN","ANTIGEN_DESCRIPTION","COVERAGE_CATEGORY","COVERAGE_CATEGORY_DESCRIPTION","TARGET_NUMBER","DOSES"]);
+WUENIC2025BDdata = WUENIC2025BDdata(WUENIC2025BDdata.COVERAGE_CATEGORY=="WUENIC", :);
+WUENIC2025BDdata = removevars(WUENIC2025BDdata,["GROUP","NAME","ANTIGEN","ANTIGEN_DESCRIPTION","COVERAGE_CATEGORY","COVERAGE_CATEGORY_DESCRIPTION","TARGET_NUMBER","DOSES"]);
 
-WUENIC2024HepB3data = WUENIC2024HepB3data(WUENIC2024HepB3data.COVERAGE_CATEGORY=="WUENIC", :);
-WUENIC2024HepB3data = removevars(WUENIC2024HepB3data,["GROUP","NAME","ANTIGEN","ANTIGEN_DESCRIPTION","COVERAGE_CATEGORY","COVERAGE_CATEGORY_DESCRIPTION","TARGET_NUMBER","DOSES"]);
+WUENIC2025HepB3data = WUENIC2025HepB3data(WUENIC2025HepB3data.COVERAGE_CATEGORY=="WUENIC", :);
+WUENIC2025HepB3data = removevars(WUENIC2025HepB3data,["GROUP","NAME","ANTIGEN","ANTIGEN_DESCRIPTION","COVERAGE_CATEGORY","COVERAGE_CATEGORY_DESCRIPTION","TARGET_NUMBER","DOSES"]);
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -295,7 +300,7 @@ WUENIC2024HepB3data = removevars(WUENIC2024HepB3data,["GROUP","NAME","ANTIGEN","
 %% Time- and age-related parameters:
 start_year = 1890;
 %%end_year = start_year + num_years_simul;
-end_year = 2081;
+end_year = 2101;
 num_years_simul = end_year-start_year; % must go up to e.g. year 2101 to get incidence readings up to year 2100
 
 num_year_divisions = 10;
@@ -588,8 +593,8 @@ for sensitivity_analysis_num=1:num_sensitivity_analyses
             num_in_treatment_2016_map,pop_size_HBsAg_treatment_map,treatment_rates_map,...
             country_s_e_HCCdeaths_map,...
             params_map,stochas_params_mat,country_start_cols,...
-            WUENIC2024BDdata, WUENIC2024HepB3data, ...
-            Countrylevel_intervention_params, Global_intervention_params, ...
+            WUENIC2025BDdata, WUENIC2025HepB3data, ...
+            Countrylevel_intervention_params, Global_intervention_params, Global_intervention_time_params, ...
             GHO_infacilitybirthproportion_map, ANC_coverage_map, ...
             Polaris_diagnosis_coverage_map, Polaris_2016diagnosis_coverage_map, ...
             basedir,i_natural_hist,i_sexes, i_care,...

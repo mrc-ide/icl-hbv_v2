@@ -4,7 +4,7 @@ function output = HBVmodel(source_HBsAg,...
     theta,ECofactor, ...
     treatment_rate_params, treat_start_year, ...
     params, PAP_VL_params, PAP_cov_params, ...
-    Global_intervention_params, Intervention_data_thiscountry, ...
+    Global_intervention_params, Global_intervention_time_params, Intervention_data_thiscountry, ...
     p_ChronicCarriage,Prog,Transitions, ...
     scenario_BDcoverage, scenario_BDcoverage_fromMAP, ...
     scenario_BDcoverage_fromCPAD, scenario_HepB3coverage, ...
@@ -96,85 +96,9 @@ i_sAgpos = sort([i_sAgpos_chronic, i_acute]);
 %i_sAgpos = [2:8 10 12:15];   %% Includes 10 (TDFtreat) and 12 (3TCtreat) states
 %i_sAgpos_chronic = [2:8 10 12:13]; 
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Here we sort out the natural history states that are eligble for treatment in the current scenario:
-% i_eAgpos_treatelig_under30 = i_ImmReact;  %% Under 30, immune reactive is eligible but not immune tolerant.
-% i_eAgpos_treat_inelig_under30 = [i_ImmTol, i_acute];
-% i_eAgpos_treatelig_30plus  = [i_ImmTol i_ImmReact];  %% Only acute is ineligible when aged 30+.
-% i_eAgpos_treat_inelig_30plus = i_acute; 
-%% sAg+ (not eAg+) states: 
-
-%% Make sure these line up with the eligibility in get_treatment_eligible_ageindices.m:
-if(strcmp(scenario_treat_elig,"Current treatment") || strcmp(scenario_treat_elig,"PoC treatment"))
-    i_sAgpos_not_eAgpos_treatelig = [i_Chronic i_CompCirr i_DecompCirr];
-    i_sAgpos_not_eAgpos_treat_inelig = [i_AsymptCarr i_HCC]; % Just asymptomatic (4) and HCC (8). Exclude the TDF treatment, 3TC treatment/failed treatment compartments.
-    i_eAgpos_treatelig_under30 = i_ImmReact;  %% Under 30, immune reactive is eligible but not immune tolerant.
-    i_eAgpos_treat_inelig_under30 = [i_ImmTol, i_acute];
-    i_eAgpos_treatelig_30plus  = [i_ImmTol i_ImmReact];  %% Only acute is ineligible when aged 30+.
-    i_eAgpos_treat_inelig_30plus = i_acute; 
-    i_bepi_eligible_at_Dx_under30 = [i_ImmReact i_Chronic];  
-    i_bepi_eligible_at_Dx_30plus = [i_ImmTol i_ImmReact i_Chronic];
-elseif(strcmp(scenario_treat_elig,"Universal treatment"))
-    i_sAgpos_not_eAgpos_treatelig = [i_Chronic i_CompCirr i_DecompCirr i_AsymptCarr];
-    i_sAgpos_not_eAgpos_treat_inelig = i_HCC; % Just  HCC (8). 
-    i_eAgpos_treatelig_under30 = [i_ImmTol, i_ImmReact];  %% Under 30, immune reactive is eligible but not immune tolerant.
-    i_eAgpos_treat_inelig_under30 = i_acute;
-    i_eAgpos_treatelig_30plus  = [i_ImmTol i_ImmReact];  %% Only acute is ineligible when aged 30+.
-    i_eAgpos_treat_inelig_30plus = i_acute; 
-    i_bepi_eligible_at_Dx_under30 = [i_ImmTol i_ImmReact i_Chronic];  
-    i_bepi_eligible_at_Dx_30plus = [i_ImmTol i_ImmReact i_Chronic];
-else
-    disp("Error - unknown value for scenario_treat_elig in HBVmodel.m. Exiting")
-    return
-end
-i_treatelig_under30 = sort([i_sAgpos_not_eAgpos_treatelig i_eAgpos_treatelig_under30]);
-i_treat_inelig_under30 = sort([i_sAgpos_not_eAgpos_treat_inelig i_eAgpos_treat_inelig_under30]);
-i_treatelig_30plus = sort([i_sAgpos_not_eAgpos_treatelig i_eAgpos_treatelig_30plus]);
-i_treat_inelig_30plus = sort([i_sAgpos_not_eAgpos_treat_inelig i_eAgpos_treat_inelig_30plus]);
-
-%% Under PoC eligibility these states could potentially be mis-staged as Tx-eligible if PoC specificity<100%
-i_potential_miseligibilityTx_under30 = [i_ImmTol i_AsymptCarr];
-i_potential_miseligibilityTx_30plus = [i_AsymptCarr];
-
-%% Bepi functional cure eligibility - need to be eligible for NA treatment and non-cirrhotic.
-%% Note that bepi eligibility depends on whether the person is already on treatment (in which case they are automatically treatment eligible)
-%% or just got diagnosed but hasn't started treatment (in which case we need to consider age-specific eligibility for i_ImmTol - this is done in the code above).
-%% Bepi eligibility at diagnosis (pre-treatment) needs to be dealt with separately because it also requires TDF treatment eligibility.
-i_bepi_eligible_if_already_Tx = [i_ImmTol i_ImmReact i_Chronic];
-i_future_funct_cure_eligible = [i_ImmTol i_ImmReact i_AsymptCarr i_Chronic i_CompCirr i_DecompCirr];
 
 
 
-%% Now check the above are consistent with the eligibility criteria in get_treatment_eligible_ageindices() 
-%% - that is used to modify the natural history progression when on treatment
-
-temp_ImmTol = get_treatment_eligible_ageindices(scenario_treat_elig, i_ImmTol, i_natural_hist, ages);
-temp_ImmReact = get_treatment_eligible_ageindices(scenario_treat_elig, i_ImmReact, i_natural_hist, ages);
-temp_AsymptCarr = get_treatment_eligible_ageindices(scenario_treat_elig, i_AsymptCarr, i_natural_hist, ages);
-temp_Chronic = get_treatment_eligible_ageindices(scenario_treat_elig, i_Chronic, i_natural_hist, ages);
-temp_CompCirr = get_treatment_eligible_ageindices(scenario_treat_elig, i_CompCirr, i_natural_hist, ages);
-temp_DecompCirr = get_treatment_eligible_ageindices(scenario_treat_elig, i_DecompCirr, i_natural_hist, ages);
-temp_HCC = get_treatment_eligible_ageindices(scenario_treat_elig, i_HCC, i_natural_hist, ages);
-if(strcmp(scenario_treat_elig,"Current treatment") || strcmp(scenario_treat_elig,"PoC treatment"))
-    if (~isequal(temp_ImmTol,i30y:num_age_steps) || ~isequal(temp_ImmReact,1:num_age_steps) || ...
-        ~isempty(temp_AsymptCarr) || ...
-        ~isequal(temp_Chronic,1:num_age_steps) || ~isequal(temp_CompCirr,1:num_age_steps) || ...
-        ~isequal(temp_DecompCirr,1:num_age_steps) || ~isempty(temp_HCC))
-        disp("Error - one or more of the treatment eligibility criteria (Current treatment/PoC treatment) don't match. Exiting")
-        return
-    end
-elseif(strcmp(scenario_treat_elig,"Universal treatment"))
-    if (~isequal(temp_ImmTol,1:num_age_steps) || ~isequal(temp_ImmReact,1:num_age_steps) || ...
-        ~isequal(temp_AsymptCarr,1:num_age_steps) || ...
-        ~isequal(temp_Chronic,1:num_age_steps) || ~isequal(temp_CompCirr,1:num_age_steps) || ...
-        ~isequal(temp_DecompCirr,1:num_age_steps) || ~isempty(temp_HCC))
-        disp("Error - one or more of the treatment eligibility criteria (Universal treatment) don't match. Exiting")
-        return
-    end
-else
-    disp("Error - unknown value for scenario_treat_elig in HBVmodel.m when cross-checking eligibility criteria. Exiting")
-    return
-end
 
 
 
@@ -743,8 +667,53 @@ for time = TimeSteps
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %% Modify treatment-related parameters if needed (natural history, transmission):
     %% Set effectiveness of treatemnt in reducing transmission (different for long-acting treatment):
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+    %% Firstly, sort out the natural history states that are eligble for treatment in the current scenario:
+    if(strcmp(scenario_treat_elig,"Current treatment") || strcmp(scenario_treat_elig,"PoC treatment") || ...
+            (strcmp(scenario_treat_elig,"Universal treatment") && (time<treatment_rate_params.t_treatment_universal_start)))
+        i_sAgpos_not_eAgpos_treatelig = [i_Chronic i_CompCirr i_DecompCirr];
+        i_sAgpos_not_eAgpos_treat_inelig = [i_AsymptCarr i_HCC]; % Just asymptomatic (4) and HCC (8). Exclude the TDF treatment, 3TC treatment/failed treatment compartments.
+        i_eAgpos_treatelig_under30 = i_ImmReact;  %% Under 30, immune reactive is eligible but not immune tolerant.
+        i_eAgpos_treat_inelig_under30 = [i_ImmTol, i_acute];
+        i_eAgpos_treatelig_30plus  = [i_ImmTol i_ImmReact];  %% Only acute is ineligible when aged 30+.
+        i_eAgpos_treat_inelig_30plus = i_acute; 
+        i_bepi_eligible_at_Dx_under30 = [i_ImmReact i_Chronic];  
+        i_bepi_eligible_at_Dx_30plus = [i_ImmTol i_ImmReact i_Chronic];
+    elseif(strcmp(scenario_treat_elig,"Universal treatment") && (time>=treatment_rate_params.t_treatment_universal_start))
+        i_sAgpos_not_eAgpos_treatelig = [i_Chronic i_CompCirr i_DecompCirr i_AsymptCarr];
+        i_sAgpos_not_eAgpos_treat_inelig = i_HCC; % Just  HCC (8). 
+        i_eAgpos_treatelig_under30 = [i_ImmTol, i_ImmReact];  %% Under 30, immune reactive is eligible but not immune tolerant.
+        i_eAgpos_treat_inelig_under30 = i_acute;
+        i_eAgpos_treatelig_30plus  = [i_ImmTol i_ImmReact];  %% Only acute is ineligible when aged 30+.
+        i_eAgpos_treat_inelig_30plus = i_acute; 
+        i_bepi_eligible_at_Dx_under30 = [i_ImmTol i_ImmReact i_Chronic];  
+        i_bepi_eligible_at_Dx_30plus = [i_ImmTol i_ImmReact i_Chronic];
+    else
+        fprintf("Error - unknown value for scenario_treat_elig in HBVmodel.m at t=%6.4f. Exiting\n",time)
+        return
+    end
+
+    i_treatelig_under30 = sort([i_sAgpos_not_eAgpos_treatelig i_eAgpos_treatelig_under30]);
+    i_treat_inelig_under30 = sort([i_sAgpos_not_eAgpos_treat_inelig i_eAgpos_treat_inelig_under30]);
+    i_treatelig_30plus = sort([i_sAgpos_not_eAgpos_treatelig i_eAgpos_treatelig_30plus]);
+    i_treat_inelig_30plus = sort([i_sAgpos_not_eAgpos_treat_inelig i_eAgpos_treat_inelig_30plus]);
+    
+    %% Under PoC eligibility these states could potentially be mis-staged as Tx-eligible if PoC specificity<100%
+    %% Note that these must *only* be called for scenario_treat_elig=="PoC treatment" when t>treatment_rate_params.t_treatment_PoC_start (this is currently the case).
+    i_potential_miseligibilityTx_under30 = [i_ImmTol i_AsymptCarr];
+    i_potential_miseligibilityTx_30plus = [i_AsymptCarr];
+    
+    %% Bepi functional cure eligibility - need to be eligible for NA treatment and non-cirrhotic.
+    %% Note that bepi eligibility depends on whether the person is already on treatment (in which case they are automatically treatment eligible)
+    %% or just got diagnosed but hasn't started treatment (in which case we need to consider age-specific eligibility for i_ImmTol - this is done in the code above).
+    %% Bepi eligibility at diagnosis (pre-treatment) needs to be dealt with separately because it also requires TDF treatment eligibility.
+    i_bepi_eligible_if_already_Tx = [i_ImmTol i_ImmReact i_Chronic];
+    i_future_funct_cure_eligible = [i_ImmTol i_ImmReact i_AsymptCarr i_Chronic i_CompCirr i_DecompCirr];
+
+
     if(scenario_Treatment==I_TREAT.LA)
-        if(time<treatment_rate_params.t_treatment_scaleup_start)
+        if(time<treatment_rate_params.t_treatment_scaleup_LA_start)
             prop_adhere_treatment = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'prop_adhere_TDF'),:).Value;
             RRtrans_effective_treatment = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'RRtrans_effective_TDFtreatment'),:).Value;
             RRtrans_nonadherent_treatment = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'RRtrans_nonadherent_TDFtreatment'),:).Value;
@@ -831,7 +800,7 @@ for time = TimeSteps
             % add an extra dimension and duplicate it for each disease
             % state and treatment stratum
             X = X .* pop_scaler;
-            if(time==2025)
+            if(time==2025)  %% Arbitrary time just so the comment below is only printed once.
             %disp([min(ScalerMat),max(ScalerMat)])
                 disp("Uncomment the line below to show scalarmat")
                 %%disp("Scalarmat here:")
@@ -1132,16 +1101,25 @@ for time = TimeSteps
     for tr = 1:length(Transitions.From)
         %%transaction_vals = Transitions.Values{tr};
         %%transaction_vals = transaction_vals(:);
-        if(time<treatment_rate_params.t_treatment_scaleup_start)
+        if(strcmp(scenario_treat_elig,"Current treatment") || ...
+                (strcmp(scenario_treat_elig,"PoC treatment") && (time<treatment_rate_params.t_treatment_PoC_start)) || ...
+                (strcmp(scenario_treat_elig,"Universal treatment") && (time<treatment_rate_params.t_treatment_universal_start)))
             Current_transition_matrix = Transitions.Values_baseline{tr};
-        elseif(time>=treatment_rate_params.t_treatment_scaleup_end)
+        elseif((strcmp(scenario_treat_elig,"PoC treatment") && (time>=treatment_rate_params.t_treatment_PoC_start)) || ...
+                (strcmp(scenario_treat_elig,"Universal treatment") && (time>=treatment_rate_params.t_treatment_universal_start)))
+           %% "Transitions.Values_future" is the scenario-specific transitions matrix (e.g. for universal Tx, 
+            %% all disease compartments have slower progression; for PoC Tx the progression is weighted by test sensitivity)
             Current_transition_matrix = Transitions.Values_future{tr};
         else
-            %% Interpolate - mimics effects of scale-up of treatment
-            f = (time-treatment_rate_params.t_treatment_scaleup_start) / (treatment_rate_params.t_treatment_scaleup_end - treatment_rate_params.t_treatment_scaleup_start);
-            assert(f>=0 & f<=1)
-            Current_transition_matrix = (1-f)*Transitions.Values_baseline{tr} + f*Transitions.Values_future{tr};
+            disp("ERROR: Unknown treatment scenario when assigning Current_transition_matrix. Exiting")
+            return
         end
+        % else
+        %     %% Interpolate - mimics effects of scale-up of treatment
+        %     f = (time-treatment_rate_params.t_treatment_scaleup_start) / (treatment_rate_params.t_treatment_scaleup_end - treatment_rate_params.t_treatment_scaleup_start);
+        %     assert(f>=0 & f<=1)
+        %     Current_transition_matrix = (1-f)*Transitions.Values_baseline{tr} + f*Transitions.Values_future{tr};
+        % end
         
         %%assert(all(all(all(Current_transition_matrix>=Transitions.Values_baseline{tr}))))
 
@@ -1218,8 +1196,8 @@ for time = TimeSteps
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %% ADDITIONAL TESTING (BIRTH COHORT, ANC, COMMUNITY SCREENING)
     %% ALPHA-6 - make this the testing section:
-    birth_cohort_testing_start = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'Dx_T_birthcohort_start'),:).Value;
-    birth_cohort_testing_end = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'Dx_T_birthcohort_end'),:).Value;
+    birth_cohort_testing_start = Global_intervention_time_params(strcmp(Global_intervention_time_params.Parameter,'Dx_T_birthcohort'),:).StartValue;
+    birth_cohort_testing_end = Global_intervention_time_params(strcmp(Global_intervention_time_params.Parameter,'Dx_T_birthcohort'),:).EndValue;
    
 
     %% Check if any additional screening needed:
@@ -1366,7 +1344,7 @@ for time = TimeSteps
                 ntests = sum(sum(sum(moving_to_Dx_by_birthcohorttest_this_tstep_by_nathist_age_sex))) + n_funct_cure_pathway;
             end 
         elseif strcmp(scenario_AddScreenIntervention,"ANC screening")
-            t_ANC = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'Start_ANCtesting'),:).Value;
+            t_ANC = Global_intervention_time_params(strcmp(Global_intervention_time_params.Parameter,'Dx_ANCtesting_T_start'),:).StartValue;
             if (time >= t_ANC)
                 if(time==t_ANC)
                     disp("Running ANC screening")
@@ -1504,8 +1482,8 @@ for time = TimeSteps
             end
            
 
-            community_screening_start = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'Dx_T_community_screening_start'),:).Value;
-            community_screening_end = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'Dx_T_community_screening_end'),:).Value;
+            community_screening_start = Global_intervention_time_params(strcmp(Global_intervention_time_params.Parameter,'Dx_T_community_screening'),:).StartValue;
+            community_screening_end = Global_intervention_time_params(strcmp(Global_intervention_time_params.Parameter,'Dx_T_community_screening'),:).EndValue;
             community_screening_min_age = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'Dx_community_screening_min_age'),:).Value;
             community_screening_max_age = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'Dx_community_screening_max_age'),:).Value;
             i_screeningage_min = round(community_screening_min_age/dt); % Individuals born before 1992
@@ -1782,7 +1760,7 @@ for time = TimeSteps
             % end
             assert(n_chronic>0)
             
-            fprintf("Treatment: time=%6.4f n_diagnosed=%6.4f n_chronic=%6.4f \n",time,n_diagnosed,n_chronic)
+            %%fprintf("Treatment: time=%6.4f n_diagnosed=%6.4f n_chronic=%6.4f \n",time,n_diagnosed,n_chronic)
             Dx_coverage_now = n_diagnosed/n_chronic;
             assert((Dx_coverage_now<1.01 && Dx_coverage_now>=0))
 
@@ -1792,16 +1770,16 @@ for time = TimeSteps
             %% Treatment rate is the rate that people start treatment. *FIXME* - make this comment more informative.
             
             %% The assert below isn't essential - the subsequent if statement can be fixed by recoding - but I'm too lazy to deal with the case where it isn't true (and that shouldn't happen)
-            assert(treatment_rate_params.t_treatment_scaleup_start>=treatment_rate_params.t_current_treat_data)
+            assert(treatment_rate_params.t_default_Dx_Tx_scaleup_start>=treatment_rate_params.t_current_treat_data)
             
-            if (time<=treatment_rate_params.t_treatment_scaleup_start)
+            if (time<=treatment_rate_params.t_default_Dx_Tx_scaleup_start)
                 %% Because treat_start_year=(2016-dt) we adjust here by adding back the dt:
                 increase_Dx_since_2016 = treatment_rate_params.Dx_coverage_current - treatment_rate_params.Tx_coverage_2016;
                 % if(time-floor(time)==0)
                 %     fprintf("t=%6.4f increase_Dx_since_2016=%6.4f currentDx=%6.4f ",time,increase_Dx_since_2016,treatment_rate_params.Dx_coverage_current);
                 % end
                 target_Dx_coverage_now = treatment_rate_params.Tx_coverage_2016 ...
-                    +  increase_Dx_since_2016 * (time - (treat_start_year+dt))/(treatment_rate_params.t_treatment_scaleup_start - (treat_start_year+dt)); 
+                    +  increase_Dx_since_2016 * (time - (treat_start_year+dt))/(treatment_rate_params.t_default_Dx_Tx_scaleup_start - (treat_start_year+dt)); 
                 %% The increase in diagnosis is the difference between the target and actual Dx coverage.
                 %% Ensure it is never negative:
                 increment_Dx_coverage_this_dt = dt * max(target_Dx_coverage_now - Dx_coverage_now, 0);                
@@ -1862,16 +1840,18 @@ for time = TimeSteps
 
             %% Now look at the number of people who will start treatment this timestep. This depends on the treatment eligibility scenario (and time):
             %% First current treatment eligibility scenario:
-            if(strcmp(scenario_treat_elig,"Current treatment") || (time<treatment_rate_params.t_treatment_scaleup_start))
+            if(strcmp(scenario_treat_elig,"Current treatment") || ...
+                (strcmp(scenario_treat_elig,"PoC treatment") && (time<treatment_rate_params.t_treatment_PoC_start)) || ...
+                (strcmp(scenario_treat_elig,"Universal treatment") && (time<treatment_rate_params.t_treatment_universal_start)))
                 %% In "Current treatment" we have a fixed rate of Tx initiation among those newly diagnosed (we deal with Tx initiates among those in care who become eligible separately):
-                if (time<=treatment_rate_params.t_treatment_scaleup_start)
+                if (time<=treatment_rate_params.t_default_Dx_Tx_scaleup_start)
                     increment_TxifDx_coverage_this_dt = dt * treatment_rate_params.annual_increase_TxifDx_past;
                     %% PRZESZLOSC: annual_increase_TxifDx = treatment_rate_params.annual_increase_TxifDx_past;
-                elseif (time>=treatment_rate_params.t_treatment_scaleup_end)
+                elseif (time>=treatment_rate_params.t_default_Dx_Tx_scaleup_end)
                     increment_TxifDx_coverage_this_dt = dt * treatment_rate_params.annual_increase_TxifDx_future;
                     %% PRZESZLOSC: annual_increase_TxifDx = treatment_rate_params.annual_increase_TxifDx_future;
                 else
-                    temp_tscale = (time-treatment_rate_params.t_treatment_scaleup_start)/(treatment_rate_params.t_treatment_scaleup_end - treatment_rate_params.t_treatment_scaleup_start);
+                    temp_tscale = (time-treatment_rate_params.t_default_Dx_Tx_scaleup_start)/(treatment_rate_params.t_default_Dx_Tx_scaleup_end - treatment_rate_params.t_default_Dx_Tx_scaleup_start);
                     increment_TxifDx_coverage_this_dt = dt * (treatment_rate_params.annual_increase_TxifDx_past ...
                         + (treatment_rate_params.annual_increase_TxifDx_future - treatment_rate_params.annual_increase_TxifDx_past) ...
                         * temp_tscale);
@@ -1917,7 +1897,7 @@ for time = TimeSteps
                     prop_remain_in_care = 0;
                 end
             %% PoC test is available - improved linkage to (immediate) treatment
-            elseif(strcmp(scenario_treat_elig,"PoC treatment") && (time>=treatment_rate_params.t_treatment_scaleup_start))
+            elseif(strcmp(scenario_treat_elig,"PoC treatment") && (time>=treatment_rate_params.t_treatment_PoC_start))
 
                 %% This determines what % of n_move_to_diagnosed (after removing those going to treatment/functional cure pathway) remain in care if not eligible for treatment yet.
                 prop_remain_in_care = treatment_rate_params.Dx_remain_in_care_noeligbarrier;
@@ -1941,7 +1921,7 @@ for time = TimeSteps
 
 
             %% Universal treatment - immediate start (with some drop out of care possible):
-            elseif(strcmp(scenario_treat_elig,"Universal treatment") && (time>=treatment_rate_params.t_treatment_scaleup_start))
+            elseif(strcmp(scenario_treat_elig,"Universal treatment") && (time>=treatment_rate_params.t_treatment_universal_start))
                n_move_to_treatment(:, :, :, :) = 0; %% Set everything to zero
                 %% Note that i_treatelig_under30 and i_treatelig_30plus are updated in the Universal treatemnt scenario.
                 assert(isequal(i_treatelig_under30,i_treatelig_30plus))
@@ -1951,6 +1931,9 @@ for time = TimeSteps
                     * n_move_to_diagnosed(i_treatelig_universal, :, :, i_undiagnosed);
                 %% For universal treatment, if diagnosed but not going onto treatment, that means going out of care:
                 prop_remain_in_care = 0;
+            else
+                disp("Error: Unknown treatment option here. Exiting")
+                return
             end
 
             
@@ -2029,13 +2012,15 @@ for time = TimeSteps
             %% 
             
 
-            if(strcmp(scenario_treat_elig,"Current treatment") || (time<treatment_rate_params.t_treatment_scaleup_start))
+            if(strcmp(scenario_treat_elig,"Current treatment") || ...
+                    (strcmp(scenario_treat_elig,"PoC treatment") && (time<treatment_rate_params.t_treatment_PoC_start)) || ...
+                    (strcmp(scenario_treat_elig,"Universal treatment") && (time<treatment_rate_params.t_treatment_universal_start)))
                 number_on_treatment_adherent_to_print = sum(sum(sum(sum(X(i_treatelig_under30, 1:(i30y-1), :, i_appropriate_management),1),2),3),4) ...
                     + sum(sum(sum(sum(X(i_treatelig_30plus, i30y:num_age_steps, :, i_appropriate_management),1),2),3),4)...
                     + sum(sum(sum(sum(next_X(i_funct_cure_path, :, :, i_appropriate_management),1),2),3),4);
                 number_on_treatment_nonadherent_to_print = sum(sum(sum(sum(X(i_treatelig_under30, 1:(i30y-1), :, i_incare_nonadherent),1),2),3),4) ...
                     + sum(sum(sum(sum(X(i_treatelig_30plus, i30y:num_age_steps, :, i_incare_nonadherent),1),2),3),4);
-            elseif(strcmp(scenario_treat_elig,"PoC treatment") && (time>=treatment_rate_params.t_treatment_scaleup_start))
+            elseif(strcmp(scenario_treat_elig,"PoC treatment") && (time>=treatment_rate_params.t_treatment_PoC_start))
                 number_on_treatment_adherent_to_print = treatment_rate_params.treat_elig_sensitivity * sum(sum(sum(sum(X(i_treatelig_under30, 1:(i30y-1), :, i_appropriate_management),1),2),3),4) ...
                     + treatment_rate_params.treat_elig_sensitivity * sum(sum(sum(sum(X(i_treatelig_30plus, i30y:num_age_steps, :, i_appropriate_management),1),2),3),4)...
                     + (1-treatment_rate_params.treat_elig_specificity) * sum(sum(sum(sum(X(i_potential_miseligibilityTx_under30, 1:(i30y-1), :, i_appropriate_management),1),2),3),4)...
@@ -2045,10 +2030,13 @@ for time = TimeSteps
                     + treatment_rate_params.treat_elig_sensitivity * sum(sum(sum(sum(X(i_treatelig_30plus, i30y:num_age_steps, :, i_incare_nonadherent),1),2),3),4)...
                     + (1-treatment_rate_params.treat_elig_specificity) * sum(sum(sum(sum(X(i_potential_miseligibilityTx_under30, 1:(i30y-1), :, i_incare_nonadherent),1),2),3),4)...
                     + (1-treatment_rate_params.treat_elig_specificity) * sum(sum(sum(sum(X(i_potential_miseligibilityTx_30plus, i30y:num_age_steps, :, i_incare_nonadherent),1),2),3),4);
-            elseif(strcmp(scenario_treat_elig,"Universal treatment") && (time>=treatment_rate_params.t_treatment_scaleup_start))
+            elseif(strcmp(scenario_treat_elig,"Universal treatment") && (time>=treatment_rate_params.t_treatment_universal_start))
                number_on_treatment_adherent_to_print = sum(sum(sum(sum(X(i_treatelig_universal, :, :, i_appropriate_management),1),2),3),4) ...
                     + sum(sum(sum(sum(next_X(i_funct_cure_path, :, :, i_appropriate_management),1),2),3),4);
                 number_on_treatment_nonadherent_to_print = sum(sum(sum(sum(X(i_treatelig_universal, :, :, i_incare_nonadherent),1),2),3),4);
+            else
+                disp("Error: Unknown treatment eligibility combination. Exiting")
+                return
             end
 
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
