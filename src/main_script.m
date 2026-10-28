@@ -51,7 +51,7 @@ basedir = fileparts(currentFolder); % path for folder one level up from script.
 % MP: There are 200 runs from calibration so this is default. Use less for testing.
 %TUTAJ:
 %num_stochas_runs = 200;
-num_stochas_runs = 10;
+num_stochas_runs = 1;
 
 
 
@@ -139,8 +139,8 @@ if RUN_ON_CLUSTER==0
     %% All broken countries:
     %%countries_to_run = [6, 8, 17, 34, 38, 47, 50, 52, 56, 70, 92];  %%
     %%countries_to_run = [1, 2];
-
-    countries_to_run = [30];
+    countries_to_run = 1;
+    %%countries_to_run = [16,30];
 else
     fileID = fopen('countries_to_run.txt','r');
     formatSpec = '%i';
@@ -278,8 +278,8 @@ if(RUN_ON_CLUSTER==0)
     Global_intervention_time_params   = readtable('C:\Users\mpickles\OneDrive - Imperial College London\Dropbox_copy\Hepatitis B\Modelling\Intervention_parameters.xlsx','Sheet','GlobalParamsTimes');
     
 else
-    WUENIC2025BDdata = readtable('WUENIC2025_HepB_BD_vaccination_coverage.xlsx','Sheet','Data');
-    WUENIC2025HepB3data = readtable('WUENIC2025_HepB3_vaccination_coverage.xlsx','Sheet','Data');
+    WUENIC2025BDdata = readtable(fullfile(basedir,'resources','WUENIC2025_HepB_BD_vaccination_coverage.xlsx'),'Sheet','Data');
+    WUENIC2025HepB3data = readtable(fullfile(basedir,'resources','WUENIC2025_HepB3_vaccination_coverage.xlsx'),'Sheet','Data');
     %% Parameters related to different intervention scenarios (19 July 2026):
     Countrylevel_intervention_params = readtable(fullfile(basedir,'resources','Intervention_parameters.xlsx'),'Sheet','CountryParameters');
     Global_intervention_params       = readtable(fullfile(basedir,'resources','Intervention_parameters.xlsx'),'Sheet','GlobalParams');
@@ -303,13 +303,14 @@ start_year = 1890;
 end_year = 2101;
 num_years_simul = end_year-start_year; % must go up to e.g. year 2101 to get incidence readings up to year 2100
 
-num_year_divisions = 10;
-assert(rem(log10(num_year_divisions),1)==0) % ensure that num_year_divisions is a multiple of 10
+num_year_divisions = 10; %% Make sure this is a multiple of 10.
+%%assert(rem(log10(num_year_divisions),1)==0) % ensure that num_year_divisions is a multiple of 10
+assert(mod(num_year_divisions,10)==0) % ensure that num_year_divisions is a multiple of 10
 % log10(1) = 0, log10(10) = 1, log10(100) = 2, etc.
 % rem(x,1) gives 0 if x is an integer
 dt = 1/num_year_divisions; % time step
 
-ages = 0:dt:(100 - dt); % The age group at the beginning of each compartment; 1 x 1000 double; [0 0.1 0.2 ... 99.8 99.9]
+ages = 0:dt:(100 - dt); % The age group at the beginning of each compartment; with dt=0.1 this is a 1 x 1000 double; [0 0.1 0.2 ... 99.8 99.9]
 num_age_steps = length(ages); % Number of age-categories (assuming max age is 100 years (i.e. oldest person we see at the start of an iteration is aged 100-dt)
 
 %% Used in cost-effectiveness outputs:

@@ -91,6 +91,13 @@ function country_level_analyses(sensitivity_analysis,...
     i_scenario_CI_B3_BDIFOOF_PAPall_BirthCoh_PoC_Bepi = 36;
     i_scenario_CI_B3_BDIFOOF_PAPall_BirthCoh_PoC_cure = 37;
 
+    %% Testing:
+    TEST_i_scenario_ContImp_plusTx_cure_Bepi = 100;
+    TEST_i_scenario_ContImp_plusTx_cure_improved = 101;
+    TEST_i_scenario_ContImp_plusTx_cure_Bepi_BirthCohort = 102;
+    TEST_i_scenario_ContImp_plusTx_cure_improved_ANC = 103;
+    TEST_i_scenario_ContImp_plusTx_cure_improved_CommScr = 104;
+
     %% Possible options for BD: different BD trends, changes in how BD is introduced etc.
     I_BD_WUENIC2025 = 100;  %% Follow WUENIC2025 and after 2025 coverage remains at last (2025) value
     I_BD_contimp = 101;  %% Possible increase beyond WUENIC2025 at a slow rate (currently 0). Introduction of BD to GAVI-approved countries
@@ -126,9 +133,9 @@ function country_level_analyses(sensitivity_analysis,...
 
     
     % TUTAJ:
-    num_scenarios = 37;
+    num_scenarios = 11;
     %start_scenario = 16;
-    start_scenario = 1;
+    start_scenario = 11;
 
     %%assert(ismember(sensitivity_analysis,{'default','infant_100','treat_medium','treat_high'}))
 
@@ -365,7 +372,8 @@ function country_level_analyses(sensitivity_analysis,...
 
             trans_rate_age = 25; % generic setting - at this age the rate of transition from chronic Hep B to comp cirrhosis is minimised (it's 0).
             trans_rate_by_age = (params.cirrh_rate_coeff*(ages - trans_rate_age)).^2; 
-            trans_rate_by_age = trans_rate_by_age .* [zeros(1,trans_rate_age*10) ones(1,num_age_steps - trans_rate_age*10)];
+            %% ZMIENIA: Change - 10 to num_year_divisions
+            trans_rate_by_age = trans_rate_by_age .* [zeros(1,trans_rate_age*num_year_divisions) ones(1,num_age_steps - trans_rate_age*num_year_divisions)];
 
             % Modify Chronic Hep B to Comp Cirrhosis (5,6) to an
             % age-specific progression:
@@ -409,7 +417,8 @@ function country_level_analyses(sensitivity_analysis,...
             cancer_rate_age = 10;
             cancer_rate_by_age = (params.cancer_rate_coeff*(ages - cancer_rate_age)).^2; 
             %% Force cancer rate to be zero if age<(cancer_rate_age):
-            cancer_rate_by_age = cancer_rate_by_age .* [zeros(1,cancer_rate_age*10) ones(1,num_age_steps - cancer_rate_age*10)];
+            %% ZMIENIA: Change - 10 to num_year_divisions
+            cancer_rate_by_age = cancer_rate_by_age .* [zeros(1,cancer_rate_age*num_year_divisions) ones(1,num_age_steps - cancer_rate_age*num_year_divisions)];
             AgeSpecCancerFunction_Women = min(1, params.CancerRate_WomenCoFactor * cancer_rate_by_age);
             AgeSpecCancerFunction_Men = min(1, params.CancerRate_MenCoFactor * cancer_rate_by_age);
 
@@ -815,7 +824,7 @@ function country_level_analyses(sensitivity_analysis,...
                     scenario_PAP = I_PAP_all;
                     scenario_Treatment = I_TREAT.continuedimprovement;
                     scenario_FunctCure = I_CURE.NoCure;
-                    scenario_AddScreenIntervention = "Community screening";  
+                    scenario_AddScreenIntervention = "Community screening";
                 % case i_scenario_CI_B3_BDIFOOF_PAPall_CommScr100
                 %     scenario_BD = I_BD_IF_OOFexpansion;
                 %     scenario_HepB3 = I_HEPB3_WHOtarget;
@@ -871,7 +880,46 @@ function country_level_analyses(sensitivity_analysis,...
                     scenario_PAP = I_PAP_all;
                     scenario_Treatment = I_TREAT.PoCeligibility;
                     scenario_FunctCure = I_CURE.future_funct_cure;
-                    scenario_AddScreenIntervention = "Birth cohort screening";  
+                    scenario_AddScreenIntervention = "Birth cohort screening";
+                %% Testing:
+                                %% Bepi-like cure available:
+                case TEST_i_scenario_ContImp_plusTx_cure_Bepi
+                    scenario_BD = I_BD_contimp;
+                    scenario_HepB3 = I_HEPB3_contimp;
+                    scenario_PAP = I_PAP_HVL_contimp;
+                    scenario_Treatment = I_TREAT.continuedimprovement;
+                    scenario_FunctCure = I_CURE.Bepi;
+                    scenario_AddScreenIntervention = "No additional screening";  
+                %% Better-than-Bepi cure available:
+                case TEST_i_scenario_ContImp_plusTx_cure_improved
+                    scenario_BD = I_BD_contimp;
+                    scenario_HepB3 = I_HEPB3_contimp;
+                    scenario_PAP = I_PAP_HVL_contimp;
+                    scenario_Treatment = I_TREAT.continuedimprovement;
+                    scenario_FunctCure = I_CURE.future_funct_cure;
+                    scenario_AddScreenIntervention = "No additional screening";  
+                case TEST_i_scenario_ContImp_plusTx_cure_Bepi_BirthCohort
+                    scenario_BD = I_BD_contimp;
+                    scenario_HepB3 = I_HEPB3_contimp;
+                    scenario_PAP = I_PAP_HVL_contimp;
+                    scenario_Treatment = I_TREAT.continuedimprovement;
+                    scenario_FunctCure = I_CURE.Bepi;
+                    scenario_AddScreenIntervention = "Birth cohort screening";
+                %% Better-than-Bepi cure available:
+                case TEST_i_scenario_ContImp_plusTx_cure_improved_ANC
+                    scenario_BD = I_BD_contimp;
+                    scenario_HepB3 = I_HEPB3_contimp;
+                    scenario_PAP = I_PAP_HVL_contimp;
+                    scenario_Treatment = I_TREAT.continuedimprovement;
+                    scenario_FunctCure = I_CURE.future_funct_cure;
+                    scenario_AddScreenIntervention = "ANC screening";  
+                case TEST_i_scenario_ContImp_plusTx_cure_improved_CommScr
+                    scenario_BD = I_BD_contimp;
+                    scenario_HepB3 = I_HEPB3_contimp;
+                    scenario_PAP = I_PAP_HVL_contimp;
+                    scenario_Treatment = I_TREAT.continuedimprovement;
+                    scenario_FunctCure = I_CURE.future_funct_cure;
+                    scenario_AddScreenIntervention = "Community screening";
                 otherwise
                     disp("Error - unknown scenario. Exiting")
                     return  %% Exit the script.
@@ -1377,7 +1425,8 @@ function country_level_analyses(sensitivity_analysis,...
                     't_treatment_scaleup_LA_start', Global_intervention_time_params(strcmp(Global_intervention_time_params.Parameter,'LA_Tx_T_start'),:).StartValue,... 
                     'annual_increase_Dx_future',0,...       %% Set below
                     'annual_increase_TxifDx_future',0,...   %% Set below
-                    'Dx_remain_in_care_noeligbarrier',Global_intervention_params(strcmp(Global_intervention_params.Parameter,'Treat_elig_PoC_prop_remain_in_care'),:).Value,...      %% Used for PoC eligibility testing scenario/universal treatment.
+                    'Dx_remain_in_care_PoCeligibility',Global_intervention_params(strcmp(Global_intervention_params.Parameter,'Treat_elig_PoC_prop_remain_in_care'),:).Value,...      %% Used for PoC eligibility testing scenario.
+                    'Dx_remain_in_care_universalTx',Global_intervention_params(strcmp(Global_intervention_params.Parameter,'Treat_elig_universal_prop_remain_in_care'),:).Value,...      %% Used for universal treatment.                    
                     'treat_elig_sensitivity',1,...  %% Default values for treatment eligibility sensitivity/specificity (these are changed if using PoC test)
                     'treat_elig_specificity',1);
 
@@ -1741,20 +1790,21 @@ function country_level_analyses(sensitivity_analysis,...
 
             countryMap(ISO) = lastrun;
 
-            BD_coverage_filename = strcat('BD_coverage',ISO,'.csv');
-            HepB3_coverage_filename = strcat('HepB3_coverage',ISO,'.csv');
-            PAP_coverage_filename = strcat('PAP_coverage',ISO,'.csv');
-            %%disp(fullfile(basedir,'outputs',BD_coverage_filename))
+            %% These are files in which we save the various coverages:
+            BD_coverage_output_filename = strcat('BD_coverage',ISO,'.csv');
+            HepB3_coverage_output_filename = strcat('HepB3_coverage',ISO,'.csv');
+            PAP_coverage_output_filename = strcat('PAP_coverage',ISO,'.csv');
+            %%disp(fullfile(basedir,'outputs',BD_coverage_output_filename))
     
             %% The "4" below is used as follows - round( . , 4) rounds to 4 decimal places.
             if (exist('BD_coverage_to_print','var'))
-                writematrix(round(BD_coverage_to_print,4), fullfile(basedir,'outputs',BD_coverage_filename));
+                writematrix(round(BD_coverage_to_print,4), fullfile(basedir,'outputs',BD_coverage_output_filename));
             end
             if (exist('HepB3_coverage_to_print','var'))
-                writematrix(round(HepB3_coverage_to_print,4), fullfile(basedir,'outputs',HepB3_coverage_filename));
+                writematrix(round(HepB3_coverage_to_print,4), fullfile(basedir,'outputs',HepB3_coverage_output_filename));
             end
             if (exist('PAP_coverage_to_print','var'))
-                writematrix(round(PAP_coverage_to_print,4), fullfile(basedir,'outputs',PAP_coverage_filename));
+                writematrix(round(PAP_coverage_to_print,4), fullfile(basedir,'outputs',PAP_coverage_output_filename));
             end
         end % end for country_num loop
 
