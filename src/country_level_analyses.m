@@ -133,9 +133,10 @@ function country_level_analyses(sensitivity_analysis,...
 
     
     % TUTAJ:
-    num_scenarios = 11;
+    %%num_scenarios = 11;
+    num_scenarios = 37;
     %start_scenario = 16;
-    start_scenario = 11;
+    start_scenario = 1;
 
     %%assert(ismember(sensitivity_analysis,{'default','infant_100','treat_medium','treat_high'}))
 

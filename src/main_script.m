@@ -51,7 +51,7 @@ basedir = fileparts(currentFolder); % path for folder one level up from script.
 % MP: There are 200 runs from calibration so this is default. Use less for testing.
 %TUTAJ:
 %num_stochas_runs = 200;
-num_stochas_runs = 1;
+num_stochas_runs = 10;
 
 
 
@@ -139,7 +139,8 @@ if RUN_ON_CLUSTER==0
     %% All broken countries:
     %%countries_to_run = [6, 8, 17, 34, 38, 47, 50, 52, 56, 70, 92];  %%
     %%countries_to_run = [1, 2];
-    countries_to_run = 1;
+    %% TUTAJ
+    countries_to_run = 30;
     %%countries_to_run = [16,30];
 else
     fileID = fopen('countries_to_run.txt','r');
