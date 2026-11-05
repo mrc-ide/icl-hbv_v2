@@ -16,14 +16,15 @@ function output = HBVmodel(source_HBsAg,...
 
 PRINT_VERBOSE = 0; %% Don't print debug info to screen
 
-WARN_NEGATIVE = 0; %% Print warning if it is necessary to adjust any subtractions to avoid X() becoming negative.
+WARN_NEGATIVE = 1; %% Print warning if it is necessary to adjust any subtractions to avoid X() becoming negative.
 NEGATIVE_TOL = -0.01; %% When WARN_NEGATIVE==1 this i the largest (magnitude) negative number allowed before printing warning (i.e. if(y< NEGATIVE_TOL) print("Warning - y negative") end)
+TOL = 1e-8; %% numerical tolerance for prop_remain_in_care_2016.
 RUN_CHECKS = 1;    %% Run additional assert() checks (paranoid mode)
-PARK_FOR_NOW = 1;  %% Ignore stuff that breaks (eventually remove this).
+PARK_FOR_NOW = 0;  %% Ignore stuff that breaks (eventually remove this).
 DUMMY_VALUE = -99;  % Used in initialising arrays to a dummy value (-99 should be easy to spot).
 
-MAX_COVERAGE_ANCtesting = 0.9; %% Maximum coverage in any specific compartment of ANC testing.
-MAX_COVERAGE_diagnosis = 0.9; %% Maximum coverage of general diagnosis.
+MAX_COVERAGE_ANCtesting = 0.999; %% Maximum coverage in any specific compartment of ANC testing.
+MAX_COVERAGE_diagnosis = 0.999; %% Maximum coverage of general diagnosis.
 
 CURRENT_TIME = 2026;
 PROPORTION_REMAIN_IN_CARE_2026 = -1; %% Stores (at t=CURRENT_TIME) % of tested who go to appropriate management/in care non-adherent states versus out-of-care.
@@ -589,9 +590,9 @@ if(store_results_as_text==1)
     nstates_deaths = length(unique(agegroups_5yr)); %% - deaths per year - 5 yr age groups = 20
     nstates_newcases_chroniccarriage = length(unique(agegroups_5yr)) + 1; %% - new cases of chronic carriage/yr (neonates, plus 5 yr age gps) = 21
     ncol_X_to_print_byage = num_disease_states*  num_sexes* num_treat_blocks;
-    %% The final 16 are "resources_to_print" outputs (note that the below has 11 outputs - but DALYs are dealt with outside of "results_to_print" and are appended when writing the output via writematrix()):
-    %% NBirthDose,NBD_MAP,NBD_CPAD,N_InfantVacc,N_PAP_EAgHVL,N_PAP_EAgLVL,N_PAP_SAgHVL,N_PAP_SAgLVL,N_screen_PAP,N_starting_treatment,number_on_treatment_adherent_to_print,number_on_treatment_nonadherent_to_print,n_becoming_functionally_cured_to_print, n_funct_cure_pathway_birthcohort, n_funct_cure_pathway_ANC, n_funct_cure_pathway_commscreen,DALYs
-    n_resource_cols = 16;
+    %% The final 17 are "resources_to_print" outputs (note that the below has 16 outputs - but DALYs are dealt with outside of "results_to_print" and are appended when writing the output via writematrix()):
+    %% NBirthDose,NBD_MAP,NBD_CPAD,N_InfantVacc,N_PAP_EAgHVL,N_PAP_EAgLVL,N_PAP_SAgHVL,N_PAP_SAgLVL,N_screen_PAP,N_starting_treatment,number_on_treatment_adherent_to_print,number_on_treatment_nonadherent_to_print,n_becoming_functionally_cured_to_print, n_funct_cure_pathway_birthcohort, n_funct_cure_pathway_ANC, n_funct_cure_pathway_integratedtest, n_funct_cure_pathway_commscreen,DALYs
+    n_resource_cols = 17;
     ncol_results_to_print = max(agegroups_5yr) * ncol_X_to_print_byage + nstates_newcases_chroniccarriage + nstates_deaths + n_resource_cols;
     results_to_print = DUMMY_VALUE * ones(ncol_results_to_print, num_years_simul + 1);
     
@@ -653,6 +654,7 @@ male_multiplier = 0;
 n_funct_cure_pathway_birthcohort = 0;
 n_funct_cure_pathway_commscreen = 0;
 n_funct_cure_pathway_ANC = 0;
+n_funct_cure_pathway_integratedtest = 0;
 
 
 %%moving_to_diagnosed_by_birthcohort_testing = zeros(size(X));
@@ -670,7 +672,7 @@ for time = TimeSteps
     %% Modify treatment-related parameters if needed (natural history, transmission):
     %% Set effectiveness of treatemnt in reducing transmission (different for long-acting treatment):
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
+    
     %% Firstly, sort out the natural history states that are eligble for treatment in the current scenario:
     if(strcmp(scenario_treat_elig,"Current treatment") || strcmp(scenario_treat_elig,"PoC treatment") || ...
             (strcmp(scenario_treat_elig,"Universal treatment") && (time<treatment_rate_params.t_treatment_universal_start)))
@@ -713,7 +715,7 @@ for time = TimeSteps
     i_bepi_eligible_if_already_Tx = [i_ImmTol i_ImmReact i_Chronic];
     i_future_funct_cure_eligible = [i_ImmTol i_ImmReact i_AsymptCarr i_Chronic i_CompCirr i_DecompCirr];
 
-    if((scenario_Treatment~=I_TREAT.LA) || (time<treatment_rate_params.t_treatment_scaleup_LA_start))
+    if((scenario_Treatment~=I_TREAT.LA && scenario_Treatment~=I_TREAT.LA_universal) || (time<treatment_rate_params.t_treatment_scaleup_LA_start))
         %% Existing TDF treatment regimen:
         prop_adhere_treatment = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'prop_adhere_TDF'),:).Value;
         RRtrans_effective_treatment = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'RRtrans_effective_TDFtreatment'),:).Value;
@@ -728,6 +730,7 @@ for time = TimeSteps
     %% Intervention-specific parameters - these are the proportion of people having a test who don't enter care:
     birthcohort_prop_Dx_outofcare = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'BirthCohort_prop_Dx_outofcare'),:).Value;
     ANCtesting_prop_Dx_outofcare = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'ANCtesting_prop_Dx_outofcare'),:).Value;
+    IntegratedServices_prop_Dx_outofcare = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'IntegratedServices_prop_Dx_outofcare'),:).Value;
     communityscreening_prop_Dx_outofcare = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'CommunityScreening_prop_Dx_outofcare'),:).Value;
 
     % Update mortality and fertility rates
@@ -987,7 +990,7 @@ for time = TimeSteps
                 resources_to_print = [ratebirthdoses, ratebirthdoses_MAP, ratebirthdoses_CPAD, RateInfantVacc(OutputEventNum-1),...
                     num_mothers_PAP_HbEAg_HighVL, num_mothers_PAP_HbEAg_LowVL, num_mothers_PAP_HbSAg_HighVL, num_mothers_PAP_HbSAg_LowVL, pregnantWomenNeedToScreen,...
                     number_starting_treatment_to_print, number_on_treatment_adherent_to_print, number_on_treatment_nonadherent_to_print,...
-                    n_becoming_functionally_cured_to_print, n_funct_cure_pathway_birthcohort, n_funct_cure_pathway_ANC, n_funct_cure_pathway_commscreen];
+                    n_becoming_functionally_cured_to_print, n_funct_cure_pathway_birthcohort, n_funct_cure_pathway_ANC, n_funct_cure_pathway_integratedtest, n_funct_cure_pathway_commscreen];
 
 
 
@@ -1256,7 +1259,7 @@ for time = TimeSteps
 
     %% Check if any additional screening needed:
     if(~strcmp(scenario_AddScreenIntervention,"No additional screening"))
-        if strcmp(scenario_AddScreenIntervention,"Birth cohort screening")
+        if contains(scenario_AddScreenIntervention,"Birth cohort screening")
             if (time >= birth_cohort_testing_start && time <= birth_cohort_testing_end)
                 %%case I_NO_COHORT_TEST
                 %%fprintf("Running birth cohort testing and treatment at t=%6.4f",time)
@@ -1409,7 +1412,9 @@ for time = TimeSteps
                 %% Count the number of tests done. 
                 ntests = sum(sum(sum(moving_to_Dx_by_birthcohorttest_this_tstep_by_nathist_age_sex))) + n_funct_cure_pathway_birthcohort;
             end 
-        elseif strcmp(scenario_AddScreenIntervention,"ANC screening")
+        end %% End of birth cohort screening
+
+        if contains(scenario_AddScreenIntervention,"ANC screening")
             t_ANC = Global_intervention_time_params(strcmp(Global_intervention_time_params.Parameter,'Dx_ANCtesting_T_start'),:).StartValue;
             if (time>=t_ANC)
                 %% This is the % of women undergoing ANC testing this timestep in each age group:                
@@ -1517,7 +1522,7 @@ for time = TimeSteps
                         + sum(sum(moving_to_functcure_pathway_by_ANC_testing_this_dt,1),4);
                     n_funct_cure_pathway_ANC = sum(sum(sum(sum(moving_to_functcure_pathway_by_ANC_testing_this_dt,1),2),3),4);
                     if(time==floor(time) && time<2035)
-                        fprintf("ANC screening funct cure starters =%6.4f at t=%6.4f \n",n_funct_cure_pathway_birthcohort,time)
+                        fprintf("ANC screening funct cure starters =%6.4f at t=%6.4f \n",n_funct_cure_pathway_ANC,time)
                     end
                 else
                     n_funct_cure_pathway_ANC = 0;
@@ -1544,12 +1549,14 @@ for time = TimeSteps
                 %% Also some people previously undiagnosed end up out-of-care.
                 next_X(:, :, :, i_outofcare) = next_X(:, :, :, i_outofcare) + ANCtesting_prop_Dx_outofcare*sum_moving_to_diagnosed_by_ANC_testing_this_timestep;
             end
-        elseif (strcmp(scenario_AddScreenIntervention,"Community screening") || strcmp(scenario_AddScreenIntervention,"Perfect community screening"))
+        end %% End of ANC screening
+
+        if (contains(scenario_AddScreenIntervention,"Community screening") || contains(scenario_AddScreenIntervention,"Perfect community screening"))
 
             %% Load community screening parameters:
-            if strcmp(scenario_AddScreenIntervention,"Community screening")
+            if contains(scenario_AddScreenIntervention,"Community screening")
                 community_screening_coverage = Global_intervention_params(strcmp(Global_intervention_params.Parameter,'DX_community_screening_coverage'),:).Value;
-            elseif strcmp(scenario_AddScreenIntervention,"Perfect community screening")
+            elseif contains(scenario_AddScreenIntervention,"Perfect community screening")
                 community_screening_coverage = 1.0;
             else
                 disp("Error - Unknown screening scenario. Exiting")
@@ -1720,9 +1727,119 @@ for time = TimeSteps
                 %%    disp("Error: Unknown value for scenario_AddScreenIntervention. Exiting")
                 %%    return
 
-            end %% End of community screening
+            end 
+        end %% End of community screening
 
-        end %% End of if statement looping through different screening options.
+        if (contains(scenario_AddScreenIntervention,"Integrated services"))            
+            integrated_services_start = Global_intervention_time_params(strcmp(Global_intervention_time_params.Parameter,'Dx_integratedservice_T_start'),:).StartValue;
+            if(time>=integrated_services_start)
+                %% Load integrated servcies parameters:
+                
+                %% Annual proportion of the population who access the other service:
+                integrated_services_coverage = Intervention_data_thiscountry.Integrated_service_coverage;
+                service_to_integrate_to = Intervention_data_thiscountry.Integrated_service_type;
+                integrated_services_endscaleup = Global_intervention_time_params(strcmp(Global_intervention_time_params.Parameter,'Dx_integratedservice_T_start'),:).EndValue;
+                if(strcmp(service_to_integrate_to,"Hypertension"))
+                    integrated_services_min_age = 30;
+                    integrated_services_max_age = 79;
+                elseif(strcmp(service_to_integrate_to,"HIV"))
+                    integrated_services_min_age = 15;
+                    integrated_services_max_age = 99;
+                elseif(strcmp(service_to_integrate_to,"Diabetes"))
+                    integrated_services_min_age = 30;
+                    integrated_services_max_age = 99;
+                else
+                    fprintf("Error: Unknown integrated service at t=%6.4f \n",time)
+                end
+
+                if(time<integrated_services_endscaleup)
+                    %% Need to work out how many people Dx, then split by care type.
+                    Integrated_service_testing_perdt = dt * integrated_services_coverage / (integrated_services_endscaleup - integrated_services_start);
+                else
+                    %% After scale-up the only *new* people accessing integrated services are people who are newly accessing services for the other condition (e.g. people newly diagnosed with hypertension who start going to a hypertension clinic).
+                    %% We make a simple assumption that the prevalence of attending services for the other condition is constant (and ignore pop growth) so roughly speaking the incidence of people newly accessing services is 1/(age range)
+                    %% Then multiply by dt to convert from annual to timestep.
+                    Integrated_service_testing_perdt = dt * integrated_services_coverage / (integrated_services_max_age - integrated_services_min_age);
+                end
+                
+                moving_to_diagnosed_by_integrated_service_testing_this_dt = zeros(size(X));
+                %% Testing over chronic stages:
+                moving_to_diagnosed_by_integrated_service_testing_this_dt(i_sAgpos_chronic, integrated_services_min_age:integrated_services_max_age, :, [i_undiagnosed i_outofcare]) ...
+                        =  Integrated_service_testing_perdt * next_X(i_sAgpos_chronic, integrated_services_min_age:integrated_services_max_age, :, [i_undiagnosed i_outofcare]);
+                if(WARN_NEGATIVE==1)
+                    temp = next_X-moving_to_diagnosed_by_integrated_service_testing_this_dt;
+                    if(min(min(min(min(temp))))<NEGATIVE_TOL)
+                        fprintf("Warning: moving_to_diagnosed_by_integrated_service_testing_this_dt is bigger than next_X at t=%6.4f. The biggest difference is=%6.4f \n",time,min(min(min(min(temp)))))
+                    end
+                end
+
+
+                %% This line caps the number of people moving at this timestep in a given compartment to be at most next_X in that compartment.
+                moving_to_diagnosed_by_integrated_service_testing_this_dt(moving_to_diagnosed_by_integrated_service_testing_this_dt>next_X) = ... 
+                    next_X(moving_to_diagnosed_by_integrated_service_testing_this_dt>next_X);
+
+                if(RUN_CHECKS==1)
+                    assert(all(all(all(all(moving_to_diagnosed_by_integrated_service_testing_this_dt(:,:,:,:)>=0)))))
+                end
+
+                %% Now deal with functional cure and integrated service testing:
+                if((scenario_FunctCure==I_CURE.Bepi && time>=funct_cure_params.T_Bepi_start) || ...
+                    (scenario_FunctCure==I_CURE.future_funct_cure && time>=funct_cure_params.T_future_functcure_start))
+
+                    moving_to_functcure_pathway_by_integrated_services_this_dt = zeros(size(X));
+                    if(scenario_FunctCure==I_CURE.Bepi)
+                        %% For Bepi we need to take into account TDF eligibility and adherence:
+                        moving_to_functcure_pathway_by_integrated_services_this_dt(i_bepi_eligible_at_Dx_under30, 1:(i30y-1), :, i_undiagnosed) = ...
+                            funct_cure_params.p_Bepi * prop_adhere_treatment * (1-IntegratedServices_prop_Dx_outofcare) * ...
+                            moving_to_diagnosed_by_integrated_service_testing_this_dt(i_bepi_eligible_at_Dx_under30, 1:(i30y-1), :, i_undiagnosed);
+                        moving_to_functcure_pathway_by_integrated_services_this_dt(i_bepi_eligible_at_Dx_30plus, i30y:num_age_steps, :, i_undiagnosed) = ...
+                            funct_cure_params.p_Bepi * prop_adhere_treatment * (1-IntegratedServices_prop_Dx_outofcare) * ...
+                            moving_to_diagnosed_by_integrated_service_testing_this_dt(i_bepi_eligible_at_Dx_30plus, i30y:num_age_steps, :, i_undiagnosed);
+                    else
+                        %% Unlike the Bepi-like functional cure, we don't need adherence (note also the missing "prop_adhere_treatment" in moving_to_functcure_pathway_by_birthcohort_testing_this_dt).
+                        moving_to_functcure_pathway_by_integrated_services_this_dt(i_future_funct_cure_eligible,:,:,i_undiagnosed) = ...
+                            funct_cure_params.p_futurefunctcure * (1-IntegratedServices_prop_Dx_outofcare) * ...
+                            moving_to_diagnosed_by_integrated_service_testing_this_dt(i_future_funct_cure_eligible,:,:,i_undiagnosed);
+                    end
+                    %% Remove people going to functional cure from the other newly diagnosed individuals as they go a separate pathway:
+                    moving_to_diagnosed_by_integrated_service_testing_this_dt = moving_to_diagnosed_by_integrated_service_testing_this_dt ...
+                        - moving_to_functcure_pathway_by_integrated_services_this_dt;
+
+                    if(RUN_CHECKS==1)
+                        assert(all(all(all(all(moving_to_functcure_pathway_by_integrated_services_this_dt>=0)))))
+                        assert(all(all(all(all(moving_to_functcure_pathway_by_integrated_services_this_dt<=next_X)))))
+                        assert(all(all(all(all(moving_to_diagnosed_by_integrated_service_testing_this_dt>=0)))))
+                    end
+
+                    %% By convention, move all the functional cure pathway people into "appropriate management
+                    next_X = next_X - moving_to_functcure_pathway_by_integrated_services_this_dt;
+                    next_X(i_funct_cure_path, :, :, i_appropriate_management) = ...
+                        next_X(i_funct_cure_path, :, :, i_appropriate_management) ...
+                        + sum(sum(moving_to_functcure_pathway_by_integrated_services_this_dt,1),4);
+                    n_funct_cure_pathway_integratedtest = sum(sum(sum(sum(moving_to_functcure_pathway_by_integrated_services_this_dt,1),2),3),4);
+                    if(time==floor(time) && time<2035)
+                        fprintf("Integrated test funct cure starters =%6.4f at t=%6.4f \n",n_funct_cure_pathway_integratedtest,time)
+                    end
+                else
+                    n_funct_cure_pathway_integratedtest = 0;
+                end  %% End of integrated services functional cure block.
+
+                % if(time<=CURRENT_TIME)
+                %     temp_n_everDx = sum(sum(sum(sum(next_X(i_sAgpos_chronic, :, :, [i_appropriate_management i_incare_nonadherent i_outofcare]),1),2),3),4);
+                %     temp_n_incare = sum(sum(sum(sum(next_X(i_sAgpos_chronic, :, :, [i_appropriate_management i_incare_nonadherent]),1),2),3),4);
+                %     prop_remain_in_care_integrated_services = temp_n_incare/temp_n_everDx;
+                % else
+                %     prop_remain_in_care_integrated_services = PROPORTION_REMAIN_IN_CARE_2026;
+                % end
+
+                sum_moving_to_diagnosed_by_integratedservice_this_timestep = sum(moving_to_diagnosed_by_integrated_service_testing_this_dt, 4);
+                next_X(:, :, :, [i_undiagnosed i_outofcare]) = next_X(:, :, :, [i_undiagnosed i_outofcare]) - moving_to_diagnosed_by_integrated_service_testing_this_dt(:, :, :, [i_undiagnosed i_outofcare]);
+                next_X(:, :, :, i_appropriate_management) = next_X(:, :, :, i_appropriate_management) + prop_adhere_treatment*(1-IntegratedServices_prop_Dx_outofcare)*sum_moving_to_diagnosed_by_integratedservice_this_timestep;
+                next_X(:, :, :, i_incare_nonadherent) = next_X(:, :, :, i_incare_nonadherent) + (1-prop_adhere_treatment)*(1-IntegratedServices_prop_Dx_outofcare)*sum_moving_to_diagnosed_by_integratedservice_this_timestep;
+
+            end 
+
+        end %% End of integrated services
     end   %% End of scenario_AddScreenIntervention!="No screening
     
     assert(all(all(all(all(next_X>=0)))))
@@ -1828,8 +1945,11 @@ for time = TimeSteps
             else
                 prop_remain_in_care_2016 = 0;
             end
-
+            fprintf("prop_remain_in_care_2016-1=%6.4f \n",prop_remain_in_care_2016-1.0)
             %% Run checks:
+            if(abs(prop_remain_in_care_2016-1.0)<TOL)
+                prop_remain_in_care_2016 = 1.0;
+            end
             assert(prop_remain_in_care_2016>=0 & prop_remain_in_care_2016<=1)
 
             %%assert(all(all(all(all(next_X(:,:,:,[i_appropriate_management i_incare_nonadherent i_outofcare])==0)))))
@@ -2210,7 +2330,7 @@ for time = TimeSteps
                 if(WARN_NEGATIVE==1)
                     fprintf("Warning - need to adjust n_move_to_diagnosed to be non-negative at t=%6.4f. Lowest value=%6.4f \n", time, thismin)
                     %% Taken from https://uk.mathworks.com/matlabcentral/answers/365917-how-can-i-find-index-of-element-in-array
-                    [row, col, depth, channel] = ind2sub(size(ab), find(n_move_to_diagnosed<0,1));
+                    [row, col, depth, channel] = ind2sub(size(n_move_to_diagnosed), find(n_move_to_diagnosed<0,1));
                     fprintf("Indices for n_move_to_diagnosed are nat_hist=%i age=%i sex=%i treat=%i \n",row(1),col(1),depth(1),channel(1))
                 end
                 n_move_to_diagnosed(n_move_to_diagnosed<0) = 0;
@@ -2983,7 +3103,7 @@ function output_labels=construct_header(agegroups, num_disease_states, num_sexes
     end
 
     %% Resources (for costing):
-    output_labels = output_labels + "NBirthDose,NBD_MAP,NBD_CPAD,N_InfantVacc,N_PAP_EAgHVL,N_PAP_EAgLVL,N_PAP_SAgHVL,N_PAP_SAgLVL,N_screen_PAP,N_starting_treatment,N_onTx_adherent,N_onTx_nonadherent,n_becoming_functionally_cured_to_print,n_funct_cure_pathway_birthcohort,n_funct_cure_pathway_ANC,n_funct_cure_pathway_commscreen,DALYs";
+    output_labels = output_labels + "NBirthDose,NBD_MAP,NBD_CPAD,N_InfantVacc,N_PAP_EAgHVL,N_PAP_EAgLVL,N_PAP_SAgHVL,N_PAP_SAgLVL,N_screen_PAP,N_starting_treatment,N_onTx_adherent,N_onTx_nonadherent,n_becoming_functionally_cured_to_print,n_funct_cure_pathway_birthcohort,n_funct_cure_pathway_ANC,n_funct_cure_pathway_integratedtest,n_funct_cure_pathway_commscreen,DALYs";
 
                
 

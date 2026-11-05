@@ -71,10 +71,10 @@ function country_level_analyses(sensitivity_analysis,...
     i_scenario_ContImp_plusDecentralisedDxTx = 18;
     i_scenario_ContImp_plusTx_cure_Bepi = 19;
     i_scenario_ContImp_plusTx_cure_improved = 20;
+    
     i_scenario_CI_B3_BDIF = 21;
     i_scenario_CI_B3_BDOOF = 22;
     i_scenario_CI_B3_BDIFOOF = 23;
-
     i_scenario_CI_B3_BDIFOOF_PAPHVL = 24;
     i_scenario_CI_B3_BDIFOOF_PAPPoC = 25;
     i_scenario_CI_B3_BDIFOOF_PAPall = 26;
@@ -91,12 +91,57 @@ function country_level_analyses(sensitivity_analysis,...
     i_scenario_CI_B3_BDIFOOF_PAPall_BirthCoh_PoC_Bepi = 36;
     i_scenario_CI_B3_BDIFOOF_PAPall_BirthCoh_PoC_cure = 37;
 
+
+    %% looking for package to reduce mortality:
+    i_portfolio_CI_B3_BDIFOOF_PAPall_ANC = 100;
+    i_portfolio_CI_B3_BDIFOOF_PAPall_BirthCoh = 101;
+    i_portfolio_CI_B3_BDIFOOF_PAPall_infacil = 102;
+    i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr = 103;
+    %%i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr100 = 32;
+    i_portfolio_CI_B3_BDIFOOF_PAPall_IntSer = 104;
+    i_portfolio_CI_B3_BDIFOOF_PAPall_PoC = 105;
+    i_portfolio_CI_B3_BDIFOOF_PAPall_TxAll = 106;
+    i_portfolio_CI_B3_BDIFOOF_PAPall_LA = 107;
+    i_portfolio_CI_B3_BDIFOOF_PAPall_Decent = 108;
+    i_portfolio_CI_B3_BDIFOOF_PAPall_Bepi = 109;
+    i_portfolio_CI_B3_BDIFOOF_PAPall_cure = 110;
+    i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr_ANC = 111;
+    i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr_BirthCoh = 112;
+    i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr_infacil = 113;
+    i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr_IntSer = 114;
+    i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr_PoC = 115;
+    i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr_TxAll = 116;
+    i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr_LA = 117;
+    i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr_Decent = 118;
+    i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr_Bepi = 119;
+    i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr_cure = 120;
+
+    %
+    i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr_TxAll_ANC = 121;
+    i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr_TxAll_BirthCoh = 122;
+    i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr_TxAll_infacil = 123;
+    i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr_TxAll_IntSer = 124;
+    i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr_TxAll_LA = 125;
+    i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr_TxAll_Decent = 126;
+    i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr_TxAll_Bepi = 127;
+    i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr_TxAll_cure = 128;
+
+    %
+    i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr_TxAll_cure_ANC = 129;
+    i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr_TxAll_cure_BirthCo = 130;
+    i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr_TxAll_cure_infacil = 131;
+    i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr_TxAll_cure_IntSer = 132;
+    i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr_TxAll_cure_LA = 133;
+    i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr_TxAll_cure_Decent = 134;
+    
+    %%i_pfolio_B3_BDIFOOF_PAPall_CScr_TxAll_cure_BirthCo = 130;
+
     %% Testing:
-    TEST_i_scenario_ContImp_plusTx_cure_Bepi = 100;
-    TEST_i_scenario_ContImp_plusTx_cure_improved = 101;
-    TEST_i_scenario_ContImp_plusTx_cure_Bepi_BirthCohort = 102;
-    TEST_i_scenario_ContImp_plusTx_cure_improved_ANC = 103;
-    TEST_i_scenario_ContImp_plusTx_cure_improved_CommScr = 104;
+    % TEST_i_scenario_ContImp_plusTx_cure_Bepi = 100;
+    % TEST_i_scenario_ContImp_plusTx_cure_improved = 101;
+    % TEST_i_scenario_ContImp_plusTx_cure_Bepi_BirthCohort = 102;
+    % TEST_i_scenario_ContImp_plusTx_cure_improved_ANC = 103;
+    % TEST_i_scenario_ContImp_plusTx_cure_improved_CommScr = 104;
 
     %% Possible options for BD: different BD trends, changes in how BD is introduced etc.
     I_BD_WUENIC2025 = 100;  %% Follow WUENIC2025 and after 2025 coverage remains at last (2025) value
@@ -122,21 +167,25 @@ function country_level_analyses(sensitivity_analysis,...
     I_TREAT = struct('SQ', 401,...  %% Current treatment (Capped at most recent treatemnt data - currently Polaris 2025).
         'continuedimprovement', 402,...     % 'HBV: Immune Tolerant' : HBeAg+ with very high HBV DNA (>1e6IU/ml), normal ALT
         'IFscreening', 403,...
-        'IntegratedServices', 404,...
-        'PoCeligibility', 405,...
-        'universal', 406,...
-        'LA', 407,...
-        'decentralised', 408);
+        'PoCeligibility', 404,...
+        'universal', 405,...
+        'LA', 406,...
+        'decentralised', 407,...
+        'IFscreening_universal', 408,...
+        'LA_universal', 409,...
+        'decentralised_universal', 410);
     I_CURE = struct('NoCure', 501,...
         'Bepi', 502,...
         'future_funct_cure', 503);
 
     
     % TUTAJ:
-    %%num_scenarios = 11;
     num_scenarios = 37;
-    %start_scenario = 16;
-    start_scenario = 1;
+    start_scenario = 37;
+    %%num_scenarios = 134;
+    %num_scenarios = 37;
+    %%start_scenario = 129;
+    %start_scenario = 121;
 
     %%assert(ismember(sensitivity_analysis,{'default','infant_100','treat_medium','treat_high'}))
 
@@ -706,9 +755,9 @@ function country_level_analyses(sensitivity_analysis,...
                     scenario_BD = I_BD_contimp;
                     scenario_HepB3 = I_HEPB3_contimp;
                     scenario_PAP = I_PAP_HVL_contimp;
-                    scenario_Treatment = I_TREAT.IntegratedServices;
+                    scenario_Treatment = I_TREAT.continuedimprovement;
                     scenario_FunctCure = I_CURE.NoCure;
-                    scenario_AddScreenIntervention = "No additional screening";  
+                    scenario_AddScreenIntervention = "Integrated services";  
                 %% CompInt with PoC treatment eligibility 
                 case i_scenario_ContImp_plusTx_PoCeligibility
                     scenario_BD = I_BD_contimp;
@@ -837,9 +886,9 @@ function country_level_analyses(sensitivity_analysis,...
                     scenario_BD = I_BD_IF_OOFexpansion;
                     scenario_HepB3 = I_HEPB3_WHOtarget;
                     scenario_PAP = I_PAP_all;
-                    scenario_Treatment = I_TREAT.IntegratedServices;
+                    scenario_Treatment = I_TREAT.continuedimprovement;
                     scenario_FunctCure = I_CURE.NoCure;
-                    scenario_AddScreenIntervention = "No additional screening";  
+                    scenario_AddScreenIntervention = "Integrated services";
                 case i_scenario_CI_B3_BDIFOOF_PAPall_BirthCoh_PoC
                     scenario_BD = I_BD_IF_OOFexpansion;
                     scenario_HepB3 = I_HEPB3_WHOtarget;
@@ -882,45 +931,302 @@ function country_level_analyses(sensitivity_analysis,...
                     scenario_Treatment = I_TREAT.PoCeligibility;
                     scenario_FunctCure = I_CURE.future_funct_cure;
                     scenario_AddScreenIntervention = "Birth cohort screening";
-                %% Testing:
-                                %% Bepi-like cure available:
-                case TEST_i_scenario_ContImp_plusTx_cure_Bepi
-                    scenario_BD = I_BD_contimp;
-                    scenario_HepB3 = I_HEPB3_contimp;
-                    scenario_PAP = I_PAP_HVL_contimp;
+                %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                %% Portfolio:
+                case i_portfolio_CI_B3_BDIFOOF_PAPall_ANC
+                    scenario_BD = I_BD_IF_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_all;
                     scenario_Treatment = I_TREAT.continuedimprovement;
-                    scenario_FunctCure = I_CURE.Bepi;
-                    scenario_AddScreenIntervention = "No additional screening";  
-                %% Better-than-Bepi cure available:
-                case TEST_i_scenario_ContImp_plusTx_cure_improved
-                    scenario_BD = I_BD_contimp;
-                    scenario_HepB3 = I_HEPB3_contimp;
-                    scenario_PAP = I_PAP_HVL_contimp;
-                    scenario_Treatment = I_TREAT.continuedimprovement;
-                    scenario_FunctCure = I_CURE.future_funct_cure;
-                    scenario_AddScreenIntervention = "No additional screening";  
-                case TEST_i_scenario_ContImp_plusTx_cure_Bepi_BirthCohort
-                    scenario_BD = I_BD_contimp;
-                    scenario_HepB3 = I_HEPB3_contimp;
-                    scenario_PAP = I_PAP_HVL_contimp;
-                    scenario_Treatment = I_TREAT.continuedimprovement;
-                    scenario_FunctCure = I_CURE.Bepi;
-                    scenario_AddScreenIntervention = "Birth cohort screening";
-                %% Better-than-Bepi cure available:
-                case TEST_i_scenario_ContImp_plusTx_cure_improved_ANC
-                    scenario_BD = I_BD_contimp;
-                    scenario_HepB3 = I_HEPB3_contimp;
-                    scenario_PAP = I_PAP_HVL_contimp;
-                    scenario_Treatment = I_TREAT.continuedimprovement;
-                    scenario_FunctCure = I_CURE.future_funct_cure;
+                    scenario_FunctCure = I_CURE.NoCure;
                     scenario_AddScreenIntervention = "ANC screening";  
-                case TEST_i_scenario_ContImp_plusTx_cure_improved_CommScr
-                    scenario_BD = I_BD_contimp;
-                    scenario_HepB3 = I_HEPB3_contimp;
-                    scenario_PAP = I_PAP_HVL_contimp;
+                case i_portfolio_CI_B3_BDIFOOF_PAPall_BirthCoh
+                    scenario_BD = I_BD_IF_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_all;
+                    scenario_Treatment = I_TREAT.continuedimprovement;
+                    scenario_FunctCure = I_CURE.NoCure;
+                    scenario_AddScreenIntervention = "Birth cohort screening";
+                case i_portfolio_CI_B3_BDIFOOF_PAPall_infacil
+                    scenario_BD = I_BD_IF_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_all;
+                    scenario_Treatment = I_TREAT.IFscreening;
+                    scenario_FunctCure = I_CURE.NoCure;
+                    scenario_AddScreenIntervention = "No additional screening";
+                case i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr
+                    scenario_BD = I_BD_IF_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_all;
+                    scenario_Treatment = I_TREAT.continuedimprovement;
+                    scenario_FunctCure = I_CURE.NoCure;
+                    scenario_AddScreenIntervention = "Community screening";
+                % case i_scenario_CI_B3_BDIFOOF_PAPall_CommScr100
+                %     scenario_BD = I_BD_IF_OOFexpansion;
+                %     scenario_HepB3 = I_HEPB3_WHOtarget;
+                %     scenario_PAP = I_PAP_all;
+                %     scenario_Treatment = I_TREAT.continuedimprovement;
+                %     scenario_FunctCure = I_CURE.NoCure;
+                %     scenario_AddScreenIntervention = "Perfect community screening";
+                case i_portfolio_CI_B3_BDIFOOF_PAPall_IntSer
+                    scenario_BD = I_BD_IF_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_all;
+                    scenario_Treatment = I_TREAT.continuedimprovement;
+                    scenario_FunctCure = I_CURE.NoCure;
+                    scenario_AddScreenIntervention = "Integrated services";
+                case i_portfolio_CI_B3_BDIFOOF_PAPall_PoC
+                    scenario_BD = I_BD_IF_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_all;
+                    scenario_Treatment = I_TREAT.PoCeligibility;
+                    scenario_FunctCure = I_CURE.NoCure;
+                    scenario_AddScreenIntervention = "No additional screening";
+                case i_portfolio_CI_B3_BDIFOOF_PAPall_TxAll
+                    scenario_BD = I_BD_IF_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_all;
+                    scenario_Treatment = I_TREAT.universal;
+                    scenario_FunctCure = I_CURE.NoCure;
+                    scenario_AddScreenIntervention = "No additional screening";
+                case i_portfolio_CI_B3_BDIFOOF_PAPall_LA
+                    scenario_BD = I_BD_IF_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_all;
+                    scenario_Treatment = I_TREAT.LA;
+                    scenario_FunctCure = I_CURE.NoCure;
+                    scenario_AddScreenIntervention = "No additional screening";
+                case i_portfolio_CI_B3_BDIFOOF_PAPall_Decent
+                    scenario_BD = I_BD_IF_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_all;
+                    scenario_Treatment = I_TREAT.decentralised;
+                    scenario_FunctCure = I_CURE.NoCure;
+                    scenario_AddScreenIntervention = "No additional screening";
+                case i_portfolio_CI_B3_BDIFOOF_PAPall_Bepi
+                    scenario_BD = I_BD_IF_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_all;
+                    scenario_Treatment = I_TREAT.continuedimprovement;
+                    scenario_FunctCure = I_CURE.Bepi;
+                    scenario_AddScreenIntervention = "No additional screening";
+                case i_portfolio_CI_B3_BDIFOOF_PAPall_cure
+                    scenario_BD = I_BD_IF_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_all;
+                    scenario_Treatment = I_TREAT.continuedimprovement;
+                    scenario_FunctCure = I_CURE.future_funct_cure;
+                    scenario_AddScreenIntervention = "No additional screening";
+                case i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr_ANC
+                    scenario_BD = I_BD_IF_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_all;
+                    scenario_Treatment = I_TREAT.continuedimprovement;
+                    scenario_FunctCure = I_CURE.NoCure;
+                    scenario_AddScreenIntervention = "ANC screening AND Community screening";
+                case i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr_BirthCoh
+                    scenario_BD = I_BD_IF_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_all;
+                    scenario_Treatment = I_TREAT.continuedimprovement;
+                    scenario_FunctCure = I_CURE.NoCure;
+                    scenario_AddScreenIntervention = "Birth cohort screening AND Community screening";
+                case i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr_infacil
+                    scenario_BD = I_BD_IF_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_all;
+                    scenario_Treatment = I_TREAT.IFscreening;
+                    scenario_FunctCure = I_CURE.NoCure;
+                    scenario_AddScreenIntervention = "Community screening";
+                case i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr_IntSer
+                    scenario_BD = I_BD_IF_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_all;
+                    scenario_Treatment = I_TREAT.continuedimprovement;
+                    scenario_FunctCure = I_CURE.NoCure;
+                    scenario_AddScreenIntervention = "Integrated services AND Community screening";
+                case i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr_PoC
+                    scenario_BD = I_BD_IF_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_all;
+                    scenario_Treatment = I_TREAT.PoCeligibility;
+                    scenario_FunctCure = I_CURE.NoCure;
+                    scenario_AddScreenIntervention = "Community screening";
+                case i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr_TxAll
+                    scenario_BD = I_BD_IF_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_all;
+                    scenario_Treatment = I_TREAT.universal;
+                    scenario_FunctCure = I_CURE.NoCure;
+                    scenario_AddScreenIntervention = "Community screening";
+                case i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr_LA
+                    scenario_BD = I_BD_IF_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_all;
+                    scenario_Treatment = I_TREAT.LA;
+                    scenario_FunctCure = I_CURE.NoCure;
+                    scenario_AddScreenIntervention = "Community screening";
+                case i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr_Decent
+                    scenario_BD = I_BD_IF_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_all;
+                    scenario_Treatment = I_TREAT.decentralised;
+                    scenario_FunctCure = I_CURE.NoCure;
+                    scenario_AddScreenIntervention = "Community screening";
+                case i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr_Bepi
+                    scenario_BD = I_BD_IF_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_all;
+                    scenario_Treatment = I_TREAT.continuedimprovement;
+                    scenario_FunctCure = I_CURE.Bepi;
+                    scenario_AddScreenIntervention = "Community screening";
+                case i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr_cure
+                    scenario_BD = I_BD_IF_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_all;
                     scenario_Treatment = I_TREAT.continuedimprovement;
                     scenario_FunctCure = I_CURE.future_funct_cure;
                     scenario_AddScreenIntervention = "Community screening";
+%%
+                case i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr_TxAll_ANC
+                    scenario_BD = I_BD_IF_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_all;
+                    scenario_Treatment = I_TREAT.universal;
+                    scenario_FunctCure = I_CURE.NoCure;
+                    scenario_AddScreenIntervention = "ANC screening AND Community screening";
+                case i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr_TxAll_BirthCoh
+                    scenario_BD = I_BD_IF_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_all;
+                    scenario_Treatment = I_TREAT.universal;
+                    scenario_FunctCure = I_CURE.NoCure;
+                    scenario_AddScreenIntervention = "Birth cohort screening AND Community screening";
+                case i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr_TxAll_infacil
+                    scenario_BD = I_BD_IF_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_all;
+                    scenario_Treatment = I_TREAT.IFscreening_universal;
+                    scenario_FunctCure = I_CURE.NoCure;
+                    scenario_AddScreenIntervention = "Community screening";
+                case i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr_TxAll_IntSer
+                    scenario_BD = I_BD_IF_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_all;
+                    scenario_Treatment = I_TREAT.universal;
+                    scenario_FunctCure = I_CURE.NoCure;
+                    scenario_AddScreenIntervention = "Integrated services AND Community screening";
+                case i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr_TxAll_LA
+                    scenario_BD = I_BD_IF_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_all;
+                    scenario_Treatment = I_TREAT.LA_universal;
+                    scenario_FunctCure = I_CURE.NoCure;
+                    scenario_AddScreenIntervention = "Community screening";
+                case i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr_TxAll_Decent
+                    scenario_BD = I_BD_IF_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_all;
+                    scenario_Treatment = I_TREAT.decentralised_universal;
+                    scenario_FunctCure = I_CURE.NoCure;
+                    scenario_AddScreenIntervention = "Community screening";
+                case i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr_TxAll_Bepi
+                    scenario_BD = I_BD_IF_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_all;
+                    scenario_Treatment = I_TREAT.universal;
+                    scenario_FunctCure = I_CURE.Bepi;
+                    scenario_AddScreenIntervention = "Community screening";
+                case i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr_TxAll_cure
+                    scenario_BD = I_BD_IF_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_all;
+                    scenario_Treatment = I_TREAT.universal;
+                    scenario_FunctCure = I_CURE.future_funct_cure;
+                    scenario_AddScreenIntervention = "Community screening";
+%%
+                case i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr_TxAll_cure_ANC
+                    scenario_BD = I_BD_IF_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_all;
+                    scenario_Treatment = I_TREAT.universal;
+                    scenario_FunctCure = I_CURE.future_funct_cure;
+                    scenario_AddScreenIntervention = "ANC screening AND Community screening";
+                case i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr_TxAll_cure_BirthCo
+                    scenario_BD = I_BD_IF_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_all;
+                    scenario_Treatment = I_TREAT.universal;
+                    scenario_FunctCure = I_CURE.future_funct_cure;
+                    scenario_AddScreenIntervention = "Birth cohort screening AND Community screening";
+                case i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr_TxAll_cure_infacil
+                    scenario_BD = I_BD_IF_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_all;
+                    scenario_Treatment = I_TREAT.IFscreening_universal;
+                    scenario_FunctCure = I_CURE.future_funct_cure;
+                    scenario_AddScreenIntervention = "Community screening";
+                case i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr_TxAll_cure_IntSer
+                    scenario_BD = I_BD_IF_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_all;
+                    scenario_Treatment = I_TREAT.universal;
+                    scenario_FunctCure = I_CURE.future_funct_cure;
+                    scenario_AddScreenIntervention = "Integrated services AND Community screening";
+                case i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr_TxAll_cure_LA
+                    scenario_BD = I_BD_IF_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_all;
+                    scenario_Treatment = I_TREAT.LA_universal;
+                    scenario_FunctCure = I_CURE.future_funct_cure;
+                    scenario_AddScreenIntervention = "Community screening";
+                case i_portfolio_CI_B3_BDIFOOF_PAPall_CommScr_TxAll_cure_Decent
+                    scenario_BD = I_BD_IF_OOFexpansion;
+                    scenario_HepB3 = I_HEPB3_WHOtarget;
+                    scenario_PAP = I_PAP_all;
+                    scenario_Treatment = I_TREAT.decentralised_universal;
+                    scenario_FunctCure = I_CURE.future_funct_cure;
+                    scenario_AddScreenIntervention = "Community screening";
+
+                %% Testing:
+                %% Bepi-like cure available:
+                % case TEST_i_scenario_ContImp_plusTx_cure_Bepi
+                %     scenario_BD = I_BD_contimp;
+                %     scenario_HepB3 = I_HEPB3_contimp;
+                %     scenario_PAP = I_PAP_HVL_contimp;
+                %     scenario_Treatment = I_TREAT.continuedimprovement;
+                %     scenario_FunctCure = I_CURE.Bepi;
+                %     scenario_AddScreenIntervention = "No additional screening";  
+                % %% Better-than-Bepi cure available:
+                % case TEST_i_scenario_ContImp_plusTx_cure_improved
+                %     scenario_BD = I_BD_contimp;
+                %     scenario_HepB3 = I_HEPB3_contimp;
+                %     scenario_PAP = I_PAP_HVL_contimp;
+                %     scenario_Treatment = I_TREAT.continuedimprovement;
+                %     scenario_FunctCure = I_CURE.future_funct_cure;
+                %     scenario_AddScreenIntervention = "No additional screening";  
+                % case TEST_i_scenario_ContImp_plusTx_cure_Bepi_BirthCohort
+                %     scenario_BD = I_BD_contimp;
+                %     scenario_HepB3 = I_HEPB3_contimp;
+                %     scenario_PAP = I_PAP_HVL_contimp;
+                %     scenario_Treatment = I_TREAT.continuedimprovement;
+                %     scenario_FunctCure = I_CURE.Bepi;
+                %     scenario_AddScreenIntervention = "Birth cohort screening";
+                % %% Better-than-Bepi cure available:
+                % case TEST_i_scenario_ContImp_plusTx_cure_improved_ANC
+                %     scenario_BD = I_BD_contimp;
+                %     scenario_HepB3 = I_HEPB3_contimp;
+                %     scenario_PAP = I_PAP_HVL_contimp;
+                %     scenario_Treatment = I_TREAT.continuedimprovement;
+                %     scenario_FunctCure = I_CURE.future_funct_cure;
+                %     scenario_AddScreenIntervention = "ANC screening";  
+                % case TEST_i_scenario_ContImp_plusTx_cure_improved_CommScr
+                %     scenario_BD = I_BD_contimp;
+                %     scenario_HepB3 = I_HEPB3_contimp;
+                %     scenario_PAP = I_PAP_HVL_contimp;
+                %     scenario_Treatment = I_TREAT.continuedimprovement;
+                %     scenario_FunctCure = I_CURE.future_funct_cure;
+                %     scenario_AddScreenIntervention = "Community screening";
                 otherwise
                     disp("Error - unknown scenario. Exiting")
                     return  %% Exit the script.
@@ -1448,11 +1754,6 @@ function country_level_analyses(sensitivity_analysis,...
                     prop_accessing_healthcare_and_accepttest = Intervention_data_thiscountry.Dx_coverage_with_infacilitytesting;
                     treatment_rate_params.annual_increase_Dx_future = Intervention_data_thiscountry.ContImp_Dx_annual_increase + prop_accessing_healthcare_and_accepttest;
                     treatment_rate_params.annual_increase_TxifDx_future = Intervention_data_thiscountry.ContImp_TxifDx_annual_increase;
-                %% PLACEHOLDER - does nothing:
-                case I_TREAT.IntegratedServices
-                    scenario_treat_elig = "Current treatment";
-                    treatment_rate_params.annual_increase_Dx_future = Intervention_data_thiscountry.ContImp_Dx_annual_increase;
-                    treatment_rate_params.annual_increase_TxifDx_future = Intervention_data_thiscountry.ContImp_TxifDx_annual_increase;
                 case I_TREAT.PoCeligibility
                     %% Scenario tells HBVmodel.m that we are using PoC testing for eligibility in future (which means use Dx_remain_in_care and we ignore annual_increase_TxifDx_future)
                     scenario_treat_elig = "PoC treatment"; 
@@ -1474,6 +1775,26 @@ function country_level_analyses(sensitivity_analysis,...
                     treatment_rate_params.annual_increase_TxifDx_future = RR_LA*Intervention_data_thiscountry.ContImp_TxifDx_annual_increase;
                 case I_TREAT.decentralised
                     scenario_treat_elig = "Current treatment";
+                    %% TO DO - DECIDE IF THERE SHOULD BE AN (IMMEDIATE?) INCREASE IN THOSE CURRENTLY ON TREATMENT BY THE SAME MULTIPLIER.
+                    %% Proportion of country that is rural:
+                    prop_rural = Intervention_data_thiscountry.Decentralisation_prop_rural;
+                    increase_by_decentralisation = 1 + prop_rural/(1-prop_rural);
+                    fprintf("Increase by decentralisation = %6.4f \n",increase_by_decentralisation)
+                    treatment_rate_params.annual_increase_Dx_future = increase_by_decentralisation*Intervention_data_thiscountry.ContImp_Dx_annual_increase;
+                    treatment_rate_params.annual_increase_TxifDx_future = increase_by_decentralisation*Intervention_data_thiscountry.ContImp_TxifDx_annual_increase;
+                case I_TREAT.IFscreening_universal
+                    scenario_treat_elig = "Universal treatment";
+                    prop_accessing_healthcare_and_accepttest = Intervention_data_thiscountry.Dx_coverage_with_infacilitytesting;
+                    treatment_rate_params.annual_increase_Dx_future = Intervention_data_thiscountry.ContImp_Dx_annual_increase + prop_accessing_healthcare_and_accepttest;
+                    treatment_rate_params.annual_increase_TxifDx_future = Intervention_data_thiscountry.ContImp_TxifDx_annual_increase;
+                %% PLACEHOLDER:
+                case I_TREAT.LA_universal
+                    scenario_treat_elig = "Universal treatment";
+                    RR_LA = 1.0; %% PLACEHOLDER - Arbitrary increase in TxifDx if needed
+                    treatment_rate_params.annual_increase_Dx_future = Intervention_data_thiscountry.ContImp_Dx_annual_increase;
+                    treatment_rate_params.annual_increase_TxifDx_future = RR_LA*Intervention_data_thiscountry.ContImp_TxifDx_annual_increase;
+                case I_TREAT.decentralised_universal
+                    scenario_treat_elig = "Universal treatment";
                     %% TO DO - DECIDE IF THERE SHOULD BE AN (IMMEDIATE?) INCREASE IN THOSE CURRENTLY ON TREATMENT BY THE SAME MULTIPLIER.
                     %% Proportion of country that is rural:
                     prop_rural = Intervention_data_thiscountry.Decentralisation_prop_rural;
@@ -1559,8 +1880,9 @@ function country_level_analyses(sensitivity_analysis,...
 
             %% Now post-present (with changes to guidelines and treatments) relative rates:
             if(scenario_Treatment==I_TREAT.SQ || scenario_Treatment==I_TREAT.continuedimprovement || ...
-                    scenario_Treatment==I_TREAT.IFscreening || scenario_Treatment==I_TREAT.IntegratedServices || ...
-                    scenario_Treatment==I_TREAT.universal || scenario_Treatment==I_TREAT.decentralised)
+                    scenario_Treatment==I_TREAT.IFscreening || scenario_Treatment==I_TREAT.IFscreening_universal || ...
+                    scenario_Treatment==I_TREAT.universal || scenario_Treatment==I_TREAT.decentralised || ...
+                    scenario_Treatment==I_TREAT.decentralised_universal)
                 %% Tenofovir-based treatment:
                 RRprogress_effective_treatment_nonCC_future = RRprogress_effective_TDFtreatment_nonCC;
                 RRprogress_effective_treatment_CC_future = RRprogress_effective_TDFtreatment_CC;
@@ -1572,7 +1894,7 @@ function country_level_analyses(sensitivity_analysis,...
                 RRprogress_effective_treatment_CC_future = RRprogress_effective_TDFtreatment_CC*treatment_rate_params.treat_elig_sensitivity;
                 RRprogress_nonadherent_treatment_nonCC_future = RRprogress_nonadherent_TDFtreatment_nonCC*treatment_rate_params.treat_elig_sensitivity;
                 RRprogress_nonadherent_treatment_CC_future = RRprogress_nonadherent_TDFtreatment_CC*treatment_rate_params.treat_elig_sensitivity;
-            elseif(scenario_Treatment==I_TREAT.LA)
+            elseif(scenario_Treatment==I_TREAT.LA || scenario_Treatment==I_TREAT.LA_universal)
                 %% Long-acting treatment:
                 RRprogress_effective_treatment_nonCC_future = RRprogress_effective_LAtreatment_nonCC;
                 RRprogress_effective_treatment_CC_future = RRprogress_effective_LAtreatment_CC;
