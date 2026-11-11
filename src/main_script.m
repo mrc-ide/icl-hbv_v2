@@ -140,7 +140,7 @@ if RUN_ON_CLUSTER==0
     %%countries_to_run = [6, 8, 17, 34, 38, 47, 50, 52, 56, 70, 92];  %%
     %%countries_to_run = [1, 2];
     %% TUTAJ
-    countries_to_run = 8;
+    countries_to_run = 42;
     %%countries_to_run = [16,30];
 else
     fileID = fopen('countries_to_run.txt','r');
@@ -315,6 +315,7 @@ ages = 0:dt:(100 - dt); % The age group at the beginning of each compartment; wi
 num_age_steps = length(ages); % Number of age-categories (assuming max age is 100 years (i.e. oldest person we see at the start of an iteration is aged 100-dt)
 
 %% Used in cost-effectiveness outputs:
+%% Note - life_expectancy has to be an integer (it is used as an index in make_daly_mat.m)
 life_expectancy = 85; % the approximate life-expectancy at birth for persons in Japan and the highest life-expectnacy in the world, which is often taken as the benchmark
 
 
@@ -581,11 +582,11 @@ for sensitivity_analysis_num=1:num_sensitivity_analyses
     %%disp(append('Sensitivity analysis: ',sensitivity_analysis));
 
 
-    begin_time_sensitivity_analysis = datetime('now');
-    disp(append('The "',sensitivity_analysis,'" sensitivity analysis started at ', string(begin_time_sensitivity_analysis)));
+    if(num_sensitivity_analyses>1)
+        begin_time_sensitivity_analysis = datetime('now');
+        disp(append('The "',sensitivity_analysis,'" sensitivity analysis started at ', string(begin_time_sensitivity_analysis)));
+    end
 
-
-    %% tutaj kawa ciasto
     for stochas_run=1:num_stochas_runs
 
         country_level_analyses(sensitivity_analysis,...

@@ -17,14 +17,15 @@ function output = HBVmodel(source_HBsAg,...
 PRINT_VERBOSE = 0; %% Don't print debug info to screen
 
 WARN_NEGATIVE = 1; %% Print warning if it is necessary to adjust any subtractions to avoid X() becoming negative.
+ALREADY_WARNED_n_move_to_diagnosed = 0; %% Warning that comes up frequently - print just once per run.
 NEGATIVE_TOL = -0.01; %% When WARN_NEGATIVE==1 this i the largest (magnitude) negative number allowed before printing warning (i.e. if(y< NEGATIVE_TOL) print("Warning - y negative") end)
 TOL = 1e-8; %% numerical tolerance for prop_remain_in_care_2016.
 RUN_CHECKS = 1;    %% Run additional assert() checks (paranoid mode)
-PARK_FOR_NOW = 0;  %% Ignore stuff that breaks (eventually remove this).
+PARK_FOR_NOW = 0;  %% When set to 1, ignore stuff that breaks (eventually remove this).
 DUMMY_VALUE = -99;  % Used in initialising arrays to a dummy value (-99 should be easy to spot).
 
-MAX_COVERAGE_ANCtesting = 0.999; %% Maximum coverage in any specific compartment of ANC testing.
-MAX_COVERAGE_diagnosis = 0.999; %% Maximum coverage of general diagnosis.
+MAX_COVERAGE_ANCtesting = 0.99; %% Maximum coverage in any specific compartment of ANC testing.
+MAX_COVERAGE_diagnosis = 0.99; %% Maximum coverage of general diagnosis.
 
 CURRENT_TIME = 2026;
 PROPORTION_REMAIN_IN_CARE_2026 = -1; %% Stores (at t=CURRENT_TIME) % of tested who go to appropriate management/in care non-adherent states versus out-of-care.
@@ -124,7 +125,7 @@ i_sAgpos = sort([i_sAgpos_chronic, i_acute]);
 assert(i_DecompCirr==7 && i_HCC==8 && i_SevereAcute==15)
 assert(i_HBVdeath==11)
 if ~isequal(find(params.dwvec>0),[7,8,15])
-    disp("Error - params.dwvec has been modified so that non-zero indices no longer correspond to 7,8,15. Exiting")
+    disp("***ERROR - params.dwvec has been modified so that non-zero indices no longer correspond to 7,8,15. Exiting")
     return
 end
 
@@ -394,8 +395,10 @@ assert(safe_greater_or_equal_to(p_VertTrans_HbEAgLowVL_PAP,     p_VertTrans_HbSA
   number_starting_treatment_to_print = 0;
 
   %% Also count number on treatment right now (*Note* for PoC test with sensitivity/specificity<1 this is an approximation as not all people in the non-eligible classes will have had a PoC test)
-  number_on_treatment_adherent_to_print = 0;
-  number_on_treatment_nonadherent_to_print = 0;
+  number_on_Tx_adherent_to_print = 0;
+  number_on_Tx_nonadherent_to_print = 0;
+  
+  number_Tx_eligible_to_print = 0;
 
 
 
@@ -590,9 +593,9 @@ if(store_results_as_text==1)
     nstates_deaths = length(unique(agegroups_5yr)); %% - deaths per year - 5 yr age groups = 20
     nstates_newcases_chroniccarriage = length(unique(agegroups_5yr)) + 1; %% - new cases of chronic carriage/yr (neonates, plus 5 yr age gps) = 21
     ncol_X_to_print_byage = num_disease_states*  num_sexes* num_treat_blocks;
-    %% The final 17 are "resources_to_print" outputs (note that the below has 16 outputs - but DALYs are dealt with outside of "results_to_print" and are appended when writing the output via writematrix()):
-    %% NBirthDose,NBD_MAP,NBD_CPAD,N_InfantVacc,N_PAP_EAgHVL,N_PAP_EAgLVL,N_PAP_SAgHVL,N_PAP_SAgLVL,N_screen_PAP,N_starting_treatment,number_on_treatment_adherent_to_print,number_on_treatment_nonadherent_to_print,n_becoming_functionally_cured_to_print, n_funct_cure_pathway_birthcohort, n_funct_cure_pathway_ANC, n_funct_cure_pathway_integratedtest, n_funct_cure_pathway_commscreen,DALYs
-    n_resource_cols = 17;
+    %% The final 18 are "resources_to_print" outputs (note that the below has 17 outputs - but DALYs are dealt with outside of "results_to_print" and are appended when writing the output via writematrix()):
+    %% NBirthDose,NBD_MAP,NBD_CPAD,N_InfantVacc,N_PAP_EAgHVL,N_PAP_EAgLVL,N_PAP_SAgHVL,N_PAP_SAgLVL,N_screen_PAP,N_Tx_eligible_to_print,N_starting_treatment,number_on_Tx_adherent_to_print,number_on_Tx_nonadherent_to_print,n_becoming_functionally_cured_to_print, n_funct_cure_pathway_birthcohort, n_funct_cure_pathway_ANC, n_funct_cure_pathway_integratedtest, n_funct_cure_pathway_commscreen,DALYs
+    n_resource_cols = 20;
     ncol_results_to_print = max(agegroups_5yr) * ncol_X_to_print_byage + nstates_newcases_chroniccarriage + nstates_deaths + n_resource_cols;
     results_to_print = DUMMY_VALUE * ones(ncol_results_to_print, num_years_simul + 1);
     
@@ -694,7 +697,7 @@ for time = TimeSteps
         i_bepi_eligible_at_Dx_under30 = [i_ImmTol i_ImmReact i_Chronic];  
         i_bepi_eligible_at_Dx_30plus = [i_ImmTol i_ImmReact i_Chronic];
     else
-        fprintf("Error - unknown value for scenario_treat_elig in HBVmodel.m at t=%6.4f. Exiting\n",time)
+        fprintf("***ERROR - unknown value for scenario_treat_elig in HBVmodel.m at t=%6.4f. Exiting\n",time)
         return
     end
 
@@ -799,11 +802,13 @@ for time = TimeSteps
             % add an extra dimension and duplicate it for each disease
             % state and treatment stratum
             X = X .* pop_scaler;
-            if(time==2025)  %% Arbitrary time just so the comment below is only printed once.
-            %disp([min(ScalerMat),max(ScalerMat)])
-                disp("Uncomment the line below to show scalarmat")
-                %%disp("Scalarmat here:")
-                %%disp(ScalerMat)
+            if(stochas_run_str=="1" && scenario_num==1)
+                if(time==2025)  %% Arbitrary time just so the comment below is only printed once.
+                %disp([min(ScalerMat),max(ScalerMat)])
+                    disp("Uncomment the line below to show scalarmat")
+                    %%disp("Scalarmat here:")
+                    %%disp(ScalerMat)
+                end
             end
             % scale all parts of X, including dead people i.e. State i_HBVdeath=11
         end
@@ -987,10 +992,12 @@ for time = TimeSteps
                 %% PAP (by EAg+/- and VL), pregnantWomenNeedToScreen=number of women needed to screen to put women on PAP
                 %% Treatment is done by state variable
                 %% To do: testing to get people on treatment (both standard + birth cohort)
+               
                 resources_to_print = [ratebirthdoses, ratebirthdoses_MAP, ratebirthdoses_CPAD, RateInfantVacc(OutputEventNum-1),...
                     num_mothers_PAP_HbEAg_HighVL, num_mothers_PAP_HbEAg_LowVL, num_mothers_PAP_HbSAg_HighVL, num_mothers_PAP_HbSAg_LowVL, pregnantWomenNeedToScreen,...
-                    number_starting_treatment_to_print, number_on_treatment_adherent_to_print, number_on_treatment_nonadherent_to_print,...
-                    n_becoming_functionally_cured_to_print, n_funct_cure_pathway_birthcohort, n_funct_cure_pathway_ANC, n_funct_cure_pathway_integratedtest, n_funct_cure_pathway_commscreen];
+                    number_Tx_eligible_to_print, number_starting_treatment_to_print, number_on_Tx_adherent_to_print, number_on_Tx_nonadherent_to_print,...
+                    n_becoming_functionally_cured_to_print, n_funct_cure_pathway_birthcohort, n_funct_cure_pathway_ANC, n_funct_cure_pathway_integratedtest, n_funct_cure_pathway_commscreen, ...
+                    squeeze(sum(sum(yld_1yr(:, :, OutputEventNum-1),1),2)),squeeze(sum(sum(Prev_Deaths_1yr(:, :, OutputEventNum-1),1),2))];
 
 
 
@@ -1133,7 +1140,7 @@ for time = TimeSteps
             %% all disease compartments have slower progression; for PoC Tx the progression is weighted by test sensitivity)
             Current_transition_matrix = Transitions.Values_future{tr};
         else
-            disp("ERROR: Unknown treatment scenario when assigning Current_transition_matrix. Exiting")
+            disp("***ERROR: Unknown treatment scenario when assigning Current_transition_matrix. Exiting")
             return
         end
         % else
@@ -1156,10 +1163,10 @@ for time = TimeSteps
             if(time>2016)
                 abb = ab(ab<ac);
                 if(~isempty(abb))
-                    fprintf("ABBTime=%6.4f %i %i\n",time,Transitions.From(tr),Transitions.To(tr))
+                    fprintf("Warning: ABBTime=%6.4f %i %i\n",time,Transitions.From(tr),Transitions.To(tr))
                     [row, col, depth, channel] = ind2sub(size(ab), find(ab<ac,1));
                     fprintf("Indices are nat_hist=%i age=%i sex=%i treat=%i \n",row(1),col(1),depth(1),channel(1))
-                    disp(abb(1))
+                    %%disp(abb(1))
                 end
             end
             assert(all(all(all(all(next_X(Transitions.From(tr), :, :, :)>=dt*moving_btw_states(1, :, :, :))))))
@@ -1559,7 +1566,7 @@ for time = TimeSteps
             elseif contains(scenario_AddScreenIntervention,"Perfect community screening")
                 community_screening_coverage = 1.0;
             else
-                disp("Error - Unknown screening scenario. Exiting")
+                disp("***ERROR - Unknown screening scenario. Exiting")
                 return
             end
             community_screening_start = Global_intervention_time_params(strcmp(Global_intervention_time_params.Parameter,'Dx_T_community_screening'),:).StartValue;
@@ -1724,7 +1731,7 @@ for time = TimeSteps
                 next_X(:, :, :, i_outofcare) = next_X(:, :, :, i_outofcare) + communityscreening_prop_Dx_outofcare*moving_to_Dx_by_community_screening_this_dt_by_agesexnathist;
 
                 %%otherwise
-                %%    disp("Error: Unknown value for scenario_AddScreenIntervention. Exiting")
+                %%    disp("***ERROR: Unknown value for scenario_AddScreenIntervention. Exiting")
                 %%    return
 
             end 
@@ -1749,7 +1756,7 @@ for time = TimeSteps
                     integrated_services_min_age = 30;
                     integrated_services_max_age = 99;
                 else
-                    fprintf("Error: Unknown integrated service at t=%6.4f \n",time)
+                    fprintf("***ERROR: Unknown integrated service at t=%6.4f \n",time)
                 end
 
                 if(time<integrated_services_endscaleup)
@@ -1945,7 +1952,7 @@ for time = TimeSteps
             else
                 prop_remain_in_care_2016 = 0;
             end
-            fprintf("prop_remain_in_care_2016-1=%6.4f \n",prop_remain_in_care_2016-1.0)
+            
             %% Run checks:
             if(abs(prop_remain_in_care_2016-1.0)<TOL)
                 prop_remain_in_care_2016 = 1.0;
@@ -1981,17 +1988,21 @@ for time = TimeSteps
             % next_X(:,:,:,i_incare_nonadherent)     = next_X(:,:,:,i_incare_nonadherent) + (1-prop_adhere_treatment)*n_to_move_treatment_2016(:,:,:,i_undiagnosed);
 
             %% This represents the number of people starting treatment at this timestep (as noone is on treatment in the model before 2016).
-            num_in_treatment_adh_2016 = sum(sum(sum(sum(next_X(i_treatelig_under30, 1:(i30y-1), : , i_appropriate_management),1),2),3),4) ...
+            num_on_Tx_adh_2016 = sum(sum(sum(sum(next_X(i_treatelig_under30, 1:(i30y-1), : , i_appropriate_management),1),2),3),4) ...
                 + sum(sum(sum(sum(next_X(i_treatelig_30plus, i30y:num_age_steps, :, i_appropriate_management),1),2),3),4);
-            num_in_treatment_nonadh_2016 = sum(sum(sum(sum(next_X(i_treatelig_under30, 1:(i30y-1), : , i_incare_nonadherent),1),2),3),4) ...
+            num_on_Tx_nonadh_2016 = sum(sum(sum(sum(next_X(i_treatelig_under30, 1:(i30y-1), : , i_incare_nonadherent),1),2),3),4) ...
                 + sum(sum(sum(sum(next_X(i_treatelig_30plus, i30y:num_age_steps, :, i_incare_nonadherent),1),2),3),4);
             %% Note - we check below to make sure nobody is in functional cure stages.
-            number_starting_treatment_to_print = num_in_treatment_adh_2016 + num_in_treatment_nonadh_2016;
+            number_starting_treatment_to_print = num_on_Tx_adh_2016 + num_on_Tx_nonadh_2016;
             
             
-            number_on_treatment_adherent_to_print = num_in_treatment_adh_2016;
-            number_on_treatment_nonadherent_to_print = num_in_treatment_nonadh_2016;
-
+            number_on_Tx_adherent_to_print = num_on_Tx_adh_2016;
+            number_on_Tx_nonadherent_to_print = num_on_Tx_nonadh_2016;
+            number_Tx_eligible_to_print = number_on_Tx_adherent_to_print + number_on_Tx_nonadherent_to_print ...
+                + sum(sum(sum(sum(next_X(i_treatelig_under30, 1:(i30y-1), : , i_undiagnosed),1),2),3),4) ...
+                + sum(sum(sum(sum(next_X(i_treatelig_30plus, i30y:num_age_steps, :, i_undiagnosed),1),2),3),4) ...
+                + sum(sum(sum(sum(next_X(i_treatelig_under30, 1:(i30y-1), : , i_outofcare),1),2),3),4) ...
+                + sum(sum(sum(sum(next_X(i_treatelig_30plus, i30y:num_age_steps, :, i_outofcare),1),2),3),4);
 
             % treatment coverage amongst treatment-eligible people will be greater than treatment coverage amongst HBsAg+ people, except if treatment coverage is 0
 
@@ -2020,8 +2031,10 @@ for time = TimeSteps
             n_everDx2016_CHECK = sum(sum(sum(sum(next_X(i_sAgpos_chronic, :, :, [i_appropriate_management i_incare_nonadherent i_outofcare]),1),2),3),4);
             %% I have checked that prop_remain_in_careB is equal to n_incare2016_CHECK/n_everDx2016_CHECK.
             %% To print:  prop_remain_in_care_2016, Dx, Tx:
-            fprintf("CHECKS2016: care=%6.4f vs target=%6.4f; Tx (of elig)=%6.4f vs target=%6.4f; Tx (of sAg+)=%6.4f vs target=%6.4f prop_in_care=%6.4f \n",n_everDx2016_CHECK/temp_sAgpos_chronic_pop_2016, ...
-                treatment_rate_params.Dx_coverage_2016, prop_eligible_on_Tx_CHECK, prop_eligible_treatedby2016, prop_sAgpos_on_Tx_CHECK, treatment_rate_params.Tx_coverage_2016, prop_remain_in_care_2016)
+            if(scenario_num==1)
+                fprintf("CHECKS2016: care=%6.4f vs target=%6.4f; Tx (of elig)=%6.4f vs target=%6.4f; Tx (of sAg+)=%6.4f vs target=%6.4f prop_in_care=%6.4f \n",n_everDx2016_CHECK/temp_sAgpos_chronic_pop_2016, ...
+                    treatment_rate_params.Dx_coverage_2016, prop_eligible_on_Tx_CHECK, prop_eligible_treatedby2016, prop_sAgpos_on_Tx_CHECK, treatment_rate_params.Tx_coverage_2016, prop_remain_in_care_2016)
+            end
             %% Breaks for country 70, 72 in scenario 1 run 1!
             assert(prop_sAgpos_on_Tx_CHECK >= 0.99 * treatment_rate_params.Tx_coverage_2016)
             assert(prop_sAgpos_on_Tx_CHECK <= 1.01 * treatment_rate_params.Tx_coverage_2016)
@@ -2113,13 +2126,12 @@ for time = TimeSteps
                     %% Cap diagnosis at 1;
                     prop_undiagnosed_to_diagnose_thisdt = 1;
                 elseif(prop_undiagnosed_to_diagnose_thisdt<0)
-                    fprintf("ERROR: prop_undiagnosed_to_diagnose_thisdt=%6.4f is less than zero at t=%6.4f. Exiting \n",prop_undiagnosed_to_diagnose_thisdt,time)
+                    fprintf("***ERROR: prop_undiagnosed_to_diagnose_thisdt=%6.4f is less than zero at t=%6.4f. Exiting \n",prop_undiagnosed_to_diagnose_thisdt,time)
                     return
                 end
             else
                 %% Hopefully this will never happen - if the warning appears, check what is causing this.
-                disp(time)
-                disp("Warning: Nobody left to diagnose!")
+                fprintf("***Warning: Nobody left to diagnose! t=%6.4f \n",time)
                 prop_undiagnosed_to_diagnose_thisdt = 0;
             end
 
@@ -2201,6 +2213,9 @@ for time = TimeSteps
                         prop_remain_in_care = n_incare/n_everDx;
                         if(time==CURRENT_TIME)
                             PROPORTION_REMAIN_IN_CARE_2026 = prop_remain_in_care;
+                            if(scenario_num==1)
+                                fprintf("PROPORTION_REMAIN_IN_CARE_2026=%6.4f \n",PROPORTION_REMAIN_IN_CARE_2026)
+                            end
                         end
                     else
                         prop_remain_in_care = PROPORTION_REMAIN_IN_CARE_2026;
@@ -2270,7 +2285,7 @@ for time = TimeSteps
                 %% For universal treatment, if diagnosed but not going onto treatment, that means going out of care:
                 prop_remain_in_care = 0;
             else
-                disp("Error: Unknown treatment option here. Exiting")
+                disp("***ERROR: Unknown treatment option here. Exiting")
                 return
             end
 
@@ -2327,11 +2342,12 @@ for time = TimeSteps
             %% Ensure the number moving is not negative:
             thismin = min(min(min(min(n_move_to_diagnosed))));
             if(thismin<0)
-                if(WARN_NEGATIVE==1)
-                    fprintf("Warning - need to adjust n_move_to_diagnosed to be non-negative at t=%6.4f. Lowest value=%6.4f \n", time, thismin)
+                if(WARN_NEGATIVE==1 && ALREADY_WARNED_n_move_to_diagnosed==0)
                     %% Taken from https://uk.mathworks.com/matlabcentral/answers/365917-how-can-i-find-index-of-element-in-array
                     [row, col, depth, channel] = ind2sub(size(n_move_to_diagnosed), find(n_move_to_diagnosed<0,1));
-                    fprintf("Indices for n_move_to_diagnosed are nat_hist=%i age=%i sex=%i treat=%i \n",row(1),col(1),depth(1),channel(1))
+                    fprintf("Warning - need to adjust n_move_to_diagnosed to be non-negative at t=%6.4f. Lowest value=%6.4f. Indices are nat_hist=%i age=%i sex=%i treat=%i \n", time, thismin,row(1),col(1),depth(1),channel(1))
+                    %%fprintf("Indices for n_move_to_diagnosed are nat_hist=%i age=%i sex=%i treat=%i \n",row(1),col(1),depth(1),channel(1))
+                    ALREADY_WARNED_n_move_to_diagnosed = 1;
                 end
                 n_move_to_diagnosed(n_move_to_diagnosed<0) = 0;
             end
@@ -2388,27 +2404,45 @@ for time = TimeSteps
             if(strcmp(scenario_treat_elig,"Current treatment") || ...
                     (strcmp(scenario_treat_elig,"PoC treatment") && (time<treatment_rate_params.t_treatment_PoC_start)) || ...
                     (strcmp(scenario_treat_elig,"Universal treatment") && (time<treatment_rate_params.t_treatment_universal_start)))
-                number_on_treatment_adherent_to_print = sum(sum(sum(sum(next_X(i_treatelig_under30, 1:(i30y-1), :, i_appropriate_management),1),2),3),4) ...
+                number_on_Tx_adherent_to_print = sum(sum(sum(sum(next_X(i_treatelig_under30, 1:(i30y-1), :, i_appropriate_management),1),2),3),4) ...
                     + sum(sum(sum(sum(next_X(i_treatelig_30plus, i30y:num_age_steps, :, i_appropriate_management),1),2),3),4)...
                     + sum(sum(sum(sum(next_X(i_funct_cure_path, :, :, i_appropriate_management),1),2),3),4);
-                number_on_treatment_nonadherent_to_print = sum(sum(sum(sum(next_X(i_treatelig_under30, 1:(i30y-1), :, i_incare_nonadherent),1),2),3),4) ...
+                number_on_Tx_nonadherent_to_print = sum(sum(sum(sum(next_X(i_treatelig_under30, 1:(i30y-1), :, i_incare_nonadherent),1),2),3),4) ...
                     + sum(sum(sum(sum(next_X(i_treatelig_30plus, i30y:num_age_steps, :, i_incare_nonadherent),1),2),3),4);
+                number_Tx_eligible_to_print = number_on_Tx_adherent_to_print + number_on_Tx_nonadherent_to_print...
+                    + sum(sum(sum(sum(next_X(i_treatelig_under30, 1:(i30y-1), :, i_undiagnosed),1),2),3),4) ...
+                    + sum(sum(sum(sum(next_X(i_treatelig_30plus, i30y:num_age_steps, :, i_undiagnosed),1),2),3),4) ...
+                    + sum(sum(sum(sum(next_X(i_treatelig_under30, 1:(i30y-1), :, i_outofcare),1),2),3),4) ...
+                    + sum(sum(sum(sum(next_X(i_treatelig_30plus, i30y:num_age_steps, :, i_outofcare),1),2),3),4);
+
             elseif(strcmp(scenario_treat_elig,"PoC treatment") && (time>=treatment_rate_params.t_treatment_PoC_start))
-                number_on_treatment_adherent_to_print = treatment_rate_params.treat_elig_sensitivity * sum(sum(sum(sum(next_X(i_treatelig_under30, 1:(i30y-1), :, i_appropriate_management),1),2),3),4) ...
+                number_on_Tx_adherent_to_print = treatment_rate_params.treat_elig_sensitivity * sum(sum(sum(sum(next_X(i_treatelig_under30, 1:(i30y-1), :, i_appropriate_management),1),2),3),4) ...
                     + treatment_rate_params.treat_elig_sensitivity * sum(sum(sum(sum(next_X(i_treatelig_30plus, i30y:num_age_steps, :, i_appropriate_management),1),2),3),4)...
                     + (1-treatment_rate_params.treat_elig_specificity) * sum(sum(sum(sum(next_X(i_potential_miseligibilityTx_under30, 1:(i30y-1), :, i_appropriate_management),1),2),3),4)...
                     + (1-treatment_rate_params.treat_elig_specificity) * sum(sum(sum(sum(next_X(i_potential_miseligibilityTx_30plus, i30y:num_age_steps, :, i_appropriate_management),1),2),3),4)...
                     + sum(sum(sum(sum(next_X(i_funct_cure_path, :, :, i_appropriate_management),1),2),3),4);
-                number_on_treatment_nonadherent_to_print = treatment_rate_params.treat_elig_sensitivity * sum(sum(sum(sum(next_X(i_treatelig_under30, 1:(i30y-1), :, i_incare_nonadherent),1),2),3),4) ...
+                number_on_Tx_nonadherent_to_print = treatment_rate_params.treat_elig_sensitivity * sum(sum(sum(sum(next_X(i_treatelig_under30, 1:(i30y-1), :, i_incare_nonadherent),1),2),3),4) ...
                     + treatment_rate_params.treat_elig_sensitivity * sum(sum(sum(sum(next_X(i_treatelig_30plus, i30y:num_age_steps, :, i_incare_nonadherent),1),2),3),4)...
                     + (1-treatment_rate_params.treat_elig_specificity) * sum(sum(sum(sum(next_X(i_potential_miseligibilityTx_under30, 1:(i30y-1), :, i_incare_nonadherent),1),2),3),4)...
                     + (1-treatment_rate_params.treat_elig_specificity) * sum(sum(sum(sum(next_X(i_potential_miseligibilityTx_30plus, i30y:num_age_steps, :, i_incare_nonadherent),1),2),3),4);
+                number_Tx_eligible_to_print = number_on_Tx_adherent_to_print + number_on_Tx_nonadherent_to_print ...
+                    + treatment_rate_params.treat_elig_sensitivity * sum(sum(sum(sum(next_X(i_treatelig_under30, 1:(i30y-1), :, i_undiagnosed),1),2),3),4) ...
+                    + treatment_rate_params.treat_elig_sensitivity * sum(sum(sum(sum(next_X(i_treatelig_30plus, i30y:num_age_steps, :, i_undiagnosed),1),2),3),4)...
+                    + (1-treatment_rate_params.treat_elig_specificity) * sum(sum(sum(sum(next_X(i_potential_miseligibilityTx_under30, 1:(i30y-1), :, i_undiagnosed),1),2),3),4)...
+                    + (1-treatment_rate_params.treat_elig_specificity) * sum(sum(sum(sum(next_X(i_potential_miseligibilityTx_30plus, i30y:num_age_steps, :, i_undiagnosed),1),2),3),4)...
+                    + treatment_rate_params.treat_elig_sensitivity * sum(sum(sum(sum(next_X(i_treatelig_under30, 1:(i30y-1), :, i_outofcare),1),2),3),4) ...
+                    + treatment_rate_params.treat_elig_sensitivity * sum(sum(sum(sum(next_X(i_treatelig_30plus, i30y:num_age_steps, :, i_outofcare),1),2),3),4)...
+                    + (1-treatment_rate_params.treat_elig_specificity) * sum(sum(sum(sum(next_X(i_potential_miseligibilityTx_under30, 1:(i30y-1), :, i_outofcare),1),2),3),4)...
+                    + (1-treatment_rate_params.treat_elig_specificity) * sum(sum(sum(sum(next_X(i_potential_miseligibilityTx_30plus, i30y:num_age_steps, :, i_outofcare),1),2),3),4);
             elseif(strcmp(scenario_treat_elig,"Universal treatment") && (time>=treatment_rate_params.t_treatment_universal_start))
-               number_on_treatment_adherent_to_print = sum(sum(sum(sum(next_X(i_treatelig_universal, :, :, i_appropriate_management),1),2),3),4) ...
+               number_on_Tx_adherent_to_print = sum(sum(sum(sum(next_X(i_treatelig_universal, :, :, i_appropriate_management),1),2),3),4) ...
                     + sum(sum(sum(sum(next_X(i_funct_cure_path, :, :, i_appropriate_management),1),2),3),4);
-                number_on_treatment_nonadherent_to_print = sum(sum(sum(sum(next_X(i_treatelig_universal, :, :, i_incare_nonadherent),1),2),3),4);
+                number_on_Tx_nonadherent_to_print = sum(sum(sum(sum(next_X(i_treatelig_universal, :, :, i_incare_nonadherent),1),2),3),4);
+                number_Tx_eligible_to_print = number_on_Tx_adherent_to_print + number_on_Tx_nonadherent_to_print ...
+                    + sum(sum(sum(sum(next_X(i_treatelig_universal, :, :, i_undiagnosed),1),2),3),4) ...
+                    + sum(sum(sum(sum(next_X(i_treatelig_universal, :, :, i_outofcare),1),2),3),4);
             else
-                disp("Error: Unknown treatment eligibility combination. Exiting")
+                disp("***ERROR: Unknown treatment eligibility combination. Exiting")
                 return
             end
 
@@ -3031,7 +3065,9 @@ end
 %% End of PAP Chunk 4
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+%% MP: I use this in resources_to_print (DALYs are *also* calculated in country_level_analyses.m in MJdV code that I don't use.
 DALYs = make_daly_mat(output,num_years_simul,num_year_1980_2100,life_expectancy);
+%% DALYs is 100 x 212
 
 DALYs_summed = sum(DALYs,1);
 
@@ -3043,7 +3079,7 @@ if(store_results_as_text==1)
     end
     i_1950 = find(Time >= 1950, 1);
     filename_results_csv = strcat('results_',ISO,'_scenario',string(scenario_num),'_',sensitivity_analysis,'_run_', stochas_run_str, '.csv');
-    disp(fullfile(basedir,'outputs',filename_results_csv))
+    
     %%%size(results_to_print(:,i_1950:end))
     %%%size(Time(i_1950:end))
     %% The "4" below is used as follows - round( . , 4) rounds to 4 decimal places.
@@ -3103,7 +3139,7 @@ function output_labels=construct_header(agegroups, num_disease_states, num_sexes
     end
 
     %% Resources (for costing):
-    output_labels = output_labels + "NBirthDose,NBD_MAP,NBD_CPAD,N_InfantVacc,N_PAP_EAgHVL,N_PAP_EAgLVL,N_PAP_SAgHVL,N_PAP_SAgLVL,N_screen_PAP,N_starting_treatment,N_onTx_adherent,N_onTx_nonadherent,n_becoming_functionally_cured_to_print,n_funct_cure_pathway_birthcohort,n_funct_cure_pathway_ANC,n_funct_cure_pathway_integratedtest,n_funct_cure_pathway_commscreen,DALYs";
+    output_labels = output_labels + "NBirthDose,NBD_MAP,NBD_CPAD,N_InfantVacc,N_PAP_EAgHVL,N_PAP_EAgLVL,N_PAP_SAgHVL,N_PAP_SAgLVL,N_screen_PAP,N_Tx_eligible,N_starting_treatment,N_onTx_adherent,N_onTx_nonadherent,n_becoming_functionally_cured_to_print,n_funct_cure_pathway_birthcohort,n_funct_cure_pathway_ANC,n_funct_cure_pathway_integratedtest,n_funct_cure_pathway_commscreen,DALYs,yld_1yr,Prev_Deaths_1yr";
 
                
 

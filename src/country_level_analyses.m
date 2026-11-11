@@ -181,7 +181,7 @@ function country_level_analyses(sensitivity_analysis,...
     
     % TUTAJ:
     num_scenarios = 37;
-    start_scenario = 37;
+    start_scenario = 1;
     %%num_scenarios = 134;
     %num_scenarios = 37;
     %%start_scenario = 129;
@@ -1228,7 +1228,7 @@ function country_level_analyses(sensitivity_analysis,...
                 %     scenario_FunctCure = I_CURE.future_funct_cure;
                 %     scenario_AddScreenIntervention = "Community screening";
                 otherwise
-                    disp("Error - unknown scenario. Exiting")
+                    disp("***ERROR - unknown scenario. Exiting")
                     return  %% Exit the script.
             end
 
@@ -1278,13 +1278,19 @@ function country_level_analyses(sensitivity_analysis,...
                         elseif(potential_bd_target>in_facility_ceiling && in_facility_ceiling>BirthDose_wuenic2025(end))
                             %% Go to ceiling at t_ceiling and stay there until end_year_simul:
                             %% Note that the elseif condition above means that potential_bd_target>BirthDose_wuenic2025(end), which forces annual_BDimprovement>0.
-                            t_reach_IF_target = CURRENT_TIME + floor((in_facility_ceiling-BirthDose_wuenic2025(end))/annual_BDimprovement);
+                            years_BD_increase = floor((in_facility_ceiling-BirthDose_wuenic2025(end))/annual_BDimprovement);
+                            if(years_BD_increase==0)
+                                %% Takes at least one year (needed for country 42 IDN):
+                                years_BD_increase = 1;
+                            end
+                            t_reach_IF_target = CURRENT_TIME + years_BD_increase;
+                            fprintf("t_reach_IF_target = %6.4f annual_BDimprovement = %6.4f in_facility_ceiling=%6.4f BirthDose_wuenic2025(end)=%6.4f \n",t_reach_IF_target,annual_BDimprovement,in_facility_ceiling,BirthDose_wuenic2025(end))
                             assert(t_reach_IF_target>CURRENT_TIME)
                             if(t_reach_IF_target<end_year_simul)
                                 IF_future_xvals_vec = [year_last_BD_data, CURRENT_TIME, t_reach_IF_target, end_year_simul];
                                 IF_future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end), in_facility_ceiling, in_facility_ceiling];
                             else
-                                fprintf("ERROR: this shouldn't occur!!! Exiting\n")
+                                fprintf("***ERROR: this shouldn't occur!!! Exiting\n")
                                 return
                             end
                         end
@@ -1304,7 +1310,7 @@ function country_level_analyses(sensitivity_analysis,...
                     IF_future_yvals_vec = [BirthDose_wuenic2025(end), BirthDose_wuenic2025(end), max_coverage, max_coverage];
 
                 otherwise 
-                    disp("Error - unknown scenario_BD for IF coverage. Exiting")
+                    disp("***ERROR - unknown scenario_BD for IF coverage. Exiting")
                     return  %% Exit the script.
             end
 
@@ -1333,7 +1339,7 @@ function country_level_analyses(sensitivity_analysis,...
                     OOF_future_yvals_vec = [0, 0, max_OOF_coverage, max_OOF_coverage];
 
                 otherwise
-                    disp("Error - unknown scenario_BD for OOF coverage. Exiting")
+                    disp("***ERROR - unknown scenario_BD for OOF coverage. Exiting")
                     return  %% Exit the script.
             end
 
@@ -1406,7 +1412,7 @@ function country_level_analyses(sensitivity_analysis,...
                     future_xvals_vec = [year_last_HepB3_data, T_INTERVENTION_START_HepB3 T_INTERVENTION_END_HepB3, end_year_simul];
                     future_yvals_vec = [HepB3_wuenic2025(end), HepB3_wuenic2025(end), hepb3_target hepb3_target];
                 otherwise
-                    disp("Error: Unknown value for scenario_HepB3. Exiting")
+                    disp("***ERROR: Unknown value for scenario_HepB3. Exiting")
                     return
                 %if strcmp(sensitivity_analysis,'infant_100')
                 % Ramp up coverage to 100% from first_expansion_year to
@@ -1592,7 +1598,7 @@ function country_level_analyses(sensitivity_analysis,...
                     % end
                     
                 otherwise
-                    disp("Error: Unknown value for scenario_PAP. Exiting")
+                    disp("***ERROR: Unknown value for scenario_PAP. Exiting")
                     return
             end
         
@@ -1809,7 +1815,7 @@ function country_level_analyses(sensitivity_analysis,...
                 %     treatment_rate_params.annual_increase_TxifDx_future = 0;
 
                 otherwise
-                    disp("Error: Unknown value for scenario_Treatment. Exiting")
+                    disp("***ERROR: Unknown value for scenario_Treatment. Exiting")
                     return
             end
 
@@ -1849,7 +1855,7 @@ function country_level_analyses(sensitivity_analysis,...
             %     case I_BIRTHCOHORT_SCREENING
             %         a=8;
             %     otherwise
-            %         disp("Error: Unknown value for scenario_AddScreenIntervention. Exiting")
+            %         disp("***ERROR: Unknown value for scenario_AddScreenIntervention. Exiting")
             %         return
             % end  
 
@@ -1862,7 +1868,7 @@ function country_level_analyses(sensitivity_analysis,...
             %     case 'treat_high'
             %         params.PriorTDFTreatRate = treatment_boundaries_vec(5); % 80%
             %     % otherwise
-            %     %     disp("Error: Unknown value for sensitivity_analysis. Exiting")
+            %     %     disp("***ERROR: Unknown value for sensitivity_analysis. Exiting")
             %     %     return
             % end
 
@@ -1901,7 +1907,7 @@ function country_level_analyses(sensitivity_analysis,...
                 RRprogress_nonadherent_treatment_nonCC_future = RRprogress_nonadherent_LAtreatment_nonCC;
                 RRprogress_nonadherent_treatment_CC_future = RRprogress_nonadherent_LAtreatment_CC;
             else
-                disp("Error - unknown treatment scenario. Exiting")
+                disp("***ERROR - unknown treatment scenario. Exiting")
                 return
             end
 

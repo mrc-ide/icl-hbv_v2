@@ -29,7 +29,7 @@ function treat_eligibility_ageindices = get_treatment_eligible_ageindices(scenar
             treat_eligibility_ageindices = [];
         end
     else
-        disp("Error - unknown treatment eligbility scenario in get_treatment_eligible_ageindices(). Exiting")
+        disp("***ERROR - unknown treatment eligbility scenario in get_treatment_eligible_ageindices(). Exiting")
         %% Hopefully returning without a value will cause an error.
         return
     end

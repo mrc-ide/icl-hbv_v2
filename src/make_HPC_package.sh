@@ -1,6 +1,6 @@
 #!/bin/bash
 
-target_dir="HPC_package_HBV_3nov2026_level3"
+target_dir="HPC_package_HBV_11nov2026"
 
 mkdir HPC_packages/$target_dir
 mkdir HPC_packages/$target_dir/src
