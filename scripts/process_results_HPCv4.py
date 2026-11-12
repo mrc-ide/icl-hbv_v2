@@ -3,11 +3,14 @@
 ## (Maximum) number of decimal places for a float output:
 N_DECIMAL_PLACES = 6
 
+START_SCENARIO = 1
+N_SCENARIOS = 37
+
 import glob, sys, os, re
 #import numpy as np
 try:
     output_dir = sys.argv[1]
-    print(output_dir)
+    ##print(output_dir)
     if(output_dir[-1])!="/":
         output_dir += "/"
     print(output_dir)
@@ -55,7 +58,7 @@ def load_ISO_file(ISOpath):
 #i_Immune = 9;       ## 'HBV: Immune (Rec. or vacc.)'
 #i_TDFtreat = 10;    ## 'HBV: TDF-Treatment'
 #i_HBVdeath = 11;    ## 'Prematurely dead due to HBV'
-#i_3TCtreat = 12;    ## '3TC-Treatment'
+#i_funct_cure_path = 12;    ## '3TC-Treatment'
 #i_3TCfailed = 13;   ## 'Failed 3TC-Treatment'
 #i_NonSevAcute = 14; ## 'Non-severe acute'
 #i_SevereAcute = 15; ## 'Severe acute'
@@ -132,17 +135,17 @@ def get_indices_ageonly(header, var, min_age, max_age):
 def sum_columns(line_data, i_range, ndp):
     data = [float(line_data[i]) for i in i_range]
     if any(x<0 for x in data):
-        print("Error - negative values",data)
-        sys.exit(1)
+        print("Warning - negative values in sum_columns(): ",[x for x in data if x<0])
+        ##sys.exit(1)
     return(str(round(sum(data),ndp)))
 
 ## Version of sum_columns that returns a number rather than a string:
 def sum_columns_return_number(line_data, i_range):
     data = [float(line_data[i]) for i in i_range]
     if any(x<0 for x in data):
-        print("Error - negative values",data)
-        sys.exit(1)
-    return(sum(data)))
+        print("Warning - negative values in sum_columns_return_number(): ",[x for x in data if x<0])
+        ##sys.exit(1)
+    return(sum(data))
 
 
 def extract_run_numbers(results_files):
@@ -176,43 +179,58 @@ def read_results_files_and_extract_data(resultsdir,country_ISO,scenario, ndp):
     #i_Immune = 9;       ## 'HBV: Immune (Rec. or vacc.)'
     #i_TDFtreat = 10;    ## 'HBV: TDF-Treatment'
     #i_HBVdeath = 11;    ## 'Prematurely dead due to HBV'
-    #i_3TCtreat = 12;    ## '3TC-Treatment'
+    #i_funct_cure_path = 12;    ## '3TC-Treatment'
     #i_3TCfailed = 13;   ## 'Failed 3TC-Treatment'
     #i_NonSevAcute = 14; ## 'Non-severe acute'
     #i_SevereAcute = 15; ## 'Severe acute'
-
-    i_Susc = get_indices(header, 0, 99, ["F","M"], 1, ["Treat","NoTreat"])
-    i_ImmTol = get_indices(header, 0, 99, ["F","M"], 2, ["Treat","NoTreat"])
-    i_ImmReact = get_indices(header, 0, 99, ["F","M"], 3, ["Treat","NoTreat"])
-    i_AsymptCarr = get_indices(header, 0, 99, ["F","M"], 4, ["Treat","NoTreat"])
-    i_Chr = get_indices(header, 0, 99, ["F","M"], 5, ["Treat","NoTreat"])
-    i_CompCirr = get_indices(header, 0, 99, ["F","M"], 6, ["Treat","NoTreat"])
-    i_DecompCirr = get_indices(header, 0, 99, ["F","M"], 7, ["Treat","NoTreat"])
-    i_HCC = get_indices(header, 0, 99, ["F","M"], 8, ["Treat","NoTreat"])
-    i_Immune = get_indices(header, 0, 99, ["F","M"], 9, ["Treat","NoTreat"])
-    i_TDFtreat = get_indices(header, 0, 99, ["F","M"], 10, ["Treat","NoTreat"])
-    i_3TCtreat = get_indices(header, 0, 99, ["F","M"], 12, ["Treat","NoTreat"])
-    i_3TCfailed = get_indices(header, 0, 99, ["F","M"], 13, ["Treat","NoTreat"])
+    ##"Undiagnosed","AppropriateManage","IncareNonadherent","OutOfCare"
+    i_Susc = get_indices(header, 0, 99, ["F","M"], 1, ["Undiagnosed","AppropriateManage","IncareNonadherent","OutOfCare"])
+    i_ImmTol = get_indices(header, 0, 99, ["F","M"], 2, ["Undiagnosed","AppropriateManage","IncareNonadherent","OutOfCare"])
+    i_ImmReact = get_indices(header, 0, 99, ["F","M"], 3, ["Undiagnosed","AppropriateManage","IncareNonadherent","OutOfCare"])
+    i_AsymptCarr = get_indices(header, 0, 99, ["F","M"], 4, ["Undiagnosed","AppropriateManage","IncareNonadherent","OutOfCare"])
+    i_Chr = get_indices(header, 0, 99, ["F","M"], 5, ["Undiagnosed","AppropriateManage","IncareNonadherent","OutOfCare"])
+    i_CompCirr = get_indices(header, 0, 99, ["F","M"], 6, ["Undiagnosed","AppropriateManage","IncareNonadherent","OutOfCare"])
+    i_DecompCirr = get_indices(header, 0, 99, ["F","M"], 7, ["Undiagnosed","AppropriateManage","IncareNonadherent","OutOfCare"])
+    i_HCC = get_indices(header, 0, 99, ["F","M"], 8, ["Undiagnosed","AppropriateManage","IncareNonadherent","OutOfCare"])
+    i_Immune = get_indices(header, 0, 99, ["F","M"], 9, ["Undiagnosed","AppropriateManage","IncareNonadherent","OutOfCare"])
+    i_TDFtreat_LEGACY = get_indices(header, 0, 99, ["F","M"], 10, ["Undiagnosed","AppropriateManage","IncareNonadherent","OutOfCare"])
+    i_funct_cure_path = get_indices(header, 0, 99, ["F","M"], 12, ["Undiagnosed","AppropriateManage","IncareNonadherent","OutOfCare"])
+    i_funct_cure = get_indices(header, 0, 99, ["F","M"], 13, ["Undiagnosed","AppropriateManage","IncareNonadherent","OutOfCare"])
     ## Sum over severe + non-severe:
-    i_Acute = get_indices(header, 0, 99, ["F","M"], [14,15], ["Treat","NoTreat"])
+    i_Acute = get_indices(header, 0, 99, ["F","M"], [14,15], ["Undiagnosed","AppropriateManage","IncareNonadherent","OutOfCare"])
 
-    ##
-    i_Pop = get_indices(header, 0, 99, ["F","M"], [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15], ["Treat","NoTreat"])
+    ## Exclude 11 (HBV-related death)
+    i_Pop = get_indices(header, 0, 99, ["F","M"], [1,2,3,4,5,6,7,8,9,10,12,13,14,15], ["Undiagnosed","AppropriateManage","IncareNonadherent","OutOfCare"])
 
 
-    i_SuscF_reprod = get_indices(header, 15, 49, ["F"], 1, ["Treat","NoTreat"])
-    i_ImmTolF_reprod = get_indices(header, 15, 49, ["F"], 2, ["Treat","NoTreat"])
-    i_ImmReactF_reprod = get_indices(header, 15, 49, ["F"], 3, ["Treat","NoTreat"])
-    i_AsymptCarrF_reprod = get_indices(header, 15, 49, ["F"], 4, ["Treat","NoTreat"])
-    i_ChrF_reprod = get_indices(header, 15, 49, ["F"], 5, ["Treat","NoTreat"])
-    i_CompCirrF_reprod = get_indices(header, 15, 49, ["F"], 6, ["Treat","NoTreat"])
-    i_DecompCirrF_reprod = get_indices(header, 15, 49, ["F"], 7, ["Treat","NoTreat"])
-    i_HCCF_reprod = get_indices(header, 15, 49, ["F"], 8, ["Treat","NoTreat"])
-    i_ImmuneF_reprod = get_indices(header, 15, 49, ["F"], 9, ["Treat","NoTreat"])
-    i_TDFtreatF_reprod = get_indices(header, 15, 49, ["F"], 10, ["Treat","NoTreat"])
-    ## Sum over severe + non-severe:
-    i_AcuteF_reprod = get_indices(header, 15, 49, ["F"], [14,15], ["Treat","NoTreat"])
+    i_undiag_chronic = get_indices(header, 0, 99, ["F","M"], [2,3,4,5,6,7,8], ["Undiagnosed"])
+    i_appropriatemanagement_chronic = get_indices(header, 0, 99, ["F","M"], [2,3,4,5,6,7,8], ["AppropriateManage"])
+    i_incarenonadherent_chronic = get_indices(header, 0, 99, ["F","M"], [2,3,4,5,6,7,8], ["IncareNonadherent"])
+    i_outofcare_chronic = get_indices(header, 0, 99, ["F","M"], [2,3,4,5,6,7,8], ["OutOfCare"])
+    i_diagnosed_chronic =  get_indices(header, 0, 99, ["F","M"], [2,3,4,5,6,7,8], ["AppropriateManage","IncareNonadherent","OutOfCare"])
+    
+    ## Universal treatment:
+    if(scenario in [16,33]):
+        ## All chronic stages eligible - EXCEPT HCC:
+        ##i_eligibleTx_chronic =  get_indices(header, 0, 99, ["F","M"], [2,3,4,5,6,7], ["Undiagnosed","AppropriateManage","IncareNonadherent","OutOfCare"])
+        i_ontreatment_chronic = get_indices(header, 0, 99, ["F","M"], [2,3,4,5,6,7], ["AppropriateManage","IncareNonadherent"])
+    else:
+        ## Exclude HCC (i=8), Imm Tol i=2 (if under 30) and Asympt Carrier (i=4)
+        ##i_eligibleTx_chronic_under30 =  get_indices(header, 0, 29, ["F","M"], [3,5,6,7], ["Undiagnosed","AppropriateManage","IncareNonadherent","OutOfCare"])
+        #i_eligibleTx_chronic_30plus =  get_indices(header, 30, 99, ["F","M"], [2,3,5,6,7], ["Undiagnosed","AppropriateManage","IncareNonadherent","OutOfCare"])
+        i_ontreatment_chronic_under30 = get_indices(header, 0, 29, ["F","M"], [3,5,6,7], ["AppropriateManage","IncareNonadherent"])
+        i_ontreatment_chronic_30plus = get_indices(header, 30, 99, ["F","M"], [2,3,5,6,7], ["AppropriateManage","IncareNonadherent"])
 
+        ##i_eligibleTx_chronic = i_eligibleTx_chronic_under30 + i_eligibleTx_chronic_30plus
+        i_ontreatment_chronic = i_ontreatment_chronic_under30 + i_ontreatment_chronic_30plus
+        ## Sort them numerically:
+        #i_eligibleTx_chronic.sort()
+        i_ontreatment_chronic.sort()
+        
+        
+    ## To calculate prevalence in women 15-49 (as a proxy for pregnant women)
+    i_Npop_reprod = get_indices(header, 15, 49, ["F"], [1,2,3,4,5,6,7,8,9,10,12,13,14,15], ["Undiagnosed","AppropriateManage","IncareNonadherent","OutOfCare"])
+    i_chronic_reprod = get_indices(header, 15, 49, ["F"], [2,3,4,5,6,7,8,9,10,12,13], ["Undiagnosed","AppropriateManage","IncareNonadherent","OutOfCare"])
 
     i_incidence_neonatal = header.index("Incidence_neonatal")
     i_incidence_horiz0to4 = header.index("IncidAge0_4")
@@ -227,24 +245,29 @@ def read_results_files_and_extract_data(resultsdir,country_ISO,scenario, ndp):
     i_N_PAP_SAgHVL = header.index("N_PAP_SAgHVL")
     i_N_PAP_SAgLVL = header.index("N_PAP_SAgLVL")
     i_N_screen_PAP = header.index("N_screen_PAP")
+    i_N_Tx_eligible = header.index("N_Tx_eligible") ## karma police    
     i_N_starting_treatment = header.index("N_starting_treatment")
+    i_N_Tx_adherent = header.index("N_onTx_adherent")
+    i_N_Tx_nonadherent = header.index("N_onTx_nonadherent")
     i_DALY = header.index("DALYs")
+    i_yld_1yr = header.index("yld_1yr")
+    i_Prev_Deaths_1yr = header.index("Prev_Deaths_1yr")
 
-    i_U5_chronic = get_indices_U5(header, ["F","M"], [2,3,4,5,6,7,8,10,12,13], ["Treat","NoTreat"])
-    i_U5_pop = get_indices_U5(header, ["F","M"], [1,2,3,4,5,6,7,8,9,10,12,13,14,15], ["Treat","NoTreat"])
+    i_U5_chronic = get_indices_U5(header, ["F","M"], [2,3,4,5,6,7,8,10,12,13], ["Undiagnosed","AppropriateManage","IncareNonadherent","OutOfCare"])
+    i_U5_pop = get_indices_U5(header, ["F","M"], [1,2,3,4,5,6,7,8,9,10,12,13,14,15], ["Undiagnosed","AppropriateManage","IncareNonadherent","OutOfCare"])
     # print(i_U5_chronic)
     # print([header[i] for i in i_U5_chronic])
     # print([header[i] for i in i_U5_pop])
 
-    ##i_ = get_indices(header, 0, 99, ["F","M"], [2,3,4,5,6,7,8,10,12,13], ["Treat","NoTreat"])
-    ##i_Ncases_chronic = get_indices(header, 0, 99, ["F","M"], [2,3,4,5,6,7,8,10,12,13], ["Treat","NoTreat"])
-    ##i_Ncases_chronic = get_indices(header, 0, 99, ["F","M"], [2,3,4,5,6,7,8,10,12,13], ["Treat","NoTreat"])
-    ##i_Ncases_chronic = get_indices(header, 0, 99, ["F","M"], [2,3,4,5,6,7,8,10,12,13], ["Treat","NoTreat"])
-    ##i_Ncases_chronic = get_indices(header, 0, 99, ["F","M"], [2,3,4,5,6,7,8,10,12,13], ["Treat","NoTreat"])
+    ##i_ = get_indices(header, 0, 99, ["F","M"], [2,3,4,5,6,7,8,10,12,13], ["Undiagnosed","AppropriateManage","IncareNonadherent","OutOfCare"])
+    ##i_Ncases_chronic = get_indices(header, 0, 99, ["F","M"], [2,3,4,5,6,7,8,10,12,13], ["Undiagnosed","AppropriateManage","IncareNonadherent","OutOfCare"])
+    ##i_Ncases_chronic = get_indices(header, 0, 99, ["F","M"], [2,3,4,5,6,7,8,10,12,13], ["Undiagnosed","AppropriateManage","IncareNonadherent","OutOfCare"])
+    ##i_Ncases_chronic = get_indices(header, 0, 99, ["F","M"], [2,3,4,5,6,7,8,10,12,13], ["Undiagnosed","AppropriateManage","IncareNonadherent","OutOfCare"])
+    ##i_Ncases_chronic = get_indices(header, 0, 99, ["F","M"], [2,3,4,5,6,7,8,10,12,13], ["Undiagnosed","AppropriateManage","IncareNonadherent","OutOfCare"])
     
     # Process each of the results files
     outputs_to_store = ""
-
+    elim_outputs = ""
     
     for n,f in enumerate(results_files):
             
@@ -272,42 +295,42 @@ def read_results_files_and_extract_data(resultsdir,country_ISO,scenario, ndp):
             n_cases_DecompCirr = sum_columns(line_data, i_DecompCirr, ndp)
             n_cases_HCC = sum_columns(line_data, i_HCC, ndp)
             n_cases_Immune = sum_columns(line_data, i_Immune, ndp)
-            n_cases_TDFtreat = sum_columns(line_data, i_TDFtreat, ndp)
-            n_cases_3TCtreat = sum_columns(line_data, i_3TCtreat, ndp)
-            n_cases_3TCfailed = sum_columns(line_data, i_3TCfailed, ndp)
+            n_cases_TDFtreat_LEGACY = sum_columns(line_data, i_TDFtreat_LEGACY, ndp)
+            n_cases_functcurepath = sum_columns(line_data, i_funct_cure_path, ndp)
+            n_cases_functcured = sum_columns(line_data, i_funct_cure, ndp)
             n_cases_Acute = sum_columns(line_data, i_Acute, ndp)
-            ## Now sum for women of reproductive age (proxy for prevalence in pregnant women):
-            n_cases_SuscF_reprod = sum_columns(line_data, i_SuscF_reprod, ndp)
-            n_cases_ImmTolF_reprod = sum_columns(line_data, i_ImmTolF_reprod, ndp)
-            n_cases_ImmReactF_reprod = sum_columns(line_data, i_ImmReactF_reprod, ndp)
-            n_cases_AsymptCarrF_reprod = sum_columns(line_data, i_AsymptCarrF_reprod, ndp)
-            n_cases_ChrF_reprod = sum_columns(line_data, i_ChrF_reprod, ndp)
-            n_cases_CompCirrF_reprod = sum_columns(line_data, i_CompCirrF_reprod, ndp)
-            n_cases_DecompCirrF_reprod = sum_columns(line_data, i_DecompCirrF_reprod, ndp)
-            n_cases_HCCF_reprod = sum_columns(line_data, i_HCCF_reprod, ndp)
-            n_cases_ImmuneF_reprod = sum_columns(line_data, i_ImmuneF_reprod, ndp)
-            n_cases_TDFtreatF_reprod = sum_columns(line_data, i_TDFtreatF_reprod, ndp)
-            n_cases_AcuteF_reprod = sum_columns(line_data, i_AcuteF_reprod, ndp)
+            
 
+            n_cases_undiag_chronic = sum_columns(line_data, i_undiag_chronic, ndp)
+            n_cases_appropriatemanagement_chronic = sum_columns(line_data, i_appropriatemanagement_chronic, ndp)
+            n_cases_incarenonadherent_chronic = sum_columns(line_data, i_incarenonadherent_chronic, ndp)
+            n_cases_outofcare_chronic = sum_columns(line_data, i_outofcare_chronic, ndp)
+            n_cases_diagnosed_chronic = sum_columns(line_data, i_diagnosed_chronic, ndp)
+            ##n_cases_eligibleTx_chronic = sum_columns(line_data,
+            ##i_eligibleTx_chronic, ndp)
+            n_cases_ontreatment_chronic = sum_columns(line_data, i_ontreatment_chronic, ndp)
 
-
-
-
-            incidence_neonatal = str(line_data[i_incidence_neonatal], ndp)
-            incidence_horiz0to4 = str(line_data[i_incidence_horiz0to4], ndp)
+            
+            incidence_neonatal = str(line_data[i_incidence_neonatal])
+            incidence_horiz0to4 = str(line_data[i_incidence_horiz0to4])
             incidence_horiz5plus = sum_columns(line_data, i_incidence_horiz5plus, ndp)
             newdeath = sum_columns_return_number(line_data, i_newdeath)
-            NBirthDose = str(line_data[i_NBirthDose], ndp)
-            NBD_MAP = str(line_data[i_NBD_MAP], ndp)
-            NBD_CPAD = str(line_data[i_NBD_CPAD], ndp)
-            N_InfantVacc = str(line_data[i_N_InfantVacc], ndp)
-            N_PAP_EAgHVL = str(line_data[i_N_PAP_EAgHVL], ndp)
-            N_PAP_EAgLVL = str(line_data[i_N_PAP_EAgLVL], ndp)
-            N_PAP_SAgHVL = str(line_data[i_N_PAP_SAgHVL], ndp)
-            N_PAP_SAgLVL = str(line_data[i_N_PAP_SAgLVL], ndp)
-            N_screen_PAP = str(line_data[i_N_screen_PAP], ndp)
-            N_starting_treatment = str(line_data[i_N_starting_treatment], ndp)
-            N_DALYs = str(line_data[i_DALY], ndp)
+            NBirthDose = str(line_data[i_NBirthDose])
+            NBD_MAP = str(line_data[i_NBD_MAP])
+            NBD_CPAD = str(line_data[i_NBD_CPAD])
+            N_InfantVacc = str(line_data[i_N_InfantVacc])
+            N_PAP_EAgHVL = str(line_data[i_N_PAP_EAgHVL])
+            N_PAP_EAgLVL = str(line_data[i_N_PAP_EAgLVL])
+            N_PAP_SAgHVL = str(line_data[i_N_PAP_SAgHVL])
+            N_PAP_SAgLVL = str(line_data[i_N_PAP_SAgLVL])
+            N_screen_PAP = str(line_data[i_N_screen_PAP])
+            N_Tx_eligible = str(line_data[i_N_Tx_eligible])
+            N_starting_treatment = str(line_data[i_N_starting_treatment])
+            N_Tx_adherent = str(line_data[i_N_Tx_adherent])
+            N_Tx_nonadherent = str(line_data[i_N_Tx_nonadherent])
+            N_DALYs = str(line_data[i_DALY])
+            N_yld_1yr = str(line_data[i_yld_1yr])
+            N_Prev_Deaths_1yr = str(line_data[i_Prev_Deaths_1yr])
 
             ## U5 data to calculate prevalence. For now we use 15dp (to get elim time) and then 
             N_U5_chronic = sum_columns_return_number(line_data, i_U5_chronic)
@@ -316,28 +339,42 @@ def read_results_files_and_extract_data(resultsdir,country_ISO,scenario, ndp):
             ## Total population (used to standardise mortality):
             N_pop = sum_columns_return_number(line_data, i_Pop)
 
+
+            ## Now sum for women of reproductive age (proxy for prevalence in pregnant women):
+            NpopF_reprod = sum_columns_return_number(line_data, i_Npop_reprod)
+            NchronicF_reprod = sum_columns_return_number(line_data, i_chronic_reprod)
+            prevF_reprod = str(NchronicF_reprod / NpopF_reprod)
+
             ## Elimination outputs:
             ## Mortality per 100,000 should be <4:
             N_mortality_standardised = 100000*newdeath/N_pop
-            if(N_mortality_standardised<4):
-                t_elim_mortality = min(int(year),t_elim_mortality)
-            ## Prevalence in U5s should be <0.1%
-            prev_U5_pop = N_U5_chronic/N_U5_pop
-            if(prev_U5_pop<0.001):
-                t_elim_U5prev = min(int(year),t_elim_U5prev)
+            if(int(year)>2025):
+                if(N_mortality_standardised<4):
+                    t_elim_mortality = min(int(year),t_elim_mortality)
+                    ## Prevalence in U5s should be <0.1%
+                prev_U5_pop = N_U5_chronic/N_U5_pop
+                if(prev_U5_pop<0.001):
+                    t_elim_U5prev = min(int(year),t_elim_U5prev)
 
 
 
             ## Now convert those outcomes to strings (and round to ndp):
-            newdeath = round(newdeath, ndp)
+            newdeath = str(round(newdeath, ndp))
             N_U5_chronic = str(round(N_U5_chronic, ndp))
             N_U5_pop = str(round(N_U5_pop, ndp))
 
+
+            N_yld_1yr = str(line_data[i_yld_1yr])
+            N_Prev_Deaths_1yr = str(line_data[i_Prev_Deaths_1yr])
+
+
+            outputs_to_store += year + "," + run_number + "," + country_ISO + "," + str(scenario) + "," + n_Susc + "," + n_cases_ImmTol + "," + n_cases_ImmReact + "," + n_cases_AsymptCarr + "," + n_cases_Chr + "," + n_cases_CompCirr + "," + n_cases_DecompCirr + "," + n_cases_HCC + "," + n_cases_Immune + "," + n_cases_TDFtreat_LEGACY + "," + n_cases_Acute + "," + incidence_neonatal+ "," + incidence_horiz0to4+ "," + incidence_horiz5plus+ "," + newdeath+ "," + NBirthDose+ "," + NBD_MAP+ "," + NBD_CPAD+ "," + N_InfantVacc+ "," + N_PAP_EAgHVL+ "," + N_PAP_EAgLVL+ "," + N_PAP_SAgHVL+ "," + N_PAP_SAgLVL+ "," + N_screen_PAP+ "," + N_Tx_eligible + "," + N_starting_treatment + "," + N_DALYs + "," + N_yld_1yr + "," + N_Prev_Deaths_1yr + "," + N_U5_chronic + "," + N_U5_pop + "," + prevF_reprod + "," + n_cases_undiag_chronic + "," + n_cases_appropriatemanagement_chronic + "," + n_cases_incarenonadherent_chronic + "," + n_cases_outofcare_chronic + "," + n_cases_diagnosed_chronic + "," + n_cases_ontreatment_chronic + "," + N_Tx_adherent + "," + N_Tx_nonadherent + "," + n_cases_functcurepath + "," + n_cases_functcured + "\n"
+
             
-            outputs_to_store += year + "," + run_number + "," + country_ISO + "," + str(scenario) + "," + n_Susc + "," + n_cases_ImmTol + "," + n_cases_ImmReact + "," + n_cases_AsymptCarr + "," + n_cases_Chr + "," + n_cases_CompCirr + "," + n_cases_DecompCirr + "," + n_cases_HCC + "," + n_cases_Immune + "," + n_cases_TDFtreat + "," + n_cases_3TCtreat + "," + n_cases_3TCfailed + "," + n_cases_Acute + "," + incidence_neonatal+ "," + incidence_horiz0to4+ "," + incidence_horiz5plus+ "," + newdeath+ "," + NBirthDose+ "," + NBD_MAP+ "," + NBD_CPAD+ "," + N_InfantVacc+ "," + N_PAP_EAgHVL+ "," + N_PAP_EAgLVL+ "," + N_PAP_SAgHVL+ "," + N_PAP_SAgLVL+ "," + N_screen_PAP+ "," + N_starting_treatment + "," + N_DALYs + "," + N_U5_chronic + "," + N_U5_pop + "," + n_cases_SuscF_reprod + "," + n_cases_ImmTolF_reprod + "," + n_cases_ImmReactF_reprod + "," + n_cases_AsymptCarrF_reprod + "," + n_cases_ChrF_reprod + "," + n_cases_CompCirrF_reprod + "," + n_cases_DecompCirrF_reprod + "," + n_cases_HCCF_reprod + "," + n_cases_ImmuneF_reprod + "," + n_cases_TDFtreatF_reprod + "," + n_cases_AcuteF_reprod + "\n"
+        elim_outputs += country_ISO + "," + str(scenario) + "," + run_number + "," + str(t_elim_mortality) + "," + str(t_elim_U5prev) + "\n"
 
 
-    return outputs_to_store
+    return [outputs_to_store, elim_outputs]
 
             
             ##n_cases_chronic = sum([float(line_data[i]) for i in i_Ncases_chronic]) 
@@ -381,24 +418,26 @@ for i in range(len(list_of_ISOs)):
 country_ISO = ISO_dictionary[country_number]
 
 
+            
 
-country_outputs = "Year,run_number,country_ISO,scenario,n_Susc,n_cases_ImmTol,n_cases_ImmReact,n_cases_AsymptCarr,n_cases_Chr,n_cases_CompCirr,n_cases_DecompCirr,n_cases_HCC,n_cases_Immune,n_cases_TDFtreat,n_cases_3TCtreat,n_cases_3TCfailed,n_cases_Acute,incidence_neonatal,incidence_horiz0to4,incidence_horiz5plus,newdeath,NBirthDose,NBD_MAP,NBD_CPAD,N_InfantVacc,N_PAP_EAgHVL,N_PAP_EAgLVL,N_PAP_SAgHVL,N_PAP_SAgLVL,N_screen_PAP,N_starting_treatment,N_DALYs,N_U5_chronic,N_U5_pop,n_cases_SuscF_reprod,n_cases_ImmTolF_reprod,n_cases_ImmReactF_reprod,n_cases_AsymptCarrF_reprod,n_cases_ChrF_reprod,n_cases_CompCirrF_reprod,n_cases_DecompCirrF_reprod,n_cases_HCCF_reprod,n_cases_ImmuneF_reprod,n_cases_TDFtreatF_reprod,n_cases_AcuteF_reprod\n"
+country_outputs = "Year,run_number,country_ISO,scenario,n_Susc,n_cases_ImmTol,n_cases_ImmReact,n_cases_AsymptCarr,n_cases_Chr,n_cases_CompCirr,n_cases_DecompCirr,n_cases_HCC,n_cases_Immune,n_cases_TDFtreat_LEGACY,n_cases_Acute,incidence_neonatal,incidence_horiz0to4,incidence_horiz5plus,newdeath,NBirthDose,NBD_MAP,NBD_CPAD,N_InfantVacc,N_PAP_EAgHVL,N_PAP_EAgLVL,N_PAP_SAgHVL,N_PAP_SAgLVL,N_screen_PAP,N_Tx_eligible,N_starting_treatment,N_DALYs,N_yld_1yr,N_Prev_Deaths_1yr,N_U5_chronic,N_U5_pop,prevF_reprod,n_cases_undiag_chronic,n_cases_appropriatemanagement_chronic,n_cases_incarenonadherent_chronic,n_cases_outofcare_chronic,n_cases_diagnosed_chronic,n_cases_ontreatment_chronic,n_cases_Tx_adherent,n_cases_Tx_nonadherent,n_cases_functcurepath,n_cases_functcure\n"
+
+
 
 
 ##for scenario in range(1,9)+[10]:
 ##for scenario in [1,2,3,4,5,6,7,8,9,10,12,13,14,15,16]:
 
 ## We store time to elimination (for U5 cases and mortality) in a separate file:
-elimination_outputs = ""
+elimination_output = ""
 
 
 
-
-for scenario in range(1,18):
-    print(country_ISO,scenario)
-    [scenario_outputs, elim_times] = read_results_files_and_extract_data(output_dir,country_ISO,scenario, N_DECIMAL_PLACES)
+for scenario in range(START_SCENARIO,(N_SCENARIOS+1)):
+    ##print(country_ISO,scenario)
+    [scenario_outputs, elim_outputs] = read_results_files_and_extract_data(output_dir,country_ISO,scenario, N_DECIMAL_PLACES)
     country_outputs += scenario_outputs
-    elimination_output += country_ISO + "," + str(scenario) +"," + str(elim_times[0]) + "," + str(elim_times[1]) +"\n"
+    elimination_output += elim_outputs
 
 
 

@@ -608,19 +608,21 @@ for sensitivity_analysis_num=1:num_sensitivity_analyses
 
     end
 
-    time_taken_for_sensitivity_analysis = datetime('now') - begin_time_sensitivity_analysis;
-    disp(append('The duration of this sensitivity analysis (',sensitivity_analysis,') was ',char(time_taken_for_sensitivity_analysis),' hh:mm:ss.\n\n'));
-    sensitivity_analysis_hours_vec(sensitivity_analysis_num) = time_taken_for_sensitivity_analysis;
-    assert(all(sensitivity_analysis_hours_vec(1:sensitivity_analysis_num)>0))
-    average_time_per_sensitivity_analysis = mean(sensitivity_analysis_hours_vec(1:sensitivity_analysis_num));
-    num_sensitivity_analyses_left = num_sensitivity_analyses - sensitivity_analysis_num;
-    mean_time_left = num_sensitivity_analyses_left * average_time_per_sensitivity_analysis;
-    %%min_time_per_sensitivity_analysis = min(sensitivity_analysis_hours_vec(1:sensitivity_analysis_num));
-    %%min_time_left = num_sensitivity_analyses_left * min_time_per_sensitivity_analysis;
-    %%max_time_left = num_sensitivity_analyses_left * max_time_per_sensitivity_analysis;
-    %%max_time_per_sensitivity_analysis = max(sensitivity_analysis_hours_vec(1:sensitivity_analysis_num));
-    if num_sensitivity_analyses_left>0
-        disp(append('There are ',num2str(num_sensitivity_analyses_left),' sensitivity analyses left, which will take about ',char(mean_time_left),' hh:m:ss.'));
+    if(num_sensitivity_analyses>1)
+        time_taken_for_sensitivity_analysis = datetime('now') - begin_time_sensitivity_analysis;
+        disp(append('The duration of this sensitivity analysis (',sensitivity_analysis,') was ',char(time_taken_for_sensitivity_analysis),' hh:mm:ss.\n\n'));
+        sensitivity_analysis_hours_vec(sensitivity_analysis_num) = time_taken_for_sensitivity_analysis;
+        assert(all(sensitivity_analysis_hours_vec(1:sensitivity_analysis_num)>0))
+        average_time_per_sensitivity_analysis = mean(sensitivity_analysis_hours_vec(1:sensitivity_analysis_num));
+        num_sensitivity_analyses_left = num_sensitivity_analyses - sensitivity_analysis_num;
+        mean_time_left = num_sensitivity_analyses_left * average_time_per_sensitivity_analysis;
+        %%min_time_per_sensitivity_analysis = min(sensitivity_analysis_hours_vec(1:sensitivity_analysis_num));
+        %%min_time_left = num_sensitivity_analyses_left * min_time_per_sensitivity_analysis;
+        %%max_time_left = num_sensitivity_analyses_left * max_time_per_sensitivity_analysis;
+        %%max_time_per_sensitivity_analysis = max(sensitivity_analysis_hours_vec(1:sensitivity_analysis_num));
+        if num_sensitivity_analyses_left>0
+            disp(append('There are ',num2str(num_sensitivity_analyses_left),' sensitivity analyses left, which will take about ',char(mean_time_left),' hh:m:ss.'));
+        end
     end
     
 end
