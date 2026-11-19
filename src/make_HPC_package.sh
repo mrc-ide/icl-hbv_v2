@@ -1,10 +1,11 @@
 #!/bin/bash
 
-target_dir="HPC_package_HBV_11nov2026"
+target_dir="HPC_package_HBV_19nov2026"
 
 mkdir HPC_packages/$target_dir
 mkdir HPC_packages/$target_dir/src
 mkdir HPC_packages/$target_dir/resources
+
 ## Copy MatLab scripts:
 cp main_script.m HPC_packages/$target_dir/src
 cp country_level_analyses.m HPC_packages/$target_dir/src
@@ -16,7 +17,7 @@ cp safe_greater_or_equal_to.m HPC_packages/$target_dir/src
 cp get_treatment_eligible_ageindices.m HPC_packages/$target_dir/src
 
 ## Copy parameter files: pre-existing (MJdV) .mat files, and new (.csv) files.
-cp ../resources/*.mat ../src/HPC_packages/$target_dir/resources
+cp ../resources/*.mat HPC_packages/$target_dir/resources
 cp ../resources/GHO_in_facility_births_summary.csv HPC_packages/$target_dir/resources/
 cp ../resources/ANC_coverage_data.csv HPC_packages/$target_dir/resources/
 cp ../resources/p_ANCHIVtest_women_by_age.csv HPC_packages/$target_dir/resources/
@@ -26,4 +27,9 @@ cp ../resources/WUENIC2025_HepB* HPC_packages/$target_dir/resources/
 ## Copy the "Intervention_parameters" file:
 cp /mnt/c/Users/mpickles/OneDrive\ -\ Imperial\ College\ London/Dropbox_copy/Hepatitis\ B/Modelling/Intervention_parameters.xlsx HPC_packages/$target_dir/resources/
 ## Copy list of ISOs (countries):
-cp ../resources/ListOfISOs.txt ../src/HPC_packages/$target_dir/resources
+cp ../resources/ListOfISOs.txt HPC_packages/$target_dir/resources
+
+## Copy other scripts:
+cp ../scripts/HPC_scripts/check_script_for_HPC.py HPC_packages/$target_dir
+cp ../scripts/HPC_scripts/job_HBVmodel.sh HPC_packages/$target_dir
+cp ../scripts/HPC_scripts/process_results_HPCv4.py HPC_packages/$target_dir
