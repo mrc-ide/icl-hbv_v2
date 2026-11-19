@@ -122,7 +122,6 @@ for line in HBVmodel_script:
     if line[0:12]== "RUN_CHECKS =":
         if not(line[0:15]== "RUN_CHECKS = 0;"):
             print("Warning - RUN_CHECKS non-zero",line[0:15])
-sys.exit(1)
 
 
 
@@ -166,12 +165,24 @@ if(len(process_results_files)>1):
 with open(python_filename,'r') as f:
     targets = [line for line in f if "N_SCENARIOS =" in line]
 f.close()
+with open(python_filename,'r') as f:
+    targets_start = [line for line in f if "START_SCENARIO =" in line]
+f.close()
+
 if(len(targets)>1):
     print("***ERROR*** - multiple definitions of N_SCENARIOS in ",python_filename,": ",targets)
 N_SCENARIOS_PYTHON = int(targets[0].split("=")[1].lstrip().rstrip())
 if(N_SCENARIOS_PYTHON!=n_scenarios):
     print("***ERROR*** - python script ",python_filename,"does not match the number of scenarios in the matlab code country_level_analyses.m: ",N_SCENARIOS_PYTHON,n_scenarios,"Exiting")
     sys.exit(1)
+
+if(len(targets_start)>1):
+    print("***ERROR*** - multiple definitions of N_SCENARIOS in ",python_filename,": ",targets_start)
+I_START_PYTHON = int(targets_start[0].split("=")[1].lstrip().rstrip())
+if(I_START_PYTHON!=start_scenario):
+    print("***ERROR*** - python script ",python_filename,"does not match the start scenario index in the matlab code country_level_analyses.m: ",I_START_PYTHON,start_scenario,"Exiting")
+    sys.exit(1)
+
 print("=================Finished - check warnings===============")
 #print(country_level_analyses[0:4])
 

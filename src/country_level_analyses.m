@@ -91,6 +91,13 @@ function country_level_analyses(sensitivity_analysis,...
     i_scenario_CI_B3_BDIFOOF_PAPall_BirthCoh_PoC_Bepi = 36;
     i_scenario_CI_B3_BDIFOOF_PAPall_BirthCoh_PoC_cure = 37;
 
+    i_scenario_CI_B3_BDIFOOF = 50;
+    i_scenario_CI_B3_BDIFOOF_PAPHVL = 51;
+    i_scenario_CI_B3_BDIFOOF_PAPPoC = 52;
+    i_scenario_CI_B3_BDIFOOF_B3 = 53;
+    i_scenario_CI_B3_BDIFOOF_PAPPoC_B3 = 54;
+    %i_scenario_CI_B3_BDIFOOF_PAPall = 26;
+
 
     %% looking for package to reduce mortality:
     i_portfolio_CI_B3_BDIFOOF_PAPall_ANC = 100;
@@ -143,34 +150,35 @@ function country_level_analyses(sensitivity_analysis,...
     % TEST_i_scenario_ContImp_plusTx_cure_improved_ANC = 103;
     % TEST_i_scenario_ContImp_plusTx_cure_improved_CommScr = 104;
 
-    %% Possible options for BD: different BD trends, changes in how BD is introduced etc.
-    I_BD_WUENIC2025 = 100;  %% Follow WUENIC2025 and after 2025 coverage remains at last (2025) value
-    I_BD_contimp = 101;  %% Possible increase beyond WUENIC2025 at a slow rate (currently 0). Introduction of BD to GAVI-approved countries
-    I_BD_IFexpansion = 102; %% BD increases to current in-facilility % (or current coverage if higher) in all countries with BD/GAVI-approved.
-    I_BD_OOFexpansion = 103; %% I_BD_IFexpansion with additional intervention to reach BD_OOF_coverage=60% of OOF births (e.g. CHW, MAP). BD introduced in countries without BD.
-    I_BD_IF_OOFexpansion = 104; %% Combining IF expansion + OOF 
-
     %% Possible options for HepB3 (scenario_HepB3)
-    I_HEPB3_WUENIC2025 = 201;  %% Fixed at WUENIC 2025
-    I_HEPB3_contimp = 202;      %% Possible increase beyond WUENIC2025 at a slow rate (currently 0).
-    I_HEPB3_WHOtarget = 203;        %% Increase to WHO target.
+    I_HEPB3_WUENIC2025 = 100;  %% Fixed at WUENIC 2025
+    I_HEPB3_contimp = 101;      %% Possible increase beyond WUENIC2025 at a slow rate (currently 0).
+    I_HEPB3_WHOtarget = 102;        %% Increase to WHO target.
+
+
+    %% Possible options for BD: different BD trends, changes in how BD is introduced etc.
+    I_BD_WUENIC2025 = 200;  %% Follow WUENIC2025 and after 2025 coverage remains at last (2025) value
+    I_BD_contimp = 201;  %% Possible increase beyond WUENIC2025 at a slow rate (currently 0). Introduction of BD to GAVI-approved countries
+    I_BD_IFexpansion = 202; %% BD increases to current in-facilility % (or current coverage if higher) in all countries with BD/GAVI-approved.
+    I_BD_OOFexpansion = 203; %% I_BD_IFexpansion with additional intervention to reach BD_OOF_coverage=60% of OOF births (e.g. CHW, MAP). BD introduced in countries without BD.
+    I_BD_IF_OOFexpansion = 204; %% Combining IF expansion + OOF 
     
     %% Possible options for PAP (scenario_PAP variable): peripartum antiviral prophylaxis (PAP) treatment for HBsAg+ mothers (treat all, treat high VL etc).
-    I_PAP_SQ = 301;      %% No PAP unless already present.
-    I_PAP_HVL_contimp = 302; %% Increase PAP to 20% of HVL unless already present.
-    I_PAP_HVL_targeted = 303; %% Increase PAP to X% of HVL unless already present (X% placeholder but will be based on VL testing availability).
-    I_PAP_PoC = 304;      %% Eligibility based on PoC test with given sensitivity, specificity and (globally constant) coverage.
-    I_PAP_all = 305; %% All eligible (no VL criteria). Uptake to national ANC-1 value.
+    I_PAP_SQ = 300;      %% No PAP unless already present.
+    I_PAP_HVL_contimp = 301; %% Increase PAP to 20% of HVL unless already present.
+    I_PAP_HVL_targeted = 302; %% Increase PAP to X% of HVL unless already present (X% placeholder but will be based on VL testing availability).
+    I_PAP_PoC = 303;      %% Eligibility based on PoC test with given sensitivity, specificity and (globally constant) coverage.
+    %%I_PAP_all = 304; %% All eligible (no VL criteria). Uptake to national ANC-1 value.
     
     %% scenario_Treatment: governs how treatment happens:
     % Modified by treat-all, introduction of PoC HBcrAg, PoC ALT tests, 
-    I_TREAT = struct('SQ', 401,...  %% Current treatment (Capped at most recent treatemnt data - currently Polaris 2025).
-        'continuedimprovement', 402,...     % 'HBV: Immune Tolerant' : HBeAg+ with very high HBV DNA (>1e6IU/ml), normal ALT
-        'IFscreening', 403,...
-        'PoCeligibility', 404,...
-        'universal', 405,...
-        'LA', 406,...
-        'decentralised', 407,...
+    I_TREAT = struct('SQ', 400,...  %% Current treatment (Capped at most recent treatemnt data - currently Polaris 2025).
+        'continuedimprovement', 401,...     % 'HBV: Immune Tolerant' : HBeAg+ with very high HBV DNA (>1e6IU/ml), normal ALT
+        'IFscreening', 402,...
+        'PoCeligibility', 403,...
+        ... %%'universal', 404,...
+        'LA', 404,...
+        'decentralised', 405,...
         'IFscreening_universal', 408,...
         'LA_universal', 409,...
         'decentralised_universal', 410);

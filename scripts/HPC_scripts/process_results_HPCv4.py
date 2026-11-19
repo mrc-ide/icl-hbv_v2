@@ -207,7 +207,9 @@ def read_results_files_and_extract_data(resultsdir,country_ISO,scenario, ndp):
     i_appropriatemanagement_chronic = get_indices(header, 0, 99, ["F","M"], [2,3,4,5,6,7,8], ["AppropriateManage"])
     i_incarenonadherent_chronic = get_indices(header, 0, 99, ["F","M"], [2,3,4,5,6,7,8], ["IncareNonadherent"])
     i_outofcare_chronic = get_indices(header, 0, 99, ["F","M"], [2,3,4,5,6,7,8], ["OutOfCare"])
-    i_diagnosed_chronic =  get_indices(header, 0, 99, ["F","M"], [2,3,4,5,6,7,8], ["AppropriateManage","IncareNonadherent","OutOfCare"])
+    i_diagnosed_chronic_notfunctcure =  get_indices(header, 0, 99, ["F","M"], [2,3,4,5,6,7,8], ["AppropriateManage","IncareNonadherent","OutOfCare"])
+    i_diagnosed_chronic =  i_diagnosed_chronic_notfunctcure + i_funct_cure_path + i_funct_cure
+    i_diagnosed_chronic.sort()
     
     ## Universal treatment:
     if(scenario in [16,33]):
@@ -222,7 +224,7 @@ def read_results_files_and_extract_data(resultsdir,country_ISO,scenario, ndp):
         i_ontreatment_chronic_30plus = get_indices(header, 30, 99, ["F","M"], [2,3,5,6,7], ["AppropriateManage","IncareNonadherent"])
 
         ##i_eligibleTx_chronic = i_eligibleTx_chronic_under30 + i_eligibleTx_chronic_30plus
-        i_ontreatment_chronic = i_ontreatment_chronic_under30 + i_ontreatment_chronic_30plus
+        i_ontreatment_chronic = i_ontreatment_chronic_under30 + i_ontreatment_chronic_30plus + i_funct_cure_path
         ## Sort them numerically:
         #i_eligibleTx_chronic.sort()
         i_ontreatment_chronic.sort()
